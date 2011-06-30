@@ -23,6 +23,7 @@ class Shell(wx.py.shell.Shell):
     "Customized version of PyShell"
     def __init__(self, parent):
         wx.py.shell.Shell.__init__(self, parent)
+        self.console = None
      
     def onCut(self, event=None):
         self.Cut()
@@ -32,8 +33,17 @@ class Shell(wx.py.shell.Shell):
         self.Paste()
     def onSelectAll(self, event=None):
         self.SelectAll()
+    
+    def raw_input(self, prompt=""):
+        "Return string based on user input (in a separate console if available)"
+        if self.console:
+            if prompt:
+                self.console.write(prompt)
+            return self.console.readline()
+        else:
+            return wx.py.shell.Shell.raw_input(prompt)
 
-    def RunScript(self, code, syspath_dirs=None, debugger=None):
+    def RunScript(self, code, syspath_dirs=None, debugger=None, console=None):
         '''Runs a script in the shell.
 
            @param code          The actual code object (not the filename).
@@ -42,13 +52,17 @@ class Shell(wx.py.shell.Shell):
         # save sys.stdout
         oldsfd = sys.stdin, sys.stdout, sys.stderr
         try:
-            # redirect standard streams
-            sys.stdin, sys.stdout, sys.stderr =  self.interp.stdin, self.interp.stdout, self.interp.stderr
-
             # save the current sys.path, then add any directories to it
             syspath = sys.path
             if syspath_dirs:
                 sys.path = syspath_dirs + sys.path
+
+            # redirect standard streams
+            if console:
+                sys.stdin = sys.stdout = sys.stderr = console
+                self.console = console
+            else:
+                sys.stdin, sys.stdout, sys.stderr =  self.interp.stdin, self.interp.stdout, self.interp.stderr
 
             # update the ui
             self.write(os.linesep)
@@ -64,5 +78,5 @@ class Shell(wx.py.shell.Shell):
             sys.path = syspath
             # set the title back to normal
             sys.stdin, sys.stdout, sys.stderr = oldsfd
-
+            self.console = console
 

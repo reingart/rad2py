@@ -25,6 +25,7 @@ from browser import SimpleBrowserPanel
 from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
+from console import ConsoleCtrl
 
 
 TITLE = "rad2py IDE"
@@ -241,10 +242,10 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
                           Caption("PyCrust Shell").
                           Bottom().Layer(1).Position(1).CloseButton(True))
 
-        self._mgr.AddPane(self.CreateTextCtrl(), wx.aui.AuiPaneInfo().
-                          Name("test10").Caption("Text Pane").
-                          Bottom().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
-
+        self.console = ConsoleCtrl(self)
+        self._mgr.AddPane(self.console, wx.aui.AuiPaneInfo().
+                          Name("stdio").Caption("Console (stdio)").
+                          Bottom().Layer(1).Position(2).CloseButton(True).MaximizeButton(True))
 
         # "commit" all changes made to FrameManager   
         self._mgr.Update()
@@ -415,7 +416,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
             # create a code object and run it in the main thread
             code = self.active_child.GetCodeObject()
             if code:         
-                self.shell.RunScript(code, syspath, debug and self.debugger)
+                self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
 
     def OnDebug(self, event):
         self.OnRun(event, debug=True)
