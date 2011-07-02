@@ -13,6 +13,8 @@ __version__ = "0.01"
 #      pythonwin, drpython, idle
 
 import os
+import sys
+import traceback
 
 import wx
 import wx.grid
@@ -35,6 +37,8 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(640,480), style=wx.DEFAULT_FRAME_STYLE)
 
+        sys.excepthook  = self.except_hook
+        
         self._perspectives = []
         
         self.children = {}
@@ -385,10 +389,10 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         
         if dlg.ShowModal() == wx.ID_OK:
             # This returns a Python list of files that were selected.
-            filename = dlg.GetPaths()[0]
-        
+            filename = dlg.GetPaths()[0]        
+            self.DoOpen(filename)
+            
         dlg.Destroy()
-        self.DoOpen(filename)
    
     def DoOpen(self, filename):
         if filename not in self.children:
@@ -495,6 +499,10 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         ctrl.SetPage("hola!")
         return ctrl
         
+    def except_hook(self, type, value, trace): 
+        exc = traceback.format_exception(type, value, trace) 
+        for e in exc: wx.LogError(e) 
+        wx.LogError(u'Unhandled Error: %s: %s'%(str(type), unicode(value))) 
 
 
 class AUIChildFrame(wx.aui.AuiMDIChildFrame):
