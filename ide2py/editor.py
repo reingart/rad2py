@@ -10,6 +10,8 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 
+import codecs
+import locale
 import os
 import re
 import inspect
@@ -33,6 +35,7 @@ FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono',
 CALLTIPS = True # False or 'first paragraph only'     
 AUTOCOMPLETE = True
 AUTOCOMPLETE_IGNORE = []
+PY_CODING_RE = re.compile(r'coding[:=]\s*([-\w.]+)')
 
 
 def getargspec(func):
@@ -72,6 +75,9 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.modified = False
         self.calltip = 0
         self.namespace = {}
+        # default encoding and BOM (pep263, prevent syntax error  on new fieles)
+        self.encoding = "utf_8"
+        self.bom = codecs.BOM_UTF8
 
         self.CmdKeyAssign(ord('B'), stc.STC_SCMOD_CTRL, stc.STC_CMD_ZOOMIN)
         self.CmdKeyAssign(ord('N'), stc.STC_SCMOD_CTRL, stc.STC_CMD_ZOOMOUT)
@@ -86,6 +92,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         #self.SetBufferedDraw(False)
         #self.SetViewEOL(True)
         #self.SetEOLMode(stc.STC_EOL_CRLF)
+        self.SetCodePage(wx.stc.STC_CP_UTF8)
         self.SetUseAntiAliasing(True)
         self.SetViewWhiteSpace(0)
         self.SetTabWidth(4)
@@ -216,6 +223,54 @@ class EditorCtrl(stc.StyledTextCtrl):
         # End of line where string is not closed
         self.StyleSetSpec(stc.STC_P_STRINGEOL, "face:%(mono)s,fore:#000000,face:%(mono)s,back:#E0C0E0,eol,size:%(size)d" % FACES)
 
+    def LoadFile(self, filename, encoding=None):
+        "Replace STC.LoadFile for non-unicode files and BOM support"
+        start = 0
+        f = open(filename, "rb")
+        sniff = f.read(240)
+        match = PY_CODING_RE.search(sniff)
+        if match:
+            encoding = match.group(1)
+            print "Python encoding", encoding
+        else:
+            # First 2 to 4 bytes are BOM?
+            boms = (codecs.BOM, codecs.BOM_BE, codecs.BOM_LE, codecs.BOM_UTF8, 
+                    codecs.BOM_UTF16, codecs.BOM_UTF16_BE, codecs.BOM_UTF16_LE,
+                    codecs.BOM_UTF32, codecs.BOM_UTF32_BE, codecs.BOM_UTF32_LE)
+            encodings = ("utf_16", "utf_16_be", "utf_16_le", "utf_8", 
+                         "utf_16", "utf_16_be", "utf_16_le", None, None, None)                    
+            for i, bom in enumerate(boms):
+                print encodings[i], sniff[:len(bom)], bom
+                if sniff[:len(bom)] == bom:
+                    encoding = encodings[i]
+                    start = len(bom)
+                    self.bom = bom
+                    print "BOM encoding", encoding
+                    break
+            else:
+                # no BOM found, use to platform default
+                encoding = locale.getpreferredencoding()
+                self.bom = None
+                print "default encoding", encoding
+
+        if not encoding:
+            raise RuntimeError("Unsupported encoding!")
+
+        f.seek(start)
+        self.SetText(f.read().decode(encoding))
+        f.close()
+        self.encoding = encoding 
+
+
+    def SaveFile(self, filename, encoding=None):
+        f = open(filename, "wb")
+        if self.bom:
+            # preserve Byte-Order-Mark
+            print "saving bom", self.bom
+            f.write(self.bom)
+        print "encoding in ", self.encoding
+        f.write(self.GetText().encode(self.encoding))
+        f.close()
 
     def OnOpen(self, event=None):
         if self.filename:
