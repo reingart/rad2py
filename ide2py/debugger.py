@@ -48,10 +48,14 @@ class Debugger(bdb.Bdb):
         finally:
             self.interacting = 0
 
-    def close(self, event=None):
-        if self.interacting:
-            wx.Bell()
-            return
+    def check_interaction(fn):
+        "Decorator for exclusive functions (not allowed during interaction)"
+        def check_fn(self, *args, **kwargs):
+            if not self.waiting:
+                wx.Bell()
+            else:
+                fn(self, *args, **kwargs)
+        return check_fn
 
     def interaction(self, frame, info=None):
         code, lineno = frame.f_code, frame.f_lineno
@@ -60,7 +64,6 @@ class Debugger(bdb.Bdb):
         message = "%s:%s" % (basename, lineno)
         if code.co_name != "?":
             message = "%s: %s()" % (message, code.co_name)
-        print message
         #  sync_source_line()
         if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             if self.gui:
@@ -82,28 +85,32 @@ class Debugger(bdb.Bdb):
             self.interp.locals = i_locals
         self.frame = None
 
+    @check_interaction
     def Continue(self):
         self.set_continue()
         self.waiting = False
 
+    @check_interaction
     def Step(self):
         self.set_step()
         self.waiting = False
 
+    @check_interaction
     def StepReturn(self):
         self.set_return(self.frame)
         self.waiting = False
 
+    @check_interaction
     def Next(self):
         self.set_next(self.frame)
         self.waiting = False
 
+    @check_interaction
     def Quit(self):
         self.set_quit()
         self.waiting = False
 
     def SetBreakpoint(self, filename, lineno):
-        print "setting breakpoint in ", filename, lineno
         self.set_break(filename, lineno)
 
     def ClearBreakpoint(self, filename, lineno):
