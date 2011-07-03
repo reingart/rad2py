@@ -73,6 +73,7 @@ class ConsoleCtrl(wx.TextCtrl):
         if self.isreading:
             # if we don't cancel, we will block...
             raise RuntimeError("Already expecting user input!")
+        self.SetFocus()
         input = ''
         self.historyindex = len(self.history) - 1
         self.isreading = True
