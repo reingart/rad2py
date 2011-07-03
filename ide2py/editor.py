@@ -28,6 +28,7 @@ import images
 
 TAB_WIDTH = 4
 IDENTATION = " " * TAB_WIDTH
+EDGE_COLUMN = 79
 WORDCHARS = "_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono', 
          'helv' : 'DejaVu Serif', 'other': 'DejaVu',
@@ -99,13 +100,10 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.SetIndentationGuides(1)
         self.SetUseTabs(0)
         self.SetEdgeMode(stc.STC_EDGE_LINE)
-        self.SetEdgeColumn(79)
-        self.SetWordChars(WORDCHARS)
-        self.SetBackSpaceUnIndents(1)
-        
-        self.SetEdgeMode(stc.STC_EDGE_BACKGROUND)
-        self.SetEdgeColumn(78)
+        self.SetEdgeColumn(EDGE_COLUMN)
         self.SetEdgeColour(wx.Colour(200,200,200))
+        self.SetWordChars(WORDCHARS)
+        self.SetBackSpaceUnIndents(1)        
 
         #MARGINS
         self.SetMargins(0,0)
