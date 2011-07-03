@@ -28,6 +28,7 @@ class ConsoleCtrl(wx.TextCtrl):
         self.input = None           # input buffer
         self.history = []           # history buffer
         self.historyindex = 0
+        self.encoding = "utf_8"
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
 
     def OnKeyDown(self, event):
