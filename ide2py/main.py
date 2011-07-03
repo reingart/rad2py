@@ -521,6 +521,7 @@ class AUIChildFrame(wx.aui.AuiMDIChildFrame):
         self.parent = parent
         self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)   # window focused
         self.Bind(wx.EVT_ACTIVATE, self.OnFocus)   # window focused
+        self.OnFocus(None) # emulate initial focus
  
     def OnFocus(self, event):
         print "We got Focus!"
