@@ -524,7 +524,6 @@ class AUIChildFrame(wx.aui.AuiMDIChildFrame):
         self.OnFocus(None) # emulate initial focus
  
     def OnFocus(self, event):
-        print "We got Focus!"
         self.parent.active_child = self
 
     def OnSave(self, event):
