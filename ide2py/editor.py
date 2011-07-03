@@ -229,7 +229,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         match = PY_CODING_RE.search(sniff)
         if match:
             encoding = match.group(1)
-            print "Python encoding", encoding
         else:
             # First 2 to 4 bytes are BOM?
             boms = (codecs.BOM, codecs.BOM_BE, codecs.BOM_LE, codecs.BOM_UTF8, 
@@ -238,18 +237,15 @@ class EditorCtrl(stc.StyledTextCtrl):
             encodings = ("utf_16", "utf_16_be", "utf_16_le", "utf_8", 
                          "utf_16", "utf_16_be", "utf_16_le", None, None, None)                    
             for i, bom in enumerate(boms):
-                print encodings[i], sniff[:len(bom)], bom
                 if sniff[:len(bom)] == bom:
                     encoding = encodings[i]
                     start = len(bom)
                     self.bom = bom
-                    print "BOM encoding", encoding
                     break
             else:
                 # no BOM found, use to platform default
                 encoding = locale.getpreferredencoding()
                 self.bom = None
-                print "default encoding", encoding
 
         if not encoding:
             raise RuntimeError("Unsupported encoding!")
@@ -264,9 +260,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         f = open(filename, "wb")
         if self.bom:
             # preserve Byte-Order-Mark
-            print "saving bom", self.bom
             f.write(self.bom)
-        print "encoding in ", self.encoding
         f.write(self.GetText().encode(self.encoding))
         f.close()
 
