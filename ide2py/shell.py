@@ -70,7 +70,7 @@ class Shell(wx.py.shell.Shell):
             if not debugger:
                 self.interp.runcode(code)
             else:
-                debugger.Run(code, locals=self.interp.locals)
+                debugger.Run(code, interp=self.interp)
             self.prompt()
 
         finally:

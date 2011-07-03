@@ -40,10 +40,11 @@ class Debugger(bdb.Bdb):
     def user_exception(self, frame, info):
         self.interaction(frame, info)
 
-    def Run(self, *args, **kwargs):
+    def Run(self, code, interp=None, *args, **kwargs):
         try:
+            self.interp = interp
             self.interacting = 1
-            return self.run(*args, **kwargs)
+            return self.run(code, *args, **kwargs)
         finally:
             self.interacting = 0
 
@@ -69,11 +70,16 @@ class Debugger(bdb.Bdb):
         # wait user events (like wxSemaphore.Wait?, see wx.py.shell.readline)
         self.waiting = True    
         self.frame = frame
+         # save and change interpreter namespaces to the current frame
+        i_locals = self.interp.locals
+        self.interp.locals = frame.f_locals
         try:
             while self.waiting:
                 wx.YieldIfNeeded()  # hope this is thread safe...
         finally:
             self.waiting = False
+            # dereference interpreter namespaces:
+            self.interp.locals = i_locals
         self.frame = None
 
     def Continue(self):
