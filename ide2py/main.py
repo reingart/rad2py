@@ -502,7 +502,9 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
     def except_hook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
         for e in exc: wx.LogError(e) 
-        wx.LogError(u'Unhandled Error: %s: %s'%(str(type), unicode(value))) 
+        wx.LogError(u'Unhandled Error: %s: %s'%(str(type), unicode(value)))
+        # enter post-mortem debugger
+        self.debugger.pm()
 
 
 class AUIChildFrame(wx.aui.AuiMDIChildFrame):
