@@ -306,11 +306,14 @@ class EditorCtrl(stc.StyledTextCtrl):
         except Exception, e:
             offset = e.offset or 0  # sometimes these are None
             lineno = e.lineno or 0
-            self.GotoPos(self.PositionFromLine(lineno-1) + offset - 1)
             wx.MessageBox('You have a syntax error on line' + ' ' + str(lineno) + ', ' + 'column' + ' ' + str(offset) + '.', 'Syntax Error')
+            self.parent.NotifyError(description=str(e), type="20", filename=self.filename, lineno=lineno, offset=offset)
             return None      
 
 
+    def GotoLineOffset(self, lineno, offset):
+        self.GotoPos(self.PositionFromLine(lineno-1) + offset - 1)
+    
     def OnSave(self, event=None):
         if self.filename:
             self.SaveFile(self.filename)

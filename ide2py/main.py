@@ -28,11 +28,12 @@ from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
 from console import ConsoleCtrl
+from psp import PSPMixin
+
+TITLE = "rad2py IDE - PSP"
 
 
-TITLE = "rad2py IDE"
-
-class PyAUIFrame(wx.aui.AuiMDIParentFrame):
+class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
     def __init__(self, parent):
         wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(640,480), style=wx.DEFAULT_FRAME_STYLE)
@@ -221,11 +222,6 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         #                  ToolbarPane().Top().Row(1).Position(1).
         #                  LeftDockable(False).RightDockable(False))
                       
-        #self._mgr.AddPane(tb4, wx.aui.AuiPaneInfo().
-        #                  Name("tb4").Caption("Sample Bookmark Toolbar").
-        #                  ToolbarPane().Top().Row(2).
-        #                  LeftDockable(False).RightDockable(False))
-
         #self._mgr.AddPane(tb5, wx.aui.AuiPaneInfo().
         #                  Name("tbvert").Caption("Sample Vertical Toolbar").
         #                  ToolbarPane().Left().GripperTop().
@@ -265,6 +261,8 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
 
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
+        
+        PSPMixin.__init__(self)
 
 
     def OnPaneClose(self, event):
@@ -426,18 +424,24 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
         self.OnRun(event, debug=True)
         self.GotoFileLine()
             
-    def GotoFileLine(self, event=None):
-        if event:
+    def GotoFileLine(self, event=None, running=True):
+        if event and running:
             filename, lineno = event.data
+        elif not running:
+            filename, lineno, offset = event
         # first, clean all current debugging markers
         for child in self.children.values():
-            child.SynchCurrentLine(None)
+            if running:
+                child.SynchCurrentLine(None)
         # then look for the file being debugged
         if event:
             child = self.DoOpen(filename)
             if child:
-                child.SynchCurrentLine(lineno)
-
+                if running:
+                    child.SynchCurrentLine(lineno)
+                else:
+                    child.GotoLineOffset(lineno, offset)
+                    
     def OnDebugCommand(self, event):
         event_id = event.GetId()
         if event_id == self.ID_STEPIN:
@@ -498,7 +502,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame):
             ctrl.SetStandardFonts()
         ctrl.SetPage("hola!")
         return ctrl
-        
+    
     def except_hook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
         for e in exc: wx.LogError(e) 
@@ -542,7 +546,14 @@ class AUIChildFrame(wx.aui.AuiMDIChildFrame):
             self.SetFocus()
         self.editor.SynchCurrentLine(lineno)
 
+    def GotoLineOffset(self, lineno, offset):
+        if lineno:
+            self.SetFocus()
+            self.editor.GotoLineOffset(lineno, offset)
 
+    def NotifyError(self, *args, **kwargs):
+        self.parent.NotifyError(*args, **kwargs)
+    
 if __name__ == '__main__':
     app = wx.PySimpleApp()
     frame = PyAUIFrame(None)
