@@ -1,5 +1,6 @@
 # sample file to test shell & debugger
 
+
 def main(h="hola"):
     a = h
     n = raw_input("nombre?")
@@ -9,6 +10,6 @@ def main(h="hola"):
     if n:
         print a, n
 
-asdf=
+#asdf = hola
 
 main(h=1)

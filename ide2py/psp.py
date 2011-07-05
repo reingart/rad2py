@@ -22,8 +22,8 @@ import images
 PSP_PHASES = ["Planning", "Design", "Code", "Compile", "Test", "Postmortem"]
 
 
-class PlanSummaryTimeTable(wx.grid.PyGridTableBase):
-    "PSP Time tracking summary (actual vs estimated)"
+class PlanSummaryTable(wx.grid.PyGridTableBase):
+    "PSP Planning tracking summary (actual vs estimated)"
     def __init__(self, grid):
         wx.grid.PyGridTableBase.__init__(self)
         self.rows = PSP_PHASES
@@ -159,9 +159,9 @@ class PSPMixin(object):
                           ToolbarPane().Top().Row(1).Position(3).
                           LeftDockable(False).RightDockable(False).CloseButton(True))
 
-        grid = self.CreatePSPPlanSummaryTimeGrid()
+        grid = self.CreatePSPPlanSummaryGrid()
         self._mgr.AddPane(grid, wx.aui.AuiPaneInfo().
-                          Caption("PSP Time Plan Summary").
+                          Caption("PSP Plan Summary").
                           Layer(1).Position(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self.psp_defect_list = self.CreatePSPDefectRecordingLog()
@@ -171,9 +171,9 @@ class PSPMixin(object):
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
-    def CreatePSPPlanSummaryTimeGrid(self):
+    def CreatePSPPlanSummaryGrid(self):
         grid = wx.grid.Grid(self)
-        self.psptimetable = PlanSummaryTimeTable(grid)
+        self.psptimetable = PlanSummaryTable(grid)
         grid.SetTable(self.psptimetable, True)
         return grid
 
