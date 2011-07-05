@@ -141,6 +141,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         
         self.ID_RUN = wx.NewId()
         self.ID_DEBUG = wx.NewId()
+        self.ID_CHECK = wx.NewId()
 
         self.ID_STEPIN = wx.NewId()
         self.ID_STEPRETURN = wx.NewId()
@@ -152,6 +153,8 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
             self.ID_RUN, images.GetRunningManBitmap(), "Run")
         self.toolbar.AddSimpleTool(
             self.ID_DEBUG, images.GetDebuggingBitmap(), "Debug")
+        self.toolbar.AddSimpleTool(
+            self.ID_CHECK, images.ok_16.GetBitmap(), "Check")
 
         self.toolbar.Realize()
 
@@ -160,6 +163,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
             (wx.ID_OPEN, self.OnOpen),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
+            (self.ID_CHECK, self.OnCheck),
             (self.ID_RUN, self.OnRun),
             (self.ID_DEBUG, self.OnDebug),
             #(wx.ID_PRINT, self.OnPrint),
@@ -411,7 +415,6 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
 
     def OnRun(self, event, debug=False):
         if self.active_child:
-                        
             # add the path of this script so we can import things
             syspath = [ os.path.split(self.active_child.filename)[0] ]  
      
@@ -455,7 +458,13 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         elif event_id == self.ID_STOP:
             self.debugger.Quit()
             self.GotoFileLine()
-            
+
+    def OnCheck(self, event):
+        if self.active_child:
+            import checker
+            for error in checker.PEP8(self.active_child.filename):
+                self.NotifyError(**error)
+
     def CreateTextCtrl(self):
         text = ("This is text box")
         return wx.TextCtrl(self,-1, text, wx.Point(0, 0), wx.Size(150, 90),
@@ -501,8 +510,8 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         if "gtk2" in wx.PlatformInfo:
             ctrl.SetStandardFonts()
         ctrl.SetPage("hola!")
-        return ctrl
-    
+        return ctrl    
+
     def ExceptHook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
         for e in exc: wx.LogError(e) 
