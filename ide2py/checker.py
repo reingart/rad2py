@@ -35,7 +35,7 @@ class PEP8(pep8.Checker):
 
     def report_error(self, line_number, offset, text, check):
         filename = self.filename
-        error = dict(description=text, type=text[1:4], filename=filename, lineno=line_number, offset=offset)
+        error = dict(description=text, type=30, filename=filename, lineno=line_number, offset=offset)
         self.errors.append(error)
         
     def __iter__(self):
