@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 # coding:utf-8
 
 "Integration of several python code checkers"
@@ -28,9 +28,9 @@ class PEP8(pep8.Checker):
         #options.ignore = pep8.DEFAULT_IGNORE.split(',')
         options.physical_checks = pep8.find_checks('physical_line')
         options.logical_checks = pep8.find_checks('logical_line')
-        options.counters = dict.fromkeys(pep8.BENCHMARK_KEYS, 0)
+        options.counters = {} #dict.fromkeys(pep8.BENCHMARK_KEYS, 0)
         options.messages = {}
-        pep8.Checker.__init__(self, filename, lines)
+        pep8.Checker.__init__(self, filename)
         self.check_all()
 
     def report_error(self, line_number, offset, text, check):
