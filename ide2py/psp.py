@@ -1,13 +1,29 @@
+#!/usr/bin/env python
+# coding:utf-8
+
+"Personal Software Process (TM) Integrated & Automatic Metrics Collectotion"
+
+__author__ = "Mariano Reingart (reingart@gmail.com)"
+__copyright__ = "Copyright (C) 2011 Mariano Reingart"
+__license__ = "GPL 3.0"
+
+# PSP Time Toolbar & Defect Log inspired by PSP Dashboard (java/open source)
+# Most GUI classes are based on wxPython demos
+
+# TODO General: further enhance MVC pattern
+
 import sys
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin, TextEditMixin
 
+import images
 
 PSP_PHASES = ["Planning", "Design", "Code", "Compile", "Test", "Postmortem"]
 
 
 class PlanSummaryTimeTable(wx.grid.PyGridTableBase):
+    "PSP Time tracking summary (actual vs estimated)"
     def __init__(self, grid):
         wx.grid.PyGridTableBase.__init__(self)
         self.rows = PSP_PHASES
@@ -39,10 +55,10 @@ class PlanSummaryTimeTable(wx.grid.PyGridTableBase):
         return self.rows[row]
 
     def count(self, phase):
+        "Increment actual user time according selected phase"
         row = PSP_PHASES.index(phase) 
         plan = self.GetValue(row, 0)
         value = self.GetValue(row, 1) + 1
-        print "counting", phase, row, plan, value
         self.SetValue(row, 1, value)
         if plan:
             return value/float(plan) * 100
@@ -54,9 +70,11 @@ class PlanSummaryTimeTable(wx.grid.PyGridTableBase):
         #    row, 1)
         #self.grid.ProcessTableMessage(msg)
         self.grid.ForceRefresh()
+        #TODO: this doesn't work!
 
         
-class CheckListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #TextEditMixin
+class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #TextEditMixin
+    "Defect recording log facilities"
     def __init__(self, parent):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
         ListCtrlAutoWidthMixin.__init__(self)
@@ -80,9 +98,6 @@ class CheckListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #T
         self.SetColumnWidth(0, 50) #wx.LIST_AUTOSIZE)
         self.SetColumnWidth(1, 200) # wx.LIST_AUTOSIZE)
         #self.SetColumnWidth(2, 100)
- 
-        #self.CheckItem(4)
-        #self.CheckItem(7)
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self)
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self)
@@ -95,26 +110,10 @@ class CheckListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #T
         for i in range(1, len(item)):
             self.SetStringItem(index, i, str(item[i]))
         self.SetItemData(index, index)
-
-    def _SetStringItem(self, index, col, value):
-        if col in range(3):
-            wx.ListCtrl.SetStringItem(self, index, col, value)
-            wx.ListCtrl.SetStringItem(self, index, 3+col, str(len(value)))
-        else:
-            try:
-                datalen = int(value)
-            except:
-                return
-
-            wx.ListCtrl.SetStringItem(self, index, col, data)
-
-            data = self.GetItem(index, col-3).GetText()
-            wx.ListCtrl.SetStringItem(self, index, col-3, data[0:datalen])
             
     def OnItemActivated(self, evt):
         #self.ToggleItem(evt.m_itemIndex)
         event = self.data[ evt.m_itemIndex][8:11]
-        print "Activated (dblclick)!", evt.m_itemIndex, event
         self.parent.GotoFileLine(event,running=False)
         self.selecteditemindex = evt.m_itemIndex
 
@@ -124,39 +123,45 @@ class CheckListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #T
         title = self.data[row][0]
         if flag:
             what = "checked"
+            col = 5 # update phase when removed 
+            if not self.data[row][col]:
+                phase = self.data[row][col] = self.parent.GetPSPPhase()
+                self.SetStringItem(row, col, str(phase))
         else:
             what = "unchecked"
         self.data[row][-1] = flag
-        print ('item "%s", at index %d was %s\n' % (title, index, what))
         
     def OnItemSelected(self, evt):
-        print('item selected: %s\n' % evt.m_itemIndex)
+        pass ##print('item selected: %s\n' % evt.m_itemIndex)
         
     def OnItemDeselected(self, evt):
-        print('item deselected: %s\n' % evt.m_itemIndex)
+        pass ##print('item deselected: %s\n' % evt.m_itemIndex)
         
     def count(self, phase):
+        "Increment actual user time to fix selected defect"
         if self.selecteditemindex is not None:
             row = self.selecteditemindex
             col = 6
             flag =  self.data[row][-1]
             if not flag:
                 value = self.data[row][col] + 1
-                print "counting list", phase, row, value
                 self.data[row][col] = value
                 self.SetStringItem(row, col, str(value))
         
+
 class PSPMixin(object):
+    "ide2py extension for integrated PSP support"
     
     def __init__(self):
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, wx.aui.AuiPaneInfo().
                           Name("tb4").Caption("PSP Toolbar").
-                          ToolbarPane().Top().Row(1).
-                          LeftDockable(False).RightDockable(False))
+                          ToolbarPane().Top().Row(1).Position(3).
+                          LeftDockable(False).RightDockable(False).CloseButton(True))
+
         grid = self.CreatePSPPlanSummaryTimeGrid()
         self._mgr.AddPane(grid, wx.aui.AuiPaneInfo().
-                          Caption("PSP Plan Summary Time Grid").
+                          Caption("PSP Time Plan Summary").
                           Layer(1).Position(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self.psp_defect_list = self.CreatePSPDefectRecordingLog()
@@ -173,7 +178,7 @@ class PSPMixin(object):
         return grid
 
     def CreatePSPDefectRecordingLog(self):
-        list = CheckListCtrl(self)
+        list = DefectListCtrl(self)
         list.AddItem(["1", "defecto de prueba",  "hoy", "20", "code", "compile", 0, "", "","",""])
         return list
         
@@ -186,18 +191,9 @@ class PSPMixin(object):
         text = wx.StaticText(tb4, -1, "PSP")
         tb4.AddControl(text)
 
-        #tb4_bmp1 = wx.ArtProvider.GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, wx.Size(16, 16))
-        #tb4.AddSimpleTool(ID_DropDownToolbarItem, "Item 1", tb4_bmp1)
-        #tb4.AddSimpleTool(ID_SampleItem+23, "Item 2", tb4_bmp1)
-        #tb4.AddSimpleTool(ID_SampleItem+24, "Item 3", tb4_bmp1)
-        #tb4.AddSimpleTool(ID_SampleItem+25, "Item 4", tb4_bmp1)
-        #tb4.AddSeparator()
-        play_bmp = wx.Bitmap("play.png", wx.BITMAP_TYPE_PNG)  
-        tb4.AddSimpleTool(ID_PLAY, play_bmp, "Start timer")
-        pause_bmp = wx.Bitmap("pause.png", wx.BITMAP_TYPE_PNG)
-        tb4.AddSimpleTool(ID_PAUSE, pause_bmp, "Pause timer")
-        stop_bmp = wx.Bitmap("stop.png", wx.BITMAP_TYPE_PNG)
-        tb4.AddSimpleTool(ID_PAUSE, stop_bmp, "Stop timer")
+        tb4.AddSimpleTool(ID_PLAY, images.play.GetBitmap(), "Start timer")
+        tb4.AddSimpleTool(ID_PAUSE, images.pause.GetBitmap(), "Pause timer")
+        tb4.AddSimpleTool(ID_PAUSE, images.stop.GetBitmap(), "Stop timer")
         
         self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
         tb4.AddControl(self.psp_phase_choice)
@@ -218,7 +214,10 @@ class PSPMixin(object):
 
     def GetPSPPhase(self):
         phase = self.psp_phase_choice.GetCurrentSelection()
-        return PSP_PHASES[phase]
+        if phase>=0:
+            return PSP_PHASES[phase]
+        else:
+            return ''
 
     def OnPlay(self, event):
         self.timer.Start(1000)
