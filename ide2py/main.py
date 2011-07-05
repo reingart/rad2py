@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
-__version__ = "0.01"
+__version__ = "0.02"
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
@@ -30,7 +30,7 @@ from debugger import Debugger, EVT_DEBUG_ID
 from console import ConsoleCtrl
 from psp import PSPMixin
 
-TITLE = "rad2py IDE - PSP"
+TITLE = "rad2py IDE+PSP - v%s" % __version__
 
 
 class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
@@ -293,10 +293,16 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         self.Close()
 
     def OnAbout(self, event):
-        msg = "wx.aui Demo\n" + \
-              "An advanced window management library for wxWidgets\n" + \
-              "(c) Copyright 2005-2006, Kirix Corporation"
-        dlg = wx.MessageDialog(self, msg, "About wx.aui Demo",
+        msg = "%s - Licenced under the GPLv3\n"  % TITLE + \
+              "A modern, minimalist, cross-platform, complete and \n" + \
+              "totally Integrated Development Environment\n" + \
+              "for Rapid Application Development in Python \n" + \
+              "guided by the Personal Software Process (TM).\n" + \
+              "(c) Copyright 2011, Mariano Reingart\n" + \
+              "Inspired by PSP Process Dashboard and several Python IDEs. \n" + \
+              "Some code was based on wxPython demos and other projects\n" + \
+              "(see sources or http://code.google.com/p/rad2py/)"
+        dlg = wx.MessageDialog(self, msg, TITLE,
                                wx.OK | wx.ICON_INFORMATION)
         dlg.ShowModal()
         dlg.Destroy()        
