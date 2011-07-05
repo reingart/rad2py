@@ -38,7 +38,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(640,480), style=wx.DEFAULT_FRAME_STYLE)
 
-        sys.excepthook  = self.except_hook
+        sys.excepthook  = self.ExceptHook
         
         self._perspectives = []
         
@@ -209,12 +209,12 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
                        
         self._mgr.AddPane(self.toolbar, wx.aui.AuiPaneInfo().
                           Name("General Toolbar").
-                          ToolbarPane().Top().Row(1).
+                          ToolbarPane().Top().Row(1).Position(1).
                           LeftDockable(False).RightDockable(False).CloseButton(True))
 
         self._mgr.AddPane(self.toolbardbg, wx.aui.AuiPaneInfo().
                           Name("Debug Toolbar").
-                          ToolbarPane().Top().Row(1).Position(1).
+                          ToolbarPane().Top().Row(1).Position(2).
                           LeftDockable(False).RightDockable(False).CloseButton(True))
                       
         #self._mgr.AddPane(tb3, wx.aui.AuiPaneInfo().
@@ -503,10 +503,15 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         ctrl.SetPage("hola!")
         return ctrl
     
-    def except_hook(self, type, value, trace): 
+    def ExceptHook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
         for e in exc: wx.LogError(e) 
         wx.LogError(u'Unhandled Error: %s: %s'%(str(type), unicode(value)))
+        # TODO: automatic defect classification
+        tb = traceback.extract_tb(trace)
+        if tb:
+            filename, lineno, function_name, text = tb[-1]
+            self.NotifyError(description=str(e), type="60", filename=filename, lineno=lineno, offset=1)
         # enter post-mortem debugger
         self.debugger.pm()
 
