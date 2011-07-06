@@ -468,7 +468,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
     def OnCheck(self, event):
         if self.active_child:
             import checker
-            for error in checker.PEP8(self.active_child.filename):
+            for error in checker.check(self.active_child.filename):
                 self.NotifyError(**error)
 
     def CreateTextCtrl(self):
