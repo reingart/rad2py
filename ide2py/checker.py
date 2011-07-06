@@ -13,6 +13,7 @@ import compiler
 import pep8
 import pyflakes.checker
 
+
 # PEP8 Coding Standar
 
 class Options(object):
@@ -38,7 +39,8 @@ class PEP8(pep8.Checker):
 
     def report_error(self, line_number, offset, text, check):
         filename = self.filename
-        error = dict(description=text, type=30, filename=filename, lineno=line_number, offset=offset+1)
+        error = dict(description=text, type=30, 
+                     filename=filename, lineno=line_number, offset=offset+1)
         self.errors.append(error)
         
     def __iter__(self):
@@ -60,8 +62,10 @@ class PyFlakes(object):
             filename = msg.filename
             text = msg.message % msg.message_args
             lineno = msg.lineno
-            error = dict(description=text, type=40, filename=filename, lineno=lineno, offset=1)
+            error = dict(description=text, type=40, 
+                         filename=filename, lineno=lineno, offset=1)
             yield error
+
 
 
 def check(filename):
@@ -70,8 +74,8 @@ def check(filename):
         yield defect
     for defect in PyFlakes(filename):
         yield defect
-
     
+        
 if __name__ == '__main__':
     for e in check("hola.py"):
         print e
