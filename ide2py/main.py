@@ -466,9 +466,13 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
             self.GotoFileLine()
 
     def OnCheck(self, event):
+        # TODO: separate checks and tests, add reviews and diffs...
         if self.active_child:
             import checker
             for error in checker.check(self.active_child.filename):
+                self.NotifyError(**error)
+            import tester
+            for error in tester.test(self.active_child.filename):
                 self.NotifyError(**error)
 
     def CreateTextCtrl(self):
