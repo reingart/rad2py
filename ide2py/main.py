@@ -29,16 +29,17 @@ from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
 from console import ConsoleCtrl
 from psp import PSPMixin
+from repo import RepoMixin, RepoEvent, EVT_REPO_ID
 
 TITLE = "rad2py IDE+PSP - v%s" % __version__
 
 
-class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
+class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def __init__(self, parent):
         wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(640,480), style=wx.DEFAULT_FRAME_STYLE)
 
-        sys.excepthook  = self.ExceptHook
+        #sys.excepthook  = self.ExceptHook
         
         self._perspectives = []
         
@@ -206,11 +207,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
 
         self.debugger = Debugger(self)
 
-        # add a bunch of panes                     
-        self._mgr.AddPane(self.CreateTreeCtrl(), wx.aui.AuiPaneInfo().
-                          Name("test8").Caption("Tree Pane").
-                          Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
-                       
+        # add a bunch of panes                      
         self._mgr.AddPane(self.toolbar, wx.aui.AuiPaneInfo().
                           Name("General Toolbar").
                           ToolbarPane().Top().Row(1).Position(1).
@@ -267,6 +264,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
         
         PSPMixin.__init__(self)
+        RepoMixin.__init__(self)
 
 
     def OnPaneClose(self, event):
@@ -490,31 +488,6 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
         return grid
 
 
-    def CreateTreeCtrl(self):
-        tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
-                           wx.TR_DEFAULT_STYLE | wx.NO_BORDER)
-        
-        root = tree.AddRoot("AUI Project")
-        items = []
-        imglist = wx.ImageList(16, 16, True, 2)
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, wx.Size(16,16)))
-        tree.AssignImageList(imglist)
-        items.append(tree.AppendItem(root, "Item 1", 0))
-        items.append(tree.AppendItem(root, "Item 2", 0))
-        items.append(tree.AppendItem(root, "Item 3", 0))
-        items.append(tree.AppendItem(root, "Item 4", 0))
-        items.append(tree.AppendItem(root, "Item 5", 0))
-        for ii in xrange(len(items)):
-            id = items[ii]
-            tree.AppendItem(id, "Subitem 1", 1)
-            tree.AppendItem(id, "Subitem 2", 1)
-            tree.AppendItem(id, "Subitem 3", 1)
-            tree.AppendItem(id, "Subitem 4", 1)
-            tree.AppendItem(id, "Subitem 5", 1)
-        tree.Expand(root)
-        return tree
-
     def CreateHTMLCtrl(self):
         ctrl = wx.html.HtmlWindow(self, -1, wx.DefaultPosition, wx.Size(400, 300))
         if "gtk2" in wx.PlatformInfo:
@@ -533,6 +506,9 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin):
             self.NotifyError(description=str(e), type="60", filename=filename, lineno=lineno, offset=1)
         # enter post-mortem debugger
         self.debugger.pm()
+
+    def NotifyRepo(self, filename, action="", status=""):
+        wx.PostEvent(self, RepoEvent(filename, action, status))
 
 
 class AUIChildFrame(wx.aui.AuiMDIChildFrame):
@@ -577,6 +553,11 @@ class AUIChildFrame(wx.aui.AuiMDIChildFrame):
 
     def NotifyError(self, *args, **kwargs):
         self.parent.NotifyError(*args, **kwargs)
+    
+    def NotifyRepo(self, *args, **kwargs):
+        self.parent.NotifyRepo(*args, **kwargs)
+
+
     
 if __name__ == '__main__':
     app = wx.PySimpleApp()

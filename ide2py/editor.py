@@ -263,6 +263,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             f.write(self.bom)
         f.write(self.GetText().encode(self.encoding))
         f.close()
+        self.parent.NotifyRepo(self.filename, action="saved", status="")
 
     def OnOpen(self, event=None):
         if self.filename:

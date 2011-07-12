@@ -15,19 +15,20 @@ from mercurial import ui, hg, cmdutil
 
 # based on web2py mercurial support
 
-class MercurialRepo(object):
+_hgignore_content = """\
+syntax: glob
+*~
+*.pyc
+*.pyo
+*.bak
+cache/*
+databases/*
+sessions/*
+errors/*
+"""
 
-    _hgignore_content = """\
-    syntax: glob
-    *~
-    *.pyc
-    *.pyo
-    *.bak
-    cache/*
-    databases/*
-    sessions/*
-    errors/*
-    """
+
+class MercurialRepo(object):
 
     def __init__(self, path):
         uio = ui.ui()
@@ -40,8 +41,9 @@ class MercurialRepo(object):
             repo = hg.repository(ui=uio, path=path, create=True)
         hgignore = os.path.join(path, '.hgignore')
         if not os.path.exists(hgignore):
-            open(hgignore, 'w').write(self._hgignore_content)
+            open(hgignore, 'w').write(_hgignore_content)
         self.repo = repo
+        self.decode = None
 
     def commit(self, comment):
         oldid = self.repo[self.repo.lookup('.')]
@@ -51,9 +53,19 @@ class MercurialRepo(object):
             return 'no changes'
         return "ok"
 
-    def status(self):
+    def cat(self, file1, rev=None):
+        #node1, node2 = cmdutil.revpair(repo, revs)
+        ctx = cmdutil.revsingle(self.repo, rev)
+        m = cmdutil.match(repo, (file1,), opts)
+        for abs in ctx.walk(m):
+            data = ctx[abs].data()
+            if self.decode:
+                data = repo.wwritedata(abs, data)
+            return data
+
+    def history(self):
         for file in self.repo[self.repo.lookup('.')].files():
-            print "file"
+            print file
         
         for change in self.repo.changelog:
             ctx=self.repo.changectx(change)
@@ -72,9 +84,31 @@ class MercurialRepo(object):
     #        form=form
     #        )
 
+    def status(self, path=None):
+        "show changed files in the working directory"
+
+        revs = None
+        node1, node2 = cmdutil.revpair(self.repo, revs)
+
+        cwd = (path and self.repo.getcwd()) or ''
+        copy = {}
+        states = 'modified added removed deleted unknown ignored clean'.split()
+        show = states
+
+        stat = self.repo.status(node1, node2, cmdutil.match(self.repo, path),
+                    'ignored' in show, 'clean' in show, 'unknown' in show,
+                    )
+        changestates = zip(states, 'MAR!?IC', stat)
+
+        for state, char, files in changestates:
+            for f in files:
+                yield f, state
+                #repo.wjoin(abs), self.repo.pathto(f, cwd)
+
 
 if __name__ == '__main__':
 
-    repo = MercurialRepo("C:/rad2py")
-    repo.status()
+    r = MercurialRepo("..")
+    for st, fn in r.status():
+        print st, fn
     
