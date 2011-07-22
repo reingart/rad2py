@@ -4,8 +4,6 @@ def factorial(n):
     """This is the "factorial" function
     >>> factorial(5)
     120
-    >>> factorial(None)
-    0
     
     """
     if n is None:
@@ -17,7 +15,10 @@ def factorial(n):
         factor += 1
     return result
 
-def main(h="hola"):
+# funcion principal:
+
+def main(h="CHAU!"):
+
     a = h
     n = raw_input("nombre?")
 
@@ -25,8 +26,9 @@ def main(h="hola"):
 
     if n:
         print a, n
-        
 
 #asdf = hola
 if __name__=="__main__":
     main(h=1)
+    
+# dafasdfs

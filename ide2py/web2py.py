@@ -22,6 +22,7 @@ httpd = make_server('', 8006, wsgibase)
 print "Serving HTTP on port 8006..." 
 # Respond to requests until process is killed 
 
+import dummy_threading as dummy_threading
 import thread
 thread.start_new_thread(httpd.serve_forever,())
 ### end file ### 
