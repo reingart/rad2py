@@ -8,8 +8,6 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 import os
-import wx
-import wx.html
 
 from mercurial import ui, hg, cmdutil
 
@@ -54,13 +52,12 @@ class MercurialRepo(object):
         return "ok"
 
     def cat(self, file1, rev=None):
-        #node1, node2 = cmdutil.revpair(repo, revs)
         ctx = cmdutil.revsingle(self.repo, rev)
-        m = cmdutil.match(repo, (file1,), opts)
+        m = cmdutil.match(self.repo, (file1,))
         for abs in ctx.walk(m):
             data = ctx[abs].data()
             if self.decode:
-                data = repo.wwritedata(abs, data)
+                data = self.repo.wwritedata(abs, data)
             return data
 
     def history(self):
@@ -111,4 +108,5 @@ if __name__ == '__main__':
     r = MercurialRepo("..")
     for st, fn in r.status():
         print st, fn
-    
+    print r.cat("hola.py", rev=False)
+
