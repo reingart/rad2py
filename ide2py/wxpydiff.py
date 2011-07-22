@@ -42,14 +42,14 @@ class PyDiff(wx.Frame):
     INTRA_STYLE = 21
 
 
-    def __init__(self, parent, title, fromfile, tofile):
+    def __init__(self, parent, title, fromfile, tofile, fromtext, totext):
         wx.Frame.__init__(self, parent, title=title, size=(500, 500),style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
 
         #initialize settings
         self.modify = False
         self.activeLine = None
 
-        self.initDiff(fromfile, tofile)
+        self.initDiff(fromfile, tofile, fromtext, totext)
 
         #create GUI
         self.createMenu()
@@ -71,12 +71,17 @@ class PyDiff(wx.Frame):
         self.rightSWindow.Scroll(0,0)
         self.leftSWindow.Scroll(0,0)
 
-    def initDiff(self, fromfile, tofile):
+    def initDiff(self, fromfile, tofile, fromtext=None, totext=None):
         self.leftFileName = fromfile
         self.rightFileName = tofile
-        fromlines = open(fromfile, 'U').readlines()
-        tolines = open(tofile, 'U').readlines()
-        #newline = "\n"
+        if fromtext is None:
+            fromlines = open(fromfile, 'U').readlines()
+        else:
+            fromlines = fromtext.splitlines(1)
+        if totext is None:
+            tolines = open(tofile, 'U').readlines()
+        else:
+            tolines = totext.splitlines(1)
         self.diffTexts = fromlines,tolines
 
     def OnWheel(self, event):
