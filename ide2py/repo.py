@@ -153,7 +153,6 @@ class RepoMixin(object):
     def OnRepoLeftDClick(self, event):
         filename = self.get_selected_filename(event)
         if filename:
-            filename = self.repo_tree.GetPyData(item)
             self.DoOpen(filename)
         event.Skip()
 
