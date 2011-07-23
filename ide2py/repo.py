@@ -32,7 +32,8 @@ class RepoMixin(object):
     
     def __init__(self):
         path = os.path.realpath("..")
-        self.repo = MercurialRepo(path)
+        username = "Mariano Reingart <reingart@gmail.com>"
+        self.repo = MercurialRepo(path, username)
         self.CreateRepoTreeCtrl(path)
         self._mgr.AddPane(self.repo_tree, wx.aui.AuiPaneInfo().
                           Name("repo").Caption("Mercurial Repository").
@@ -125,7 +126,6 @@ class RepoMixin(object):
         
         # walk through the files, create tree nodes when needed
         for fn, st in sorted(self.repo.status(filename)):
-            print fn, st
             if st in ('ignored',):
                 continue
             current = items

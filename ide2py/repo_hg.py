@@ -28,11 +28,11 @@ errors/*
 
 class MercurialRepo(object):
 
-    def __init__(self, path):
+    def __init__(self, path, username):
         uio = ui.ui()
         uio.quiet = True
         if not os.environ.get('HGUSER') and not uio.config("ui", "username"):
-            os.environ['HGUSER'] = 'web2py@localhost'
+            os.environ['HGUSER'] = username
         try:
             repo = hg.repository(ui=uio, path=path)
         except:
