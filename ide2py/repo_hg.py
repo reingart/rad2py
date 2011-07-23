@@ -43,13 +43,14 @@ class MercurialRepo(object):
         self.repo = repo
         self.decode = None
 
-    def commit(self, comment):
+    def commit(self, filepaths, message):
         oldid = self.repo[self.repo.lookup('.')]
-        cmdutil.addremove(self.repo)
-        self.repo.commit(text=comment)
+        user = date = None
+        match = cmdutil.match(self.repo, filepaths)
+        node = self.repo.commit(message, user, date, match)
         if self.repo[self.repo.lookup('.')] == oldid:
-            return 'no changes'
-        return "ok"
+            return None # no changes
+        return True # sucess
 
     def cat(self, file1, rev=None):
         ctx = cmdutil.revsingle(self.repo, rev)
@@ -102,6 +103,9 @@ class MercurialRepo(object):
                 yield f, state
                 #repo.wjoin(abs), self.repo.pathto(f, cwd)
 
+    def rollback(self, dry_run=None):
+        "Undo the last transaction (dangerous): commit, import, pull, push, ..."
+        return self.repo.rollback(dry_run)
 
 if __name__ == '__main__':
 
@@ -109,4 +113,11 @@ if __name__ == '__main__':
     for st, fn in r.status():
         print st, fn
     print r.cat("hola.py", rev=False)
+
+    if raw_input("commit?"):
+        import pdb; pdb.set_trace()
+        ret = r.commit(["hola.py"], "test commit!")
+        print "result", ret
+
+
 

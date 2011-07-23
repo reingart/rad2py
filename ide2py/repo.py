@@ -59,9 +59,13 @@ class RepoMixin(object):
     def CreateRepoMenu(self):
 
         m = self.repo_menu = wx.Menu()
-        menus = ['Update', 'Commit', 'Diff', 'Revert', 'Push', 'Pull']
-        methods = [self.OnRepoUpdate, self.OnRepoCommit, self.OnRepoDiff,
-            self.OnRepoRevert, self.OnRepoPush, self.OnRepoPull]
+        menus = ['Diff', 'Commit', 'Pull', 'Update', 'Push', 'Add', 'Revert', 'Remove', 'Rollback']
+        methods = [
+            self.OnRepoDiff, self.OnRepoCommit, 
+            self.OnRepoPush, self.OnRepoUpdate, self.OnRepoPull,
+            self.OnRepoAdd, self.OnRepoRevert, self.OnRepoRemove,
+            self.OnRepoRollback,
+            ]
         for item_name, item_method in zip(menus, methods):
             item_id = wx.NewId()
             m.Append(item_id, item_name)
@@ -170,25 +174,62 @@ class RepoMixin(object):
         pass
 
     def OnRepoCommit(self, event):
-        pass
-
+        filename = self.get_selected_filename(event)
+        if filename:
+            dlg = wx.TextEntryDialog(
+                    self, 'Commit message for %s' % filename, 'Commit', '')
+            if dlg.ShowModal() == wx.ID_OK:
+                message = dlg.GetValue()
+                result = self.repo.commit([filename], message)
+                if result is None:
+                    result_msg = "No changes!"
+                elif result is False:
+                    result_msg = "Commit Failed!"
+                else:
+                    result_msg = ""
+                if result_msg:
+                    dlg2 = wx.MessageDialog(self, 'Commit Result',
+                               result_msg,
+                               wx.OK | wx.ICON_INFORMATION
+                               )
+                    dlg2.ShowModal()
+                    dlg2.Destroy()
+                self.RefreshRepo([filename])
+            dlg.Destroy()
+            
     def OnRepoDiff(self, event):
         filename = self.get_selected_filename(event)
         if filename:
             self.DoDiff(filename)
 
+    def OnRepoAdd(self, event):
+        pass
+
     def OnRepoRevert(self, event):
         pass
-    
+
+    def OnRepoRemove(self, event):
+        pass
+
     def OnRepoPush(self, event):
         pass
     
     def OnRepoPull(self, event):
         pass
 
+    def OnRepoRollback(self, event):
+        dlg = wx.MessageDialog(self, 'Rollback last transaction',
+                'Undoing the last command is dangerous, \n Are you sure?',
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        if dlg.ShowModal() == wx.ID_YES:
+            self.repo.rollback()
+            self.RefreshRepo([])
+        dlg.Destroy()
+
     def DoDiff(self, filename):
         old = self.repo.cat(filename)
         new = open(filename, "U").read()
         from wxpydiff import PyDiff
         PyDiff(None, 'wxPyDiff', "repository", filename, old, new)
+
 
