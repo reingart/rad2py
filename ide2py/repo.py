@@ -189,9 +189,7 @@ class RepoMixin(object):
                     result_msg = ""
                 if result_msg:
                     dlg2 = wx.MessageDialog(self, 'Commit Result',
-                               result_msg,
-                               wx.OK | wx.ICON_INFORMATION
-                               )
+                               result_msg, wx.OK | wx.ICON_INFORMATION)
                     dlg2.ShowModal()
                     dlg2.Destroy()
                 self.RefreshRepo([filename])
@@ -203,10 +201,24 @@ class RepoMixin(object):
             self.DoDiff(filename)
 
     def OnRepoAdd(self, event):
-        pass
+        filename = self.get_selected_filename(event)
+        if filename:
+            rejected = self.repo.add([filename])
+            if rejected:
+                dlg = wx.MessageDialog(self, ', '.join(rejected),
+                           'Add file rejected', wx.OK | wx.ICON_EXCLAMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
+            self.RefreshRepo([filename])        
 
     def OnRepoRevert(self, event):
-        pass
+        dlg = wx.MessageDialog(self, 'This will restore all original files, \n'
+                'Are you sure?', 'Revert to last revision',
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        if dlg.ShowModal() == wx.ID_YES:
+            self.repo.revert()
+            self.RefreshRepo([])
+        dlg.Destroy()
 
     def OnRepoRemove(self, event):
         pass
@@ -218,8 +230,8 @@ class RepoMixin(object):
         pass
 
     def OnRepoRollback(self, event):
-        dlg = wx.MessageDialog(self, 'Rollback last transaction',
-                'Undoing the last command is dangerous, \n Are you sure?',
+        dlg = wx.MessageDialog(self, 'Undoing the last command is dangerous, \n'
+                'Are you sure?', 'Rollback last transaction',
                 wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         if dlg.ShowModal() == wx.ID_YES:
             self.repo.rollback()
