@@ -11,9 +11,9 @@ __license__ = "GPL 3.0"
 import os
 import sys
 import wx
+import wx.lib.agw.aui as aui
 
 from repo_hg import MercurialRepo
-
 
 # Define notification event for repository refresh
 EVT_REPO_ID = wx.NewId()
@@ -35,7 +35,7 @@ class RepoMixin(object):
         username = "Mariano Reingart <reingart@gmail.com>"
         self.repo = MercurialRepo(path, username)
         self.CreateRepoTreeCtrl(path)
-        self._mgr.AddPane(self.repo_tree, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.repo_tree, aui.AuiPaneInfo().
                           Name("repo").Caption("Mercurial Repository").
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
@@ -48,7 +48,7 @@ class RepoMixin(object):
         self.Connect(-1, -1, EVT_REPO_ID, self.OnRepoEvent)
 
 #        tb5 = self.CreateRepoToolbar()
-#        self._mgr.AddPane(tb5, wx.aui.AuiPaneInfo().
+#        self._mgr.AddPane(tb5, aui.AuiPaneInfo().
 #                          Name("tb5").Caption("Repository Toolbar").
 #                          ToolbarPane().Top().Row(1).Position(4).
 #                          LeftDockable(False).RightDockable(False).CloseButton(True))

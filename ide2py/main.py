@@ -19,7 +19,7 @@ import traceback
 import wx
 import wx.grid
 import wx.html
-import wx.aui
+import wx.lib.agw.aui as aui
 
 import images
 
@@ -31,13 +31,14 @@ from console import ConsoleCtrl
 from psp import PSPMixin
 from repo import RepoMixin, RepoEvent, EVT_REPO_ID
 
+
 TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
 
 CONFIG_FILE = "ide2py.ini"
 
-class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
+class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def __init__(self, parent):
-        wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
+        aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
 
         #sys.excepthook  = self.ExceptHook
@@ -48,7 +49,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.active_child = None
         
         # tell FrameManager to manage this frame        
-        self._mgr = wx.aui.AuiManager(self)
+        self._mgr = aui.AuiManager(self)
         self.Show()
         ##self._mgr.SetManagedWindow(self)
         
@@ -209,43 +210,41 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.debugger = Debugger(self)
 
         # add a bunch of panes                      
-        self._mgr.AddPane(self.toolbar, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().
                           Name("General Toolbar").
-                          ToolbarPane().Top().Row(1).Position(1).
-                          LeftDockable(False).RightDockable(False).CloseButton(True))
+                          ToolbarPane().Top().Position(0))
 
-        self._mgr.AddPane(self.toolbardbg, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.toolbardbg, aui.AuiPaneInfo().
                           Name("Debug Toolbar").
-                          ToolbarPane().Top().Row(1).Position(2).
-                          LeftDockable(False).RightDockable(False).CloseButton(True))
+                          ToolbarPane().Top().Position(1))
                       
-        #self._mgr.AddPane(tb3, wx.aui.AuiPaneInfo().
+        #self._mgr.AddPane(tb3, aui.AuiPaneInfo().
         #                  Name("tb3").Caption("Toolbar 3").
         #                  ToolbarPane().Top().Row(1).Position(1).
         #                  LeftDockable(False).RightDockable(False))
                       
-        #self._mgr.AddPane(tb5, wx.aui.AuiPaneInfo().
+        #self._mgr.AddPane(tb5, aui.AuiPaneInfo().
         #                  Name("tbvert").Caption("Sample Vertical Toolbar").
         #                  ToolbarPane().Left().GripperTop().
         #                  TopDockable(False).BottomDockable(False))
                       
         #self._mgr.AddPane(wx.Button(self, -1, "Test Button"),
-        #                  wx.aui.AuiPaneInfo().Name("tb5").
+        #                  aui.AuiPaneInfo().Name("tb5").
         #                  ToolbarPane().Top().Row(2).Position(1).
         #                  LeftDockable(False).RightDockable(False))
 
         self.browser = self.CreateBrowserCtrl()
-        self._mgr.AddPane(self.browser, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.browser, aui.AuiPaneInfo().
                           Caption("Simple Browser").
                           Right().CloseButton(True))
 
         self.shell = Shell(self)
-        self._mgr.AddPane(self.shell, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.shell, aui.AuiPaneInfo().
                           Caption("PyCrust Shell").
                           Bottom().Layer(1).Position(1).CloseButton(True))
 
         self.console = ConsoleCtrl(self)
-        self._mgr.AddPane(self.console, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.console, aui.AuiPaneInfo().
                           Name("stdio").Caption("Console (stdio)").
                           Bottom().Layer(1).Position(2).CloseButton(True).MaximizeButton(True))
 
@@ -257,7 +256,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         # Show How To Use The Closing Panes Event
-        self.Bind(wx.aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
+        self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
@@ -345,7 +344,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         return wx.Point(pt.x + x, pt.y + x)
 
     def OnCreateTree(self, event):
-        self._mgr.AddPane(self.CreateTreeCtrl(), wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.CreateTreeCtrl(), aui.AuiPaneInfo().
                           Caption("Tree Control").
                           Float().FloatingPosition(self.GetStartPosition()).
                           FloatingSize(wx.Size(150, 300)).CloseButton(True).MaximizeButton(True))
@@ -353,7 +352,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
 
     def OnCreateGrid(self, event):
-        self._mgr.AddPane(self.CreateGrid(), wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.CreateGrid(), aui.AuiPaneInfo().
                           Caption("Grid").
                           Float().FloatingPosition(self.GetStartPosition()).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
@@ -361,21 +360,21 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
 
     def OnCreateHTML(self, event):
-        self._mgr.AddPane(self.CreateHTMLCtrl(), wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.CreateHTMLCtrl(), aui.AuiPaneInfo().
                           Caption("HTML Content").
                           Float().FloatingPosition(self.GetStartPosition()).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
     def OnCreateText(self, event):
-        self._mgr.AddPane(self.CreateTextCtrl(), wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.CreateTextCtrl(), aui.AuiPaneInfo().
                           Caption("Text Control").
                           Float().FloatingPosition(self.GetStartPosition()).
                           CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
     def OnCreateBrowser(self, event):       
-        self._mgr.AddPane(self.CreateBrowserCtrl(), wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.CreateBrowserCtrl(), aui.AuiPaneInfo().
                           Caption("Simple Browser").
                           Float().CloseButton(True))
         self._mgr.Update()
@@ -509,13 +508,14 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.debugger.pm()
 
     def NotifyRepo(self, filename, action="", status=""):
-        wx.PostEvent(self, RepoEvent(filename, action, status))
+        if RepoEvent:
+            wx.PostEvent(self, RepoEvent(filename, action, status))
 
 
-class AUIChildFrame(wx.aui.AuiMDIChildFrame):
+class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def __init__(self, parent, filename):
-        wx.aui.AuiMDIChildFrame.__init__(self, parent, -1,
+        aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
         self.filename = filename     
         self.editor = EditorCtrl(self,-1, filename=filename,    

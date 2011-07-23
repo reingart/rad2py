@@ -17,6 +17,7 @@ import sys
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin, TextEditMixin
+import wx.lib.agw.aui as aui
 
 import images
 
@@ -187,20 +188,19 @@ class PSPMixin(object):
     
     def __init__(self):
         tb4 = self.CreatePSPToolbar()
-        self._mgr.AddPane(tb4, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(tb4, aui.AuiPaneInfo().
                           Name("tb4").Caption("PSP Toolbar").
-                          ToolbarPane().Top().Row(1).Position(3).
-                          LeftDockable(False).RightDockable(False).CloseButton(True))
+                          ToolbarPane().Top().Position(3).CloseButton(True))
 
         grid = self.CreatePSPPlanSummaryGrid()
-        self._mgr.AddPane(grid, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(grid, aui.AuiPaneInfo().
                           Caption("PSP Plan Summary").
-                          Layer(1).Position(2).
-                          FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
+                          Bottom().Position(1).Row(2).
+                          FloatingSize(wx.Size(200, 200)).CloseButton(True).MaximizeButton(True))
         self.psp_defect_list = self.CreatePSPDefectRecordingLog()
-        self._mgr.AddPane(self.psp_defect_list, wx.aui.AuiPaneInfo().
+        self._mgr.AddPane(self.psp_defect_list, aui.AuiPaneInfo().
                           Caption("PSP Defect Recording Log").
-                          Bottom().Layer(2).Row(2).
+                          Bottom().Row(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
