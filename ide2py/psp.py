@@ -12,6 +12,7 @@ __license__ = "GPL 3.0"
 
 # TODO General: further enhance MVC pattern
 
+import shelve
 import sys
 import wx
 import wx.grid
@@ -65,35 +66,43 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.UpdateValues(row)
         
     def UpdateValues(self, row):
-        #msg = wx.grid.GridTableMessage(self,
-        #    wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES,
-        #    row, 1)
-        #self.grid.ProcessTableMessage(msg)
+        self.grid.BeginBatch()
+        msg = wx.grid.GridTableMessage(self,
+            wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
+        self.grid.ProcessTableMessage(msg)
         self.grid.ForceRefresh()
+        self.grid.EndBatch()
+        print "update!"
         #TODO: this doesn't work!
 
         
 class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #TextEditMixin
     "Defect recording log facilities"
-    def __init__(self, parent):
+    def __init__(self, parent, filename="psp-defects.pkl"):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
         ListCtrlAutoWidthMixin.__init__(self)
         CheckListCtrlMixin.__init__(self)
         #TextEditMixin.__init__(self)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
-        self.data = []
         self.parent = parent
-        self.InsertColumn(0, "Number", wx.LIST_FORMAT_RIGHT)
-        self.InsertColumn(1, "Description")
-        self.InsertColumn(2, "Date", wx.LIST_FORMAT_CENTER)
-        self.InsertColumn(3, "Type")
-        self.InsertColumn(4, "Inject")
-        self.InsertColumn(5, "Remove")
-        self.InsertColumn(6, "Fix Time", wx.LIST_FORMAT_RIGHT)
-        self.InsertColumn(7, "Fix Defect")
-        self.InsertColumn(8, "Filename")
-        self.InsertColumn(9, "Line No.")
-        self.InsertColumn(10, "Offset")
+        self.col_defs = {
+            "number": (0, wx.LIST_FORMAT_RIGHT),
+            "description": (1, wx.LIST_FORMAT_LEFT),
+            "date": (2, wx.LIST_FORMAT_CENTER),
+            "type": (3, wx.LIST_FORMAT_LEFT),
+            "inject_phase": (4, wx.LIST_FORMAT_LEFT),
+            "remove_phase": (5, wx.LIST_FORMAT_LEFT),
+            "fix_time": (6, wx.LIST_FORMAT_RIGHT),
+            "fix_defect": (7, wx.LIST_FORMAT_LEFT),
+            "filename": (8, wx.LIST_FORMAT_LEFT),
+            "lineno": (9, wx.LIST_FORMAT_RIGHT),
+            "offset": (10, wx.LIST_FORMAT_RIGHT),
+            }
+        for col_key, col_def in self.col_defs.items():
+            col_name = col_key.replace("_", " ").capitalize()
+            i = col_def[0]
+            col_fmt = col_def[1]
+            self.InsertColumn(i, col_name, col_fmt)
       
         self.SetColumnWidth(0, 50) #wx.LIST_AUTOSIZE)
         self.SetColumnWidth(1, 200) # wx.LIST_AUTOSIZE)
@@ -101,35 +110,55 @@ class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self)
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self)
-        
+
         self.selecteditemindex = None
 
-    def AddItem(self, item):
-        self.data.append(item+[False])
-        index = self.InsertStringItem(sys.maxint, item[0])
-        for i in range(1, len(item)):
-            self.SetStringItem(index, i, str(item[i]))
-        self.SetItemData(index, index)
+        self.data = shelve.open(filename, writeback=True)
+        for key, item in self.data.items():
+            self.AddItem(item, key)
+
+    def __del__(self):
+        self.data.close()
+
+    def AddItem(self, item, key=None):
+        if "_checked" not in item:
+            item["_checked"] = False
+        index = self.InsertStringItem(sys.maxint, item["number"])
+        if key is None:
+            key = str(index)
+            self.data[key] = item
+            self.data.sync()
+        for col_key, col_def in self.col_defs.items():
+            val = item.get(col_key, "")
+            self.SetStringItem(index, col_def[0], str(val))
+        self.SetItemData(index, long(key))
+        if item["_checked"]:
+            self.ToggleItem(index)
             
     def OnItemActivated(self, evt):
         #self.ToggleItem(evt.m_itemIndex)
-        event = self.data[ evt.m_itemIndex][8:11]
+        key = str(self.GetItemData(evt.m_itemIndex))
+        item = self.data[key]
+        event = item["filename"], item["lineno"], item["offset"]
         self.parent.GotoFileLine(event,running=False)
         self.selecteditemindex = evt.m_itemIndex
 
     # this is called by the base class when an item is checked/unchecked
     def OnCheckItem(self, index, flag):
-        row = self.GetItemData(index)
-        title = self.data[row][0]
+        key = str(self.GetItemData(index))
+        item = self.data[key]
+        title = item["number"]
         if flag:
             what = "checked"
-            col = 5 # update phase when removed 
-            if not self.data[row][col]:
-                phase = self.data[row][col] = self.parent.GetPSPPhase()
-                self.SetStringItem(row, col, str(phase))
+            col_key = 'remove_phase' # update phase when removed 
+            col_index = self.col_defs[col_key][0]
+            if not item[col_key]:
+                phase = item[col_key] = self.parent.GetPSPPhase()
+                self.SetStringItem(index, col_index, str(phase))
         else:
             what = "unchecked"
-        self.data[row][-1] = flag
+        item["_checked"] = flag
+        self.data.sync()
         
     def OnItemSelected(self, evt):
         pass ##print('item selected: %s\n' % evt.m_itemIndex)
@@ -140,14 +169,18 @@ class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #
     def count(self, phase):
         "Increment actual user time to fix selected defect"
         if self.selecteditemindex is not None:
-            row = self.selecteditemindex
-            col = 6
-            flag =  self.data[row][-1]
+            index = self.selecteditemindex
+            key = str(self.GetItemData(index))
+            col_key = "fix_time"
+            col_index = self.col_defs[col_key][0]
+            flag =  self.data[key]["_checked"]
             if not flag:
-                value = self.data[row][col] + 1
-                self.data[row][col] = value
-                self.SetStringItem(row, col, str(value))
-        
+                value = self.data[key][col_key] + 1
+                self.data[key][col_key] = value
+                self.data.sync()
+                self.SetStringItem(index, col_index, str(value))
+
+
 
 class PSPMixin(object):
     "ide2py extension for integrated PSP support"
@@ -179,7 +212,7 @@ class PSPMixin(object):
 
     def CreatePSPDefectRecordingLog(self):
         list = DefectListCtrl(self)
-        list.AddItem(["1", "defecto de prueba",  "hoy", "20", "code", "compile", 0, "", "","",""])
+        #list.AddItem(["1", "defecto de prueba",  "hoy", "20", "code", "compile", 0, "", "","",""])
         return list
         
     def CreatePSPToolbar(self):
@@ -235,8 +268,13 @@ class PSPMixin(object):
     def __del__(self):
         self.OnStop(None)
 
-    def NotifyError(self, description="", type="20", filename=None, lineno=0, offset=0):
+    def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
         no = str(len(self.psp_defect_list.data)+1)
         phase = self.GetPSPPhase()
-        item = [no, description,  "hoy", type, phase, "", 0, "", filename, lineno, offset]
+        item = {'number': no, 'description': description, "date": "hoy", 
+            "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
+            "fix_defect": "", 
+            "filename": filename, "lineno": lineno, "offset": offset}
+
         self.psp_defect_list.AddItem(item)
+   

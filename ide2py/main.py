@@ -31,13 +31,14 @@ from console import ConsoleCtrl
 from psp import PSPMixin
 from repo import RepoMixin, RepoEvent, EVT_REPO_ID
 
-TITLE = "rad2py IDE+PSP - v%s" % __version__
+TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
 
+CONFIG_FILE = "ide2py.ini"
 
 class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def __init__(self, parent):
         wx.aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
-            size=(640,480), style=wx.DEFAULT_FRAME_STYLE)
+            size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
 
         #sys.excepthook  = self.ExceptHook
         
@@ -468,10 +469,10 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         if self.active_child:
             import checker
             for error in checker.check(self.active_child.filename):
-                self.NotifyError(**error)
+                self.NotifyDefect(**error)
             import tester
             for error in tester.test(self.active_child.filename):
-                self.NotifyError(**error)
+                self.NotifyDefect(**error)
 
     def CreateTextCtrl(self):
         text = ("This is text box")
@@ -503,7 +504,7 @@ class PyAUIFrame(wx.aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         tb = traceback.extract_tb(trace)
         if tb:
             filename, lineno, function_name, text = tb[-1]
-            self.NotifyError(description=str(e), type="60", filename=filename, lineno=lineno, offset=1)
+            self.NotifyDefect(description=str(e), type="60", filename=filename, lineno=lineno, offset=1)
         # enter post-mortem debugger
         self.debugger.pm()
 
@@ -551,8 +552,8 @@ class AUIChildFrame(wx.aui.AuiMDIChildFrame):
             self.SetFocus()
             self.editor.GotoLineOffset(lineno, offset)
 
-    def NotifyError(self, *args, **kwargs):
-        self.parent.NotifyError(*args, **kwargs)
+    def NotifyDefect(self, *args, **kwargs):
+        self.parent.NotifyDefect(*args, **kwargs)
     
     def NotifyRepo(self, *args, **kwargs):
         self.parent.NotifyRepo(*args, **kwargs)
