@@ -41,7 +41,7 @@ class Shell(wx.py.shell.Shell):
                 self.console.write(prompt)
             return self.console.readline()
         else:
-            return wx.py.shell.Shell.raw_input(prompt)
+            return wx.py.shell.Shell.raw_input(self, prompt)
 
     def RunScript(self, code, syspath_dirs=None, debugger=None, console=None):
         '''Runs a script in the shell.
