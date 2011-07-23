@@ -43,7 +43,16 @@ class MercurialRepo(object):
         self.repo = repo
         self.decode = None
 
+    def add(self, filepaths, dry_run=False, subrepo=None):
+        "add the specified files on the next commit"
+        match = cmdutil.match(self.repo, filepaths)
+        prefix = ""
+        uio = self.repo.ui
+        rejected = cmdutil.add(uio, self.repo, match, dry_run, subrepo, prefix)
+        return rejected
+
     def commit(self, filepaths, message):
+        "commit the specified files or all outstanding changes"
         oldid = self.repo[self.repo.lookup('.')]
         user = date = None
         match = cmdutil.match(self.repo, filepaths)
@@ -52,8 +61,9 @@ class MercurialRepo(object):
             return None # no changes
         return True # sucess
 
-    def cat(self, file1, rev=None):
-        ctx = cmdutil.revsingle(self.repo, rev)
+    def cat(self, file1, revision=None):
+        "return the current or given revision of a file"
+        ctx = cmdutil.revsingle(self.repo, revision)
         m = cmdutil.match(self.repo, (file1,))
         for abs in ctx.walk(m):
             data = ctx[abs].data()
@@ -70,17 +80,14 @@ class MercurialRepo(object):
             revision, description = ctx.rev(), ctx.description()
             print revision, description
 
-    def revert(self, revision):
-        ctx=self.repo.changectx(revision)
+    def remove(self, filepaths):
+        "remove the specified files on the next commit"
+        raise NotImplementedError("HG remove is not implemented!")
+
+    def revert(self, revision=None):
+        ctx = cmdutil.revsingle(self.repo, revision)
         hg.update(self.repo, revision)
         print "reverted to revision %s" % ctx.rev()
-    #    redirect(URL('default','design',args=app))
-    #    return dict(
-    #        files=ctx.files(),
-    #        rev=str(ctx.rev()),
-    #        desc=ctx.description(),
-    #        form=form
-    #        )
 
     def status(self, path=None):
         "show changed files in the working directory"
@@ -107,17 +114,21 @@ class MercurialRepo(object):
         "Undo the last transaction (dangerous): commit, import, pull, push, ..."
         return self.repo.rollback(dry_run)
 
+
 if __name__ == '__main__':
-
+    import sys
+    
     r = MercurialRepo("..")
-    for st, fn in r.status():
-        print st, fn
-    print r.cat("hola.py", rev=False)
-
-    if raw_input("commit?"):
-        import pdb; pdb.set_trace()
+    if '--status' in sys.argv:
+        for st, fn in r.status():
+            print st, fn
+    if '--cat' in sys.argv:
+        print r.cat("hola.py", rev=False)
+    if '--commit' in sys.argv:
         ret = r.commit(["hola.py"], "test commit!")
         print "result", ret
+    if '--add' in sys.argv:
+        print r.add(["pyi25.py"])
 
 
 
