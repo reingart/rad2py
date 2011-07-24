@@ -189,17 +189,17 @@ class PSPMixin(object):
     def __init__(self):
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
-                          Name("tb4").Caption("PSP Toolbar").
+                          Name("psp_toolbar").Caption("PSP Toolbar").
                           ToolbarPane().Top().Position(3).CloseButton(True))
 
         grid = self.CreatePSPPlanSummaryGrid()
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
-                          Caption("PSP Plan Summary").
+                          Caption("PSP Plan Summary").Name("psp_plan").
                           Bottom().Position(1).Row(2).
                           FloatingSize(wx.Size(200, 200)).CloseButton(True).MaximizeButton(True))
         self.psp_defect_list = self.CreatePSPDefectRecordingLog()
         self._mgr.AddPane(self.psp_defect_list, aui.AuiPaneInfo().
-                          Caption("PSP Defect Recording Log").
+                          Caption("PSP Defect Recording Log").Name("psp_defects").
                           Bottom().Row(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()

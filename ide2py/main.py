@@ -12,6 +12,8 @@ __version__ = "0.03"
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
 #      pythonwin, drpython, idle
 
+import ConfigParser
+
 import os
 import sys
 import traceback
@@ -42,8 +44,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
 
         #sys.excepthook  = self.ExceptHook
-        
-        self._perspectives = []
         
         self.children = {}
         self.active_child = None
@@ -83,7 +83,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         
         self.menubar.Append(file_menu, "File")
         self.menubar.Append(edit_menu, "Edit")
-        #mb.Append(self._perspectives_menu, "Perspectives")
         self.menubar.Append(help_menu, "Help")
         
         self.SetMenuBar(self.menubar)
@@ -211,41 +210,26 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         # add a bunch of panes                      
         self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().
-                          Name("General Toolbar").
+                          Name("toolbar").
                           ToolbarPane().Top().Position(0))
 
         self._mgr.AddPane(self.toolbardbg, aui.AuiPaneInfo().
-                          Name("Debug Toolbar").
+                          Name("debug").
                           ToolbarPane().Top().Position(1))
                       
-        #self._mgr.AddPane(tb3, aui.AuiPaneInfo().
-        #                  Name("tb3").Caption("Toolbar 3").
-        #                  ToolbarPane().Top().Row(1).Position(1).
-        #                  LeftDockable(False).RightDockable(False))
-                      
-        #self._mgr.AddPane(tb5, aui.AuiPaneInfo().
-        #                  Name("tbvert").Caption("Sample Vertical Toolbar").
-        #                  ToolbarPane().Left().GripperTop().
-        #                  TopDockable(False).BottomDockable(False))
-                      
-        #self._mgr.AddPane(wx.Button(self, -1, "Test Button"),
-        #                  aui.AuiPaneInfo().Name("tb5").
-        #                  ToolbarPane().Top().Row(2).Position(1).
-        #                  LeftDockable(False).RightDockable(False))
-
         self.browser = self.CreateBrowserCtrl()
         self._mgr.AddPane(self.browser, aui.AuiPaneInfo().
-                          Caption("Simple Browser").
+                          Caption("Simple Browser").Name("browser").
                           Right().CloseButton(True))
 
         self.shell = Shell(self)
         self._mgr.AddPane(self.shell, aui.AuiPaneInfo().
-                          Caption("PyCrust Shell").
+                          Caption("PyCrust Shell").Name("shell").
                           Bottom().Layer(1).Position(1).CloseButton(True))
 
         self.console = ConsoleCtrl(self)
         self._mgr.AddPane(self.console, aui.AuiPaneInfo().
-                          Name("stdio").Caption("Console (stdio)").
+                          Name("console").Caption("Console (stdio)").
                           Bottom().Layer(1).Position(2).CloseButton(True).MaximizeButton(True))
 
         # "commit" all changes made to FrameManager   
@@ -266,7 +250,16 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
 
+        if wx.GetApp().config.get('AUI', 'maximize', 'True') == 'True':
+            self.Maximize()
 
+        # Restore a perspective layout. WARNING: all panes must have a name!
+        perspective = wx.GetApp().config.get('AUI', 'perspective', None)
+        if perspective:
+            self._mgr.Update()
+            self._mgr.LoadPerspective(perspective)
+
+        
     def OnPaneClose(self, event):
 
         caption = event.GetPane().caption
@@ -282,6 +275,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
 
     def OnClose(self, event):
+        # Save current perspective layout. WARNING: all panes must have a name! 
+        perspective = self._mgr.SavePerspective()
+        wx.GetApp().config.set('AUI', 'perspective', perspective)
         self._mgr.UnInit()
         del self._mgr
         self.Destroy()
@@ -559,10 +555,31 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.parent.NotifyRepo(*args, **kwargs)
 
 
-    
+class SimplierConfigParser(ConfigParser.SafeConfigParser):
+    def get(self, section, option, default):
+        "return an option, or default if section or option is not found"
+        try:
+            return ConfigParser.SafeConfigParser.get(self, section, option)
+        except ConfigParser.Error:
+            return default
+
+
+class MainApp(wx.App):
+
+    def OnInit(self):
+        self.config = SimplierConfigParser()
+        self.config.read(CONFIG_FILE)
+        if not self.config.sections():
+            raise RuntimeError("No hay configuracion!")
+        self.aui_frame = PyAUIFrame(None)
+        self.aui_frame.Show()
+        return True
+
+    def OnExit(self):
+        self.config.write(open(CONFIG_FILE, "w"))
+
+
 if __name__ == '__main__':
-    app = wx.PySimpleApp()
-    frame = PyAUIFrame(None)
-    frame.Show()
+    app = MainApp()
     app.MainLoop()
 
