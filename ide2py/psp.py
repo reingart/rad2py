@@ -1,4 +1,4 @@
-﻿﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # coding:utf-8
 
 "Personal Software Process (TM) Integrated & Automatic Metrics Collection"
@@ -19,8 +19,8 @@ import wx.lib.agw.aui as aui
 
 import images
 
-PSP_PHASES = ["Planning", "Design", "Code", "Compile", "Test", "Postmortem"]
-PSP_TIMES = ["Plan", "Actual"]
+PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
+PSP_TIMES = ["plan", "actual", "interruption"]
 
 
 class PlanSummaryTable(wx.grid.PyGridTableBase):
@@ -43,7 +43,9 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         return len(self.cols)
 
     def IsEmptyCell(self, row, col):
-        return self.cells.get(row, {}).get(col, {}) and True or False
+        key_phase = PSP_PHASES[row]
+        key_time = PSP_TIMES[col]
+        return self.cells.get(key_phase, {}).get(key_time, {}) and True or False
 
     def GetValue(self, row, col):
         key_phase = PSP_PHASES[row]
@@ -59,17 +61,20 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.cells.sync()
         
     def GetColLabelValue(self, col):
-        return self.cols[col]
+        return self.cols[col].capitalize()
        
     def GetRowLabelValue(self, row):
-        return self.rows[row]
+        return self.rows[row].capitalize()
 
-    def count(self, phase):
+    def count(self, phase, interruption):
         "Increment actual user time according selected phase"
         row = PSP_PHASES.index(phase)
-        col = PSP_TIMES.index("Plan")
+        col = PSP_TIMES.index("plan")
         plan = self.GetValue(row, col)
-        col = PSP_TIMES.index("Actual")
+        if not interruption:
+            col = PSP_TIMES.index("actual")
+        else:
+            col = PSP_TIMES.index("interruption")
         value = self.GetValue(row, col) + 1
         self.SetValue(row, col, value)
         #self.grid.SetCellValue(row, col, str(value))
@@ -90,7 +95,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #TextEditMixin
     "Defect recording log facilities"
-    def __init__(self, parent, filename="psp-defects.pkl"):
+    def __init__(self, parent, filename=""):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
         ListCtrlAutoWidthMixin.__init__(self)
         CheckListCtrlMixin.__init__(self)
@@ -197,31 +202,43 @@ class PSPMixin(object):
     "ide2py extension for integrated PSP support"
     
     def __init__(self):
+        cfg = wx.GetApp().get_config("PSP")
+        
+        # shelves (persistent dictionaries)
+        psp_defects = cfg.get("psp_defects", "psp_defects.dat")
+        psp_times = cfg.get("psp_times", "psp_times.dat")
+
+        # text recording logs
+        psp_time_log = cfg.get("psp_time_log", "")
+        psp_defect_log = cfg.get("psp_defect_log", "")
+        
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
                           Name("psp_toolbar").Caption("PSP Toolbar").
                           ToolbarPane().Top().Position(3).CloseButton(True))
 
-        grid = self.CreatePSPPlanSummaryGrid()
+        grid = self.CreatePSPPlanSummaryGrid(filename=psp_times)
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
                           Caption("PSP Plan Summary").Name("psp_plan").
                           Bottom().Position(1).Row(2).
                           FloatingSize(wx.Size(200, 200)).CloseButton(True).MaximizeButton(True))
-        self.psp_defect_list = self.CreatePSPDefectRecordingLog()
+        self.psp_defect_list = self.CreatePSPDefectRecordingLog(filename=psp_defects)
         self._mgr.AddPane(self.psp_defect_list, aui.AuiPaneInfo().
                           Caption("PSP Defect Recording Log").Name("psp_defects").
                           Bottom().Row(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
+        # flag for time not spent on psp task
+        self.interruption = False
 
-    def CreatePSPPlanSummaryGrid(self):
+    def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
-        self.psptimetable = PlanSummaryTable(grid)
+        self.psptimetable = PlanSummaryTable(grid, filename)
         grid.SetTable(self.psptimetable, True)
         return grid
 
-    def CreatePSPDefectRecordingLog(self):
-        list = DefectListCtrl(self)
+    def CreatePSPDefectRecordingLog(self, filename):
+        list = DefectListCtrl(self, filename)
         #list.AddItem(["1", "defecto de prueba",  "hoy", "20", "code", "compile", 0, "", "","",""])
         return list
         
@@ -235,8 +252,9 @@ class PSPMixin(object):
         tb4.AddControl(text)
 
         tb4.AddSimpleTool(ID_PLAY, images.play.GetBitmap(), "Start timer")
-        tb4.AddSimpleTool(ID_PAUSE, images.pause.GetBitmap(), "Pause timer")
-        tb4.AddSimpleTool(ID_PAUSE, images.stop.GetBitmap(), "Stop timer")
+        tb4.AddCheckLabelTool(ID_PAUSE, "Pause", images.pause.GetBitmap(),
+                                    shortHelp="Pause timer (interruption)")
+        tb4.AddSimpleTool(ID_STOP, images.stop.GetBitmap(), "Stop timer")
         
         self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
         tb4.AddControl(self.psp_phase_choice)
@@ -249,8 +267,8 @@ class PSPMixin(object):
         self.timer = wx.Timer(self)
 
         self.Bind(wx.EVT_MENU, self.OnPlay, id=ID_PLAY)
-        self.Bind(wx.EVT_MENU, self.OnStop, id=ID_PAUSE)
-        self.Bind(wx.EVT_MENU, self.OnStop, id=ID_PAUSE)
+        self.Bind(wx.EVT_MENU, self.OnPause, id=ID_PAUSE)
+        self.Bind(wx.EVT_MENU, self.OnStop, id=ID_STOP)
         
         tb4.Realize()
         return tb4
@@ -265,15 +283,22 @@ class PSPMixin(object):
     def OnPlay(self, event):
         self.timer.Start(1000)
 
+    def OnPause(self, event):
+        if self.interruption:
+            #TODO: ask a message for the time recording log!
+            pass
+        self.interruption = not self.interruption
+
     def OnStop(self, event):
         self.timer.Stop()
     
     def TimerHandler(self, event):
         phase = self.GetPSPPhase()
         if phase:
-            percent = self.psptimetable.count(phase)
+            percent = self.psptimetable.count(phase, self.interruption)
             self.psp_gauge.SetValue(percent or 0)
-            self.psp_defect_list.count(phase)
+            if not self.interruption:
+                self.psp_defect_list.count(phase)
             
     def __del__(self):
         self.OnStop(None)
