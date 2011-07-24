@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+﻿﻿#!/usr/bin/env python
 # coding:utf-8
 
 "Personal Software Process (TM) Integrated & Automatic Metrics Collection"
@@ -10,8 +10,6 @@ __license__ = "GPL 3.0"
 # PSP Time Toolbar & Defect Log inspired by PSP Dashboard (java/open source)
 # Most GUI classes are based on wxPython demos
 
-# TODO General: further enhance MVC pattern
-
 import shelve
 import sys
 import wx
@@ -22,17 +20,22 @@ import wx.lib.agw.aui as aui
 import images
 
 PSP_PHASES = ["Planning", "Design", "Code", "Compile", "Test", "Postmortem"]
+PSP_TIMES = ["Plan", "Actual"]
 
 
 class PlanSummaryTable(wx.grid.PyGridTableBase):
     "PSP Planning tracking summary (actual vs estimated)"
-    def __init__(self, grid):
+    def __init__(self, grid, filename="psp-summary.pkl"):
         wx.grid.PyGridTableBase.__init__(self)
         self.rows = PSP_PHASES
-        self.cols = "Plan", "Actual"            
-        self.cells = {}
+        self.cols = PSP_TIMES
+        self.cells = shelve.open(filename, writeback=True)
         self.grid = grid
-        
+        self.UpdateValues()
+
+    def __del__(self):
+        self.cells.close()
+
     def GetNumberRows(self):
         return len(self.rows)
 
@@ -43,12 +46,17 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         return self.cells.get(row, {}).get(col, {}) and True or False
 
     def GetValue(self, row, col):
-        val = self.cells.get(row, {}).get(col, 0)
+        key_phase = PSP_PHASES[row]
+        key_time = PSP_TIMES[col]
+        val = self.cells.get(key_phase, {}).get(key_time, 0)
         return val
         #return "%02d:%02d" % (val / 60, val % 60)
 
     def SetValue(self, row, col, value):
-        self.cells.setdefault(row, {})[col] = value
+        key_phase = PSP_PHASES[row]
+        key_time = PSP_TIMES[col]
+        self.cells.setdefault(key_phase, {})[key_time] = value
+        self.cells.sync()
         
     def GetColLabelValue(self, col):
         return self.cols[col]
@@ -58,23 +66,26 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
 
     def count(self, phase):
         "Increment actual user time according selected phase"
-        row = PSP_PHASES.index(phase) 
-        plan = self.GetValue(row, 0)
-        value = self.GetValue(row, 1) + 1
-        self.SetValue(row, 1, value)
+        row = PSP_PHASES.index(phase)
+        col = PSP_TIMES.index("Plan")
+        plan = self.GetValue(row, col)
+        col = PSP_TIMES.index("Actual")
+        value = self.GetValue(row, col) + 1
+        self.SetValue(row, col, value)
+        #self.grid.SetCellValue(row, col, str(value))
+        #self.grid.Refresh()
+        self.UpdateValues(row)
+        self.grid.SelectRow(row)
         if plan:
             return value/float(plan) * 100
-        self.UpdateValues(row)
         
-    def UpdateValues(self, row):
+    def UpdateValues(self, row=None):
         self.grid.BeginBatch()
         msg = wx.grid.GridTableMessage(self,
             wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
         self.grid.ProcessTableMessage(msg)
         self.grid.ForceRefresh()
         self.grid.EndBatch()
-        print "update!"
-        #TODO: this doesn't work!
 
         
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #TextEditMixin
