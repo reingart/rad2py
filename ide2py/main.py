@@ -209,28 +209,28 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.debugger = Debugger(self)
 
         # add a bunch of panes                      
-        self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().
-                          Name("toolbar").
+        self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().Name("toolbar").
                           ToolbarPane().Top().Position(0))
 
-        self._mgr.AddPane(self.toolbardbg, aui.AuiPaneInfo().
-                          Name("debug").
+        self._mgr.AddPane(self.toolbardbg, aui.AuiPaneInfo().Name("debug").
                           ToolbarPane().Top().Position(1))
                       
         self.browser = self.CreateBrowserCtrl()
-        self._mgr.AddPane(self.browser, aui.AuiPaneInfo().
-                          Caption("Simple Browser").Name("browser").
-                          Right().CloseButton(True))
+        self._mgr.AddPane(self.browser, aui.AuiPaneInfo().Name("browser").
+                          Caption("Simple Browser").Right().CloseButton(True))
 
         self.shell = Shell(self)
-        self._mgr.AddPane(self.shell, aui.AuiPaneInfo().
-                          Caption("PyCrust Shell").Name("shell").
+        self._mgr.AddPane(self.shell, aui.AuiPaneInfo().Name("shell").
+                          Caption("Shell").
                           Bottom().Layer(1).Position(1).CloseButton(True))
 
         self.console = ConsoleCtrl(self)
-        self._mgr.AddPane(self.console, aui.AuiPaneInfo().
-                          Name("console").Caption("Console (stdio)").
-                          Bottom().Layer(1).Position(2).CloseButton(True).MaximizeButton(True))
+        # redirect all inputs and outputs to own console window
+        # WARNING: Shell takes over raw_input (TODO: Fix?)
+        sys.stdin = sys.stdout = sys.stderr = self.console
+        self._mgr.AddPane(self.console, aui.AuiPaneInfo().Name("console").
+                          Caption("Console (stdio)").
+                          Bottom().Layer(1).Position(2).CloseButton(True))
 
         # "commit" all changes made to FrameManager   
         self._mgr.Update()
@@ -245,11 +245,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
 
+        # Connect to debugging events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
 
+        # Restore maximization
         if wx.GetApp().config.get('AUI', 'maximize', 'True') == 'True':
             self.Maximize()
 
