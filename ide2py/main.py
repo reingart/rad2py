@@ -31,8 +31,11 @@ from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
 from console import ConsoleCtrl
 from psp import PSPMixin
-from repo import RepoMixin, RepoEvent, EVT_REPO_ID
 
+try:
+    from repo import RepoMixin, RepoEvent, EVT_REPO_ID
+except ImportError:
+    RepoMixin = object
 
 TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
 
@@ -225,9 +228,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
                           Bottom().Layer(1).Position(1).CloseButton(True))
 
         self.console = ConsoleCtrl(self)
-        # redirect all inputs and outputs to own console window
-        # WARNING: Shell takes over raw_input (TODO: Fix?)
-        sys.stdin = sys.stdout = sys.stderr = self.console
         self._mgr.AddPane(self.console, aui.AuiPaneInfo().Name("console").
                           Caption("Console (stdio)").
                           Bottom().Layer(1).Position(2).CloseButton(True))
@@ -262,6 +262,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         if perspective:
             self._mgr.Update()
             self._mgr.LoadPerspective(perspective)
+
+        # redirect all inputs and outputs to own console window
+        # WARNING: Shell takes over raw_input (TODO: Fix?)
+        sys.stdin = sys.stdout = sys.stderr = self.console
 
         
     def OnPaneClose(self, event):
@@ -316,68 +320,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
     def OnSize(self, event):
         event.Skip()
-
-    def OnCreatePerspective(self, event):
-        dlg = wx.TextEntryDialog(self, "Enter a name for the new perspective:", "AUI Test")
-        dlg.SetValue(("Perspective %d")%(len(self._perspectives)+1))
-        if dlg.ShowModal() != wx.ID_OK:
-            return
-        if len(self._perspectives) == 0:
-            self._perspectives_menu.AppendSeparator()
-        self._perspectives_menu.Append(ID_FirstPerspective + len(self._perspectives), dlg.GetValue())
-        self._perspectives.append(self._mgr.SavePerspective())
-
-    def OnCopyPerspective(self, event):
-        s = self._mgr.SavePerspective()
-        if wx.TheClipboard.Open():
-        
-            wx.TheClipboard.SetData(wx.TextDataObject(s))
-            wx.TheClipboard.Close()
-        
-    def OnRestorePerspective(self, event):
-        self._mgr.LoadPerspective(self._perspectives[event.GetId() - ID_FirstPerspective])
-
-    def GetStartPosition(self):
-        self.x = self.x + 20
-        x = self.x
-        pt = self.ClientToScreen(wx.Point(0, 0))
-        return wx.Point(pt.x + x, pt.y + x)
-
-    def OnCreateTree(self, event):
-        self._mgr.AddPane(self.CreateTreeCtrl(), aui.AuiPaneInfo().
-                          Caption("Tree Control").
-                          Float().FloatingPosition(self.GetStartPosition()).
-                          FloatingSize(wx.Size(150, 300)).CloseButton(True).MaximizeButton(True))
-        self._mgr.Update()
-
-
-    def OnCreateGrid(self, event):
-        self._mgr.AddPane(self.CreateGrid(), aui.AuiPaneInfo().
-                          Caption("Grid").
-                          Float().FloatingPosition(self.GetStartPosition()).
-                          FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
-        self._mgr.Update()
-
-
-    def OnCreateHTML(self, event):
-        self._mgr.AddPane(self.CreateHTMLCtrl(), aui.AuiPaneInfo().
-                          Caption("HTML Content").
-                          Float().FloatingPosition(self.GetStartPosition()).
-                          FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
-        self._mgr.Update()
-
-    def OnCreateText(self, event):
-        self._mgr.AddPane(self.CreateTextCtrl(), aui.AuiPaneInfo().
-                          Caption("Text Control").
-                          Float().FloatingPosition(self.GetStartPosition()).
-                          CloseButton(True).MaximizeButton(True))
-        self._mgr.Update()
-
-    def OnCreateBrowser(self, event):       
-        self._mgr.AddPane(self.CreateBrowserCtrl(), aui.AuiPaneInfo().
-                          Caption("Simple Browser").
-                          Float().CloseButton(True))
-        self._mgr.Update()
 
     def OnNew(self, event):
         child = AUIChildFrame(self, "")
@@ -508,7 +450,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.debugger.pm()
 
     def NotifyRepo(self, filename, action="", status=""):
-        if RepoEvent:
+        if RepoMixin is not object:
             wx.PostEvent(self, RepoEvent(filename, action, status))
 
 
