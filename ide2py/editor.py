@@ -199,7 +199,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         # read configuration
         for key, value in cfg_styles.items():
-                self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
+            self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
 
     def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"

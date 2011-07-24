@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # coding:utf-8
 
-"Itegrated repository support"
+"Integrated repository support"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"

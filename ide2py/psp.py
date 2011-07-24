@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 # coding:utf-8
 
-"Personal Software Process (TM) Integrated & Automatic Metrics Collectotion"
+"Personal Software Process (TM) Integrated & Automatic Metrics Collection"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
@@ -77,7 +77,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         #TODO: this doesn't work!
 
         
-class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #TextEditMixin
+class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #TextEditMixin
     "Defect recording log facilities"
     def __init__(self, parent, filename="psp-defects.pkl"):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
@@ -87,27 +87,26 @@ class DefectListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin, CheckListCtrlMixin): #
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
         self.parent = parent
         self.col_defs = {
-            "number": (0, wx.LIST_FORMAT_RIGHT),
-            "description": (1, wx.LIST_FORMAT_LEFT),
-            "date": (2, wx.LIST_FORMAT_CENTER),
-            "type": (3, wx.LIST_FORMAT_LEFT),
-            "inject_phase": (4, wx.LIST_FORMAT_LEFT),
-            "remove_phase": (5, wx.LIST_FORMAT_LEFT),
-            "fix_time": (6, wx.LIST_FORMAT_RIGHT),
-            "fix_defect": (7, wx.LIST_FORMAT_LEFT),
-            "filename": (8, wx.LIST_FORMAT_LEFT),
-            "lineno": (9, wx.LIST_FORMAT_RIGHT),
-            "offset": (10, wx.LIST_FORMAT_RIGHT),
+            "number": (0, wx.LIST_FORMAT_RIGHT, 50),
+            "description": (1, wx.LIST_FORMAT_LEFT, wx.LIST_AUTOSIZE),
+            "date": (2, wx.LIST_FORMAT_CENTER, 75),
+            "type": (3, wx.LIST_FORMAT_LEFT, 50),
+            "inject_phase": (4, wx.LIST_FORMAT_LEFT, 75),
+            "remove_phase": (5, wx.LIST_FORMAT_LEFT, 75),
+            "fix_time": (6, wx.LIST_FORMAT_RIGHT, 75),
+            "fix_defect": (7, wx.LIST_FORMAT_LEFT, 50),
+            "filename": (8, wx.LIST_FORMAT_LEFT, 100),
+            "lineno": (9, wx.LIST_FORMAT_RIGHT, 50),
+            "offset": (10, wx.LIST_FORMAT_RIGHT, 50),
             }
-        for col_key, col_def in self.col_defs.items():
+        for col_key, col_def in sorted(self.col_defs.items(), key=lambda k: k[1][0]):
             col_name = col_key.replace("_", " ").capitalize()
             i = col_def[0]
-            col_fmt = col_def[1]
+            col_fmt, col_size = col_def[1:3]
             self.InsertColumn(i, col_name, col_fmt)
-      
-        self.SetColumnWidth(0, 50) #wx.LIST_AUTOSIZE)
-        self.SetColumnWidth(1, 200) # wx.LIST_AUTOSIZE)
-        #self.SetColumnWidth(2, 100)
+            self.SetColumnWidth(i, col_size)
+            if col_size == wx.LIST_AUTOSIZE:
+                self.setResizeColumn(i+1)
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self)
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self)
