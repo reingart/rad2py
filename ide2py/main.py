@@ -38,8 +38,9 @@ except ImportError:
     RepoMixin = object
 
 TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
-
 CONFIG_FILE = "ide2py.ini"
+REDIRECT_STDIO = False
+
 
 class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def __init__(self, parent):
@@ -265,7 +266,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         # redirect all inputs and outputs to own console window
         # WARNING: Shell takes over raw_input (TODO: Fix?)
-        sys.stdin = sys.stdout = sys.stderr = self.console
+        if REDIRECT_STDIO:
+            sys.stdin = sys.stdout = sys.stderr = self.console
 
         
     def OnPaneClose(self, event):
