@@ -24,11 +24,7 @@ import wx.py
 
 import images
 
-# Some configuration constants (TODO: ini file)
-
-TAB_WIDTH = 4
-IDENTATION = " " * TAB_WIDTH
-EDGE_COLUMN = 79
+# Some configuration constants 
 WORDCHARS = "_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono', 
          'helv' : 'DejaVu Serif', 'other': 'DejaVu',
@@ -66,8 +62,29 @@ class EditorCtrl(stc.StyledTextCtrl):
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
-                 style=0, filename=None, debugger=None):
+                 style=0, filename=None, debugger=None, cfg={},
+                 lang="python", cfg_styles={}):
+        global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
+
         stc.StyledTextCtrl.__init__(self, parent, ID, pos, size, style)
+
+        # read configuration
+        TAB_WIDTH = cfg.get("tab_width", 4)
+        USE_TABS = cfg.get('use_tabs', False)
+        IDENTATION = " " * TAB_WIDTH
+        EDGE_COLUMN = cfg.get("edge_column", 79)
+        ENCODING = cfg.get("encoding", "utf_8")
+        CALLTIPS = cfg.get("calltips", True)
+        AUTOCOMPLETE = cfg.get("autocomplete", False)
+        VIEW_WHITESPACE = cfg.get('view_white_space', False)
+        VIEW_EOL = cfg.get('view_eol', False)
+        EOL_MODE = cfg.get('eol_mode', stc.STC_EOL_CRLF)
+        
+        for key, default in FACES.items():
+            value = cfg.get("face_%s" % key, default)
+            if key in ("size", "size2"):
+                value = int(value)
+            FACES[key] = value
 
         # internal settings
         self.parent = parent
@@ -77,7 +94,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.calltip = 0
         self.namespace = {}
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
-        self.encoding = "utf_8"
+        self.encoding = ENCODING 
         self.bom = codecs.BOM_UTF8
 
         self.CmdKeyAssign(ord('B'), stc.STC_SCMOD_CTRL, stc.STC_CMD_ZOOMIN)
@@ -89,21 +106,21 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.SetKeyWords(0, " ".join(keywords))
         self.AutoCompSetIgnoreCase(False)
 
-        self.SetViewWhiteSpace(False)
+        self.SetViewWhiteSpace(VIEW_WHITESPACE)
         #self.SetBufferedDraw(False)
-        #self.SetViewEOL(True)
-        #self.SetEOLMode(stc.STC_EOL_CRLF)
+        self.SetViewEOL(VIEW_EOL)
+        self.SetEOLMode(EOL_MODE)
         self.SetCodePage(wx.stc.STC_CP_UTF8)
         self.SetUseAntiAliasing(True)
-        self.SetViewWhiteSpace(0)
-        self.SetTabWidth(4)
-        self.SetIndentationGuides(1)
-        self.SetUseTabs(0)
-        self.SetEdgeMode(stc.STC_EDGE_LINE)
-        self.SetEdgeColumn(EDGE_COLUMN)
-        self.SetEdgeColour(wx.Colour(200,200,200))
+        self.SetTabWidth(TAB_WIDTH)
+        self.SetIndentationGuides(True)
+        self.SetUseTabs(USE_TABS)
+        if EDGE_COLUMN:
+            self.SetEdgeMode(stc.STC_EDGE_LINE)
+            self.SetEdgeColumn(EDGE_COLUMN)
+            self.SetEdgeColour(wx.Colour(200,200,200))
         self.SetWordChars(WORDCHARS)
-        self.SetBackSpaceUnIndents(1)        
+        self.SetBackSpaceUnIndents(1)
 
         #MARGINS
         self.SetMargins(0,0)
@@ -146,11 +163,8 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         # Make some styles,  The lexer defines what each style is used for, we
         # just have to define what each style looks like.  This set is adapted from
-        # Scintilla sample property files.
-        self.StyleSetSpec(stc.STC_STYLE_DEFAULT, "face:%(mono)s,size:%(size)d" % FACES)
-        self.StyleSetBackground(stc.STC_STYLE_BRACELIGHT,"#AAAAFF")
-        
-        self.SetStyles()
+        # Scintilla sample property files.       
+        self.SetStyles(lang, cfg_styles)
 
         self.SetCaretForeground("BLUE")
 
@@ -176,50 +190,16 @@ class EditorCtrl(stc.StyledTextCtrl):
     
         self.OnOpen()
 
-    def SetStyles(self, lang='python'):
+    def SetStyles(self, lang='python', cfg_styles={}):
         #INDICATOR STYLES FOR ERRORS (self.errorMark)
         self.IndicatorSetStyle(2, stc.STC_INDIC_SQUIGGLE)
         self.IndicatorSetForeground(2, wx.RED)
 
-        self.StyleSetSpec(stc.STC_P_DEFAULT, "face:%(mono)s,size:%(size)d" % FACES)
         self.StyleClearAll()
 
-        # Global default styles for all languages
-        self.StyleSetSpec(stc.STC_STYLE_DEFAULT,     "face:%(mono)s,size:%(size)d" % FACES)
-        self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,  "back:#C0C0C0,face:%(mono)s,size:%(size2)d" % FACES)
-        self.StyleSetSpec(stc.STC_STYLE_CONTROLCHAR, "face:%(mono)s" % FACES)
-        self.StyleSetSpec(stc.STC_STYLE_BRACELIGHT,  "fore:#FFFFFF,back:#0000FF,bold")
-        self.StyleSetSpec(stc.STC_STYLE_BRACEBAD,    "fore:#000000,back:#FF0000,bold")
-
-        # Python styles
-        # White space
-        self.StyleSetSpec(stc.STC_P_DEFAULT, "face:%(mono)s,size:%(size)d" % FACES)
-        # Comment
-        self.StyleSetSpec(stc.STC_P_COMMENTLINE, "face:%(mono)s,fore:#007F00,back:#E8FFE8,italic,size:%(size)d" % FACES)
-        # Number
-        self.StyleSetSpec(stc.STC_P_NUMBER, "face:%(mono)s,fore:#007F7F,size:%(size)d" % FACES)
-        # String
-        self.StyleSetSpec(stc.STC_P_STRING, "face:%(mono)s,fore:#7F007F,size:%(size)d" % FACES)
-        # Single quoted string
-        self.StyleSetSpec(stc.STC_P_CHARACTER, "face:%(mono)s,fore:#7F007F,size:%(size)d" % FACES)
-        # Keyword
-        self.StyleSetSpec(stc.STC_P_WORD, "face:%(mono)s,fore:#00007F,bold,size:%(size)d" % FACES)
-        # Triple quotes
-        self.StyleSetSpec(stc.STC_P_TRIPLE, "face:%(mono)s,fore:#7F0000,size:%(size)d" % FACES)
-        # Triple double quotes
-        self.StyleSetSpec(stc.STC_P_TRIPLEDOUBLE, "face:%(mono)s,fore:#7F0000,size:%(size)d" % FACES)
-        # Class name definition
-        self.StyleSetSpec(stc.STC_P_CLASSNAME, "face:%(mono)s,fore:#0000FF,bold,underline,size:%(size)d" % FACES)
-        # Function or method name definition
-        self.StyleSetSpec(stc.STC_P_DEFNAME, "face:%(mono)s,fore:#007F7F,bold,size:%(size)d" % FACES)
-        # Operators
-        self.StyleSetSpec(stc.STC_P_OPERATOR, "face:%(mono)s,bold,size:%(size)d" % FACES)
-        # Identifiers
-        self.StyleSetSpec(stc.STC_P_IDENTIFIER, "")
-        # Comment-blocks
-        self.StyleSetSpec(stc.STC_P_COMMENTBLOCK, "face:%(mono)s,fore:#990000,back:#C0C0C0,italic,size:%(size)d" % FACES)
-        # End of line where string is not closed
-        self.StyleSetSpec(stc.STC_P_STRINGEOL, "face:%(mono)s,fore:#000000,face:%(mono)s,back:#E0C0E0,eol,size:%(size)d" % FACES)
+        # read configuration
+        for key, value in cfg_styles.items():
+                self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
 
     def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"

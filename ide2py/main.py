@@ -251,12 +251,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
 
-        # Restore maximization
-        if wx.GetApp().config.get('AUI', 'maximize', 'True') == 'True':
+        # Restore configuration
+        cfg_aui = FancyConfigDict("AUI", wx.GetApp().config)
+        
+        if cfg_aui.get('maximize', True):
             self.Maximize()
 
         # Restore a perspective layout. WARNING: all panes must have a name!
-        perspective = wx.GetApp().config.get('AUI', 'perspective', None)
+        perspective = cfg_aui.get('perspective', "")
         if perspective:
             self._mgr.Update()
             self._mgr.LoadPerspective(perspective)
@@ -515,9 +517,14 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def __init__(self, parent, filename):
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
+        config = wx.GetApp().config
+        
         self.filename = filename     
         self.editor = EditorCtrl(self,-1, filename=filename,    
-                                 debugger=parent.debugger)
+                                 debugger=parent.debugger,
+                                 lang="python", 
+                                 cfg=FancyConfigDict("EDITOR", config),
+                                 cfg_styles=FancyConfigDict("STC.PY", config))
         sizer = wx.BoxSizer()
         sizer.Add(self.editor, 1, wx.EXPAND)
         self.SetSizer(sizer)        
@@ -557,19 +564,35 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.parent.NotifyRepo(*args, **kwargs)
 
 
-class SimplierConfigParser(ConfigParser.SafeConfigParser):
-    def get(self, section, option, default):
+class FancyConfigDict(object):
+    def __init__(self, section, configparser):
+        self.section = section
+        self.configparser = configparser
+        
+    def get(self, option, default=None):
         "return an option, or default if section or option is not found"
         try:
-            return ConfigParser.SafeConfigParser.get(self, section, option)
+            section = self.section
+            if isinstance(default, bool):
+                val = self.configparser.getboolean(section, option)
+            elif isinstance(default, int):
+                val = self.configparser.getint(section, option)
+            elif isinstance(default, int):
+                val = self.configparser.getint(section, option)
+            else:
+                val = self.configparser.get(section, option, raw=True)
         except ConfigParser.Error:
-            return default
+            val = default
+        return val
+
+    def items(self):
+        return self.configparser.items(self.section, raw=True)
 
 
 class MainApp(wx.App):
 
     def OnInit(self):
-        self.config = SimplierConfigParser()
+        self.config = ConfigParser.ConfigParser()
         self.config.read(CONFIG_FILE)
         if not self.config.sections():
             raise RuntimeError("No hay configuracion!")
