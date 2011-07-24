@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 # coding:utf-8
 
 "Itegrated repository support"
@@ -31,8 +31,10 @@ class RepoMixin(object):
     "ide2py extension for integrated repository support"
     
     def __init__(self):
-        path = os.path.realpath("..")
-        username = "Mariano Reingart <reingart@gmail.com>"
+        cfg = wx.GetApp().get_config("REPOSITORY")
+        path = cfg.get("path", os.path.realpath(".."))
+        username = cfg.get("username", "")
+                
         self.repo = MercurialRepo(path, username)
         self.CreateRepoTreeCtrl(path)
         self._mgr.AddPane(self.repo_tree, aui.AuiPaneInfo().
@@ -41,19 +43,11 @@ class RepoMixin(object):
         self._mgr.Update()
 
         self.repo_tree.Bind(wx.EVT_LEFT_DCLICK, self.OnRepoLeftDClick)
-        #self.repo_tree.Bind(wx.EVT_RIGHT_DOWN, self.OnRightDown)
-        #self.repo_tree.Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
         self.repo_tree.Bind(wx.EVT_CONTEXT_MENU, self.OnRepoContextMenu)
 
         self.Connect(-1, -1, EVT_REPO_ID, self.OnRepoEvent)
 
-#        tb5 = self.CreateRepoToolbar()
-#        self._mgr.AddPane(tb5, aui.AuiPaneInfo().
-#                          Name("tb5").Caption("Repository Toolbar").
-#                          ToolbarPane().Top().Row(1).Position(4).
-#                          LeftDockable(False).RightDockable(False).CloseButton(True))
-#        self._mgr.Update()
-
+        # create pop-up menu
         self.CreateRepoMenu()
 
 
