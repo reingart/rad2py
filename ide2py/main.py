@@ -252,7 +252,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         RepoMixin.__init__(self)
 
         # Restore configuration
-        cfg_aui = FancyConfigDict("AUI", wx.GetApp().config)
+        cfg_aui = wx.GetApp().get_config("AUI")
         
         if cfg_aui.get('maximize', True):
             self.Maximize()
@@ -459,14 +459,14 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def __init__(self, parent, filename):
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
-        config = wx.GetApp().config
+        app = wx.GetApp()
         
         self.filename = filename     
         self.editor = EditorCtrl(self,-1, filename=filename,    
                                  debugger=parent.debugger,
                                  lang="python", 
-                                 cfg=FancyConfigDict("EDITOR", config),
-                                 cfg_styles=FancyConfigDict("STC.PY", config))
+                                 cfg=app.get_config("EDITOR"),
+                                 cfg_styles=app.get_config("STC.PY"))
         sizer = wx.BoxSizer()
         sizer.Add(self.editor, 1, wx.EXPAND)
         self.SetSizer(sizer)        
@@ -506,13 +506,16 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.parent.NotifyRepo(*args, **kwargs)
 
 
+# Configuration Helper to Encapsulate common config read scenarios:
 class FancyConfigDict(object):
+    "Dict-like shortcut to a configuration  parser section with proper defaults"
+    
     def __init__(self, section, configparser):
         self.section = section
         self.configparser = configparser
         
     def get(self, option, default=None):
-        "return an option, or default if section or option is not found"
+        "return an option, or default if not found (convert to default type)"
         try:
             section = self.section
             if isinstance(default, bool):
@@ -544,6 +547,9 @@ class MainApp(wx.App):
 
     def OnExit(self):
         self.config.write(open(CONFIG_FILE, "w"))
+
+    def get_config(self, section):
+        return FancyConfigDict(section, self.config)
 
 
 if __name__ == '__main__':
