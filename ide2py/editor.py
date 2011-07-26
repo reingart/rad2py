@@ -20,7 +20,7 @@ import types
 
 import wx
 import wx.stc as stc
-import wx.py 
+import wx.py
 
 import images
 
@@ -209,23 +209,23 @@ class EditorCtrl(stc.StyledTextCtrl):
         match = PY_CODING_RE.search(sniff)
         if match:
             encoding = match.group(1)
+        # First 2 to 4 bytes are BOM?
+        boms = (codecs.BOM, codecs.BOM_BE, codecs.BOM_LE, codecs.BOM_UTF8, 
+                codecs.BOM_UTF16, codecs.BOM_UTF16_BE, codecs.BOM_UTF16_LE,
+                codecs.BOM_UTF32, codecs.BOM_UTF32_BE, codecs.BOM_UTF32_LE)
+        encodings = ("utf_16", "utf_16_be", "utf_16_le", "utf_8", 
+                     "utf_16", "utf_16_be", "utf_16_le", None, None, None)                    
+        for i, bom in enumerate(boms):
+            if sniff[:len(bom)] == bom:
+                encoding = encodings[i]
+                start = len(bom)
+                self.bom = bom
+                break
         else:
-            # First 2 to 4 bytes are BOM?
-            boms = (codecs.BOM, codecs.BOM_BE, codecs.BOM_LE, codecs.BOM_UTF8, 
-                    codecs.BOM_UTF16, codecs.BOM_UTF16_BE, codecs.BOM_UTF16_LE,
-                    codecs.BOM_UTF32, codecs.BOM_UTF32_BE, codecs.BOM_UTF32_LE)
-            encodings = ("utf_16", "utf_16_be", "utf_16_le", "utf_8", 
-                         "utf_16", "utf_16_be", "utf_16_le", None, None, None)                    
-            for i, bom in enumerate(boms):
-                if sniff[:len(bom)] == bom:
-                    encoding = encodings[i]
-                    start = len(bom)
-                    self.bom = bom
-                    break
-            else:
-                # no BOM found, use to platform default
+            # no BOM found, use to platform default if no encoding specified
+            if not encoding:
                 encoding = locale.getpreferredencoding()
-                self.bom = None
+            self.bom = None
 
         if not encoding:
             raise RuntimeError("Unsupported encoding!")
