@@ -393,6 +393,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         # GF We avoid an error while evaluating chr(key), next line.
         if key > 255 or key < 0:
             event.Skip()
+        if alt and chr(key) == "3":  
+            self.ToggleComment()
         # GF No keyboard needs control or alt to make '(', ')' or '.'
         # GF Shift is not included as it is needed in some keyboards.
         elif chr(key) in ['(',')','.'] and not control and not alt:
@@ -708,6 +710,41 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.EnsureVisibleEnforcePolicy(linenum)
             self.GotoLine(linenum)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
+
+
+    def ToggleComment(self):
+        "Toggle the comment of the selected region"
+        sel = self.GetSelection()
+        start = self.LineFromPosition(sel[0])
+        end = self.LineFromPosition(sel[1])
+
+        # Modify the selected line(s)
+        self.BeginUndoAction()
+        try:
+            nchars = 0
+            lines = range(start, end+1)
+            lines.reverse()
+            for line_num in lines:
+                lstart = self.PositionFromLine(line_num)
+                lend = self.GetLineEndPosition(line_num)
+                text = self.GetTextRange(lstart, lend)
+                tmp = text.strip()
+                if len(tmp):
+                    if tmp.startswith("#"):
+                        text = text.replace('#', u'', 1)
+                        nchars = nchars - 1
+                    else:
+                        text = '#' + text
+                        nchars = nchars + 1
+                    self.SetTargetStart(lstart)
+                    self.SetTargetEnd(lend)
+                    self.ReplaceTarget(text)
+        finally:
+            self.EndUndoAction()
+            if sel[0] != sel[1]:
+                self.SetSelection(sel[0], sel[1] + nchars)
+            else:
+                self.GotoPos(sel[0] + nchars)
 
 
 class StandaloneEditor(wx.Frame):
