@@ -32,11 +32,19 @@ class RepoMixin(object):
     
     def __init__(self):
         cfg = wx.GetApp().get_config("REPOSITORY")
-        path = cfg.get("path", os.path.realpath(".."))
-        username = cfg.get("username", "")
-                
-        self.repo = MercurialRepo(path, username)
-        self.CreateRepoTreeCtrl(path)
+        path = cfg.get("path", "")
+        self.username = cfg.get("username", "")
+
+        # search "open file" menu item to insert "open repository" one
+        for pos, it in enumerate(self.menu['file'].GetMenuItems()):
+            if it.GetId() == wx.ID_OPEN:
+                break
+        self.ID_OPEN_REPO = wx.NewId()
+        self.menu['file'].Insert(pos+1, self.ID_OPEN_REPO, "Open Repo")
+        self.Bind(wx.EVT_MENU, self.OnOpenRepo, id=self.ID_OPEN_REPO)
+            
+        self.repo = None #MercurialRepo(path, self.username)
+        self.CreateRepoTreeCtrl()
         self._mgr.AddPane(self.repo_tree, aui.AuiPaneInfo().
                           Name("repo").Caption("Mercurial Repository").
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
@@ -87,11 +95,10 @@ class RepoMixin(object):
         tb4.Realize()
         return tb4
 
-    def CreateRepoTreeCtrl(self, path):
+    def CreateRepoTreeCtrl(self):
         self.repo_tree = tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
                            wx.TR_DEFAULT_STYLE | wx.NO_BORDER)
         
-        root = tree.AddRoot(path)
         imglist = wx.ImageList(16, 16, True, 2)
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16,16)))
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, wx.Size(16,16)))
@@ -103,15 +110,35 @@ class RepoMixin(object):
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_WARNING, wx.ART_OTHER, wx.Size(16,16)))
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16,16)))
         tree.AssignImageList(imglist)
-        # tree model: dict of dict, keys are filenames or None for root node
-        self.repo_dict = {None: root}
-
-        self.RefreshRepo()
-        tree.Expand(root)
         return tree
 
+    def PopulateRepoTree(self, path):
+        tree = self.repo_tree
+        tree.DeleteAllItems()
+        root = tree.AddRoot(path)
+        # tree model: dict of dict, keys are filenames or None for root node
+        self.repo_dict = {None: root}
+        self.RefreshRepo()
+        tree.Expand(root)
+
+    def OnOpenRepo(self, event):
+        dlg = wx.DirDialog(self, "Choose a directory:",
+                          style=wx.DD_DEFAULT_STYLE
+                           #| wx.DD_DIR_MUST_EXIST
+                           #| wx.DD_CHANGE_DIR
+                           )
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.path = path
+            self.repo = MercurialRepo(path, self.username)
+            self.PopulateRepoTree(path)
+        dlg.Destroy()
 
     def RefreshRepo(self, filename=None):
+        # exit if not repository loaded:
+        if not self.repo:
+            return
+            
         tree = self.repo_tree
         # icon status mapping
         icons = {'modified': 5, 'added': 2, 'deleted': 3, 'clean': 4,
@@ -135,7 +162,7 @@ class RepoMixin(object):
             # create or update file node
             if not basename in current:
                 node = tree.AppendItem(current[None], basename, icons[st])
-                tree.SetPyData(node, basename)
+                tree.SetPyData(node, os.path.join(self.path, fn))
                 current[basename] = node
             else:
                 node = current[basename]
