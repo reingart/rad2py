@@ -78,7 +78,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         AUTOCOMPLETE = cfg.get("autocomplete", False)
         VIEW_WHITESPACE = cfg.get('view_white_space', False)
         VIEW_EOL = cfg.get('view_eol', False)
-        EOL_MODE = cfg.get('eol_mode', stc.STC_EOL_CRLF)
+        self.eol = EOL_MODE = cfg.get('eol_mode', stc.STC_EOL_CRLF)
         
         for key, default in FACES.items():
             value = cfg.get("face_%s" % key, default)
@@ -204,7 +204,8 @@ class EditorCtrl(stc.StyledTextCtrl):
     def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"
         start = 0
-        f = open(filename, "rb")
+        f = open(filename, "Ur")
+        # detect encoding
         sniff = f.read(240)
         match = PY_CODING_RE.search(sniff)
         if match:
@@ -230,6 +231,15 @@ class EditorCtrl(stc.StyledTextCtrl):
         if not encoding:
             raise RuntimeError("Unsupported encoding!")
 
+        # detect line endings ['CRLF', 'CR', 'LF'][self.eol]
+        line = f.readline()
+        if f.newlines:
+            self.eol = {'\r\n': stc.STC_EOL_CRLF, '\n\r': stc.STC_EOL_CRLF,
+                        '\r': wx.stc.STC_EOL_CR, 
+                        '\n': stc.STC_EOL_LF}[f.newlines]
+            self.SetEOLMode(self.eol)
+            
+        # rewin and load text
         f.seek(start)
         self.SetText(f.read().decode(encoding))
         f.close()
