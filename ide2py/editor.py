@@ -192,7 +192,18 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(wx.EVT_FIND_REPLACE, self.OnFindReplace)
         self.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnReplaceAll)
         self.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
-    
+
+        menu_handlers = [
+            (wx.ID_FIND, self.OnFindReplace),
+            (wx.ID_REPLACE, self.DoReplace),
+            #(wx.ID_CUT, self.OnCut),
+            #(wx.ID_COPY, self.OnCopy),
+            #(wx.ID_PASTE, self.OnPaste),
+        ]
+        for menu_id, handler in menu_handlers:
+            self.Bind(wx.EVT_MENU, handler, id=menu_id)
+      
+
         # key bindings (shortcuts). TODO: configuration
         accels = [
                     #(wx.ACCEL_ALT,  ord('X'), wx.Newid()),
@@ -895,6 +906,16 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.finddlg = None
         self.HighlightText("",None)
         
+    def DoBuiltIn(self, event):
+        evtid = event.GetId()
+        if evtid == wx.ID_COPY:
+            self.CmdKeyExecute(wx.stc.STC_CMD_COPY)
+        elif evtid == wx.ID_PASTE:
+            self.Paste()
+        elif evtid == wx.ID_CUT:
+            self.CmdKeyExecute(wx.stc.STC_CMD_CUT)
+        elif evtid == wx.ID_DELETE:
+            self.CmdKeyExecute(wx.stc.STC_CMD_CLEAR)
 
 
 class StandaloneEditor(wx.Frame):
