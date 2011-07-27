@@ -8,6 +8,7 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 
+import fnmatch
 import os
 import sys
 import wx
@@ -44,8 +45,8 @@ class RepoMixin(object):
         self.Bind(wx.EVT_MENU, self.OnOpenRepo, id=self.ID_OPEN_REPO)
             
         self.repo = None #MercurialRepo(path, self.username)
-        self.CreateRepoTreeCtrl()
-        self._mgr.AddPane(self.repo_tree, aui.AuiPaneInfo().
+        repo_panel = self.CreateRepoTreeCtrl()
+        self._mgr.AddPane(repo_panel, aui.AuiPaneInfo().
                           Name("repo").Caption("Mercurial Repository").
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
@@ -96,7 +97,8 @@ class RepoMixin(object):
         return tb4
 
     def CreateRepoTreeCtrl(self):
-        self.repo_tree = tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
+        panel = wx.Panel(self)
+        self.repo_tree = tree = wx.TreeCtrl(panel, -1, wx.Point(0, 0), wx.Size(160, 250),
                            wx.TR_DEFAULT_STYLE | wx.NO_BORDER)
         
         imglist = wx.ImageList(16, 16, True, 2)
@@ -110,17 +112,33 @@ class RepoMixin(object):
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_WARNING, wx.ART_OTHER, wx.Size(16,16)))
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16,16)))
         tree.AssignImageList(imglist)
-        return tree
+
+        self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        self.repo_filter.Bind(wx.EVT_TEXT_ENTER, self.OnSearchRepo)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.repo_tree, 1, wx.EXPAND)
+        sizer.Add(self.repo_filter, 0, wx.EXPAND|wx.ALL, 5)
+        if 'wxMac' in wx.PlatformInfo:
+            sizer.Add((5,5))  # Make sure there is room for the focus ring
+        panel.SetSizer(sizer)
+        return panel
 
     def PopulateRepoTree(self, path):
+        self.repo_path = path
+        self.CleanRepoTree()
+        self.RefreshRepo()
+        self.repo_tree.Expand(self.repo_dict[None])
+        
+    def CleanRepoTree(self):
+        if not self.repo:
+            return
+            
         tree = self.repo_tree
         tree.DeleteAllItems()
-        root = tree.AddRoot(path)
+        root = tree.AddRoot(self.repo_path)
         # tree model: dict of dict, keys are filenames or None for root node
         self.repo_dict = {None: root}
-        self.RefreshRepo()
-        tree.Expand(root)
-
+        
     def OnOpenRepo(self, event):
         dlg = wx.DirDialog(self, "Choose a directory:",
                           style=wx.DD_DEFAULT_STYLE
@@ -134,11 +152,18 @@ class RepoMixin(object):
             self.PopulateRepoTree(path)
         dlg.Destroy()
 
+    def OnSearchRepo(self, event=None):
+        self.CleanRepoTree()
+        self.RefreshRepo()
+
     def RefreshRepo(self, filename=None):
         # exit if not repository loaded:
         if not self.repo:
             return
-            
+        
+        wx.BeginBusyCursor()
+        
+        search=self.repo_filter.GetValue()
         tree = self.repo_tree
         # icon status mapping
         icons = {'modified': 5, 'added': 2, 'deleted': 3, 'clean': 4,
@@ -148,6 +173,8 @@ class RepoMixin(object):
         # walk through the files, create tree nodes when needed
         for fn, st in sorted(self.repo.status(filename)):
             if st in ('ignored',):
+                continue
+            if search and not fnmatch.fnmatch(fn, search):
                 continue
             current = items
             folders = os.path.dirname(fn).split(os.path.sep)
@@ -164,9 +191,13 @@ class RepoMixin(object):
                 node = tree.AppendItem(current[None], basename, icons[st])
                 tree.SetPyData(node, os.path.join(self.path, fn))
                 current[basename] = node
+                if search:
+                    tree.EnsureVisible(node)
             else:
                 node = current[basename]
                 tree.SetItemImage(node, icons[st], wx.TreeItemIcon_Normal)
+
+        wx.EndBusyCursor()
 
     def get_selected_filename(self, event):
         item = self.repo_tree.GetSelection() 
