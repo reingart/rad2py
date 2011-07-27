@@ -58,7 +58,6 @@ class EditorCtrl(stc.StyledTextCtrl):
     BREAKPOINT_MARKER_NUM = 1
     CURRENT_LINE_MARKER_MASK = 0x4
     BREAKPOINT_MARKER_MASK = 0x2
-
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
@@ -199,7 +198,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                     #(wx.ACCEL_ALT,  ord('X'), wx.Newid()),
                     #(wx.ACCEL_CTRL, ord('H'), wx.Newid()),
                     (wx.ACCEL_CTRL, ord('F'), wx.NewId(), self.DoFind),
-                    (wx.ACCEL_NORMAL, wx.WXK_F3, wx.NewId(), self.OnFind),
+                    (wx.ACCEL_NORMAL, wx.WXK_F3, wx.NewId(), self.OnFindForward),
+                    (wx.ACCEL_SHIFT, wx.WXK_F3, wx.NewId(), self.OnFindReverse),
                     #(wx.ACCEL_NORMAL, wx.WXK_F9, wx.Newid()),
                 ]
         atable = wx.AcceleratorTable([acc[0:3] for acc in accels])
@@ -210,14 +210,19 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.finddlg = None
         
         self.OnOpen()
+        self.SetFocus()
 
     def SetStyles(self, lang='python', cfg_styles={}):
-        #INDICATOR STYLES FOR ERRORS (self.errorMark)
-        self.IndicatorSetStyle(2, stc.STC_INDIC_SQUIGGLE)
-        self.IndicatorSetForeground(2, wx.RED)
-
         self.StyleClearAll()
 
+        #INDICATOR STYLES FOR ERRORS
+        self.IndicatorSetStyle(0, stc.STC_INDIC_SQUIGGLE)
+        self.IndicatorSetForeground(0, wx.RED)
+
+        # INDICATOR STYLES FOR SELECTION (FIND/REPLACE)
+        self.IndicatorSetStyle(1, stc.STC_INDIC_BOX) #ROUNDBOX
+        self.IndicatorSetForeground(1, wx.Colour(0xFF, 0xA5, 0x00))
+        
         # read configuration
         for key, value in cfg_styles.items():
             self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
@@ -769,24 +774,26 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def get_find_mode(self):
         ret = 0
-        if self.finddata.GetFlags() | wx.FR_WHOLEWORD:
-            ret |= wx.stc.STC_FIND_WHOLEWORD
-        elif self.finddata.GetFlags() | wx.FR_MATCHCASE:
-            ret |= wx.stc.STC_FIND_MATCHCASE
+        if self.finddata.GetFlags() & wx.FR_WHOLEWORD:
+            ret = ret | wx.stc.STC_FIND_WHOLEWORD
+        elif self.finddata.GetFlags() & wx.FR_MATCHCASE:
+            ret = ret | wx.stc.STC_FIND_MATCHCASE
         return ret
 
 
     def DoFind(self, evt=None):
-        if self.finddlg:
-            return
-        self.finddata = wx.FindReplaceData()
-        self.finddata.SetFlags(wx.FR_DOWN)
-        self.finddlg = wx.FindReplaceDialog(self, self.finddata, "Find")
+        if not self.finddlg:
+            self.finddata = wx.FindReplaceData()
+            self.finddata.SetFlags(wx.FR_DOWN)
+            self.finddlg = wx.FindReplaceDialog(self, self.finddata, "Find")
         self.finddlg.Show(True)
+        self.finddlg.Raise()
+        self.finddlg.SetFocus()
         
     def OnFind(self, evt):
         findstring = self.finddata.GetFindString()
         mode = self.get_find_mode()
+        self.HighlightText(findstring, mode)
         if (self.finddata.GetFlags() & wx.FR_DOWN):
             start = self.GetCurrentPos()
             end = self.GetLength()
@@ -798,9 +805,41 @@ class EditorCtrl(stc.StyledTextCtrl):
         if pos != -1:
             self.GotoPos(pos+len(findstring))
             self.SetSelection(pos, pos + len(findstring))
-            self.SearchAnchor()
+            self.EnsureCaretVisible()
+            self.finddlg.Hide()
+            wx.CallAfter(self.SetFocus)
         else:
             wx.Bell()
+
+    def OnFindForward(self, evt):
+        flags = self.finddata.GetFlags()
+        self.finddata.SetFlags(flags | wx.FR_DOWN)
+        self.OnFind(evt)
+
+    def OnFindReverse(self, evt):
+        flags = self.finddata.GetFlags()
+        self.finddata.SetFlags(flags & ~wx.FR_DOWN)
+        self.OnFind(evt)
+
+    def HighlightText(self, findstring, mode):
+        start = 0
+        end = self.GetLength()
+        style = wx.stc.STC_INDIC1_MASK
+        lenght= len(findstring)
+        # clear all highlighted previous found text
+        self.StartStyling(start, style)
+        self.SetStyling(end, 0)
+        # highlight found text:
+        while lenght:
+            start = int(self.FindText(start, end, findstring, mode))
+            if start == -1:
+                break
+            self.StartStyling(start, style)
+            self.SetStyling(lenght, style)
+            start += len(findstring)
+        # dummy style to draw last found text (wx bug?)
+        self.StartStyling(end, style)
+        self.SetStyling(0, style)
 
     def OnReplace(self, evt):
         if et in [wx.wxEVT_COMMAND_FIND_REPLACE, wx.wxEVT_COMMAND_FIND_REPLACE_ALL]:
@@ -812,6 +851,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.finddlg.Destroy()
         del self.finddata
         self.finddlg = None
+        self.HighlightText("",None)
         
 
 
