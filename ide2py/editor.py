@@ -196,7 +196,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         # key bindings (shortcuts). TODO: configuration
         accels = [
                     #(wx.ACCEL_ALT,  ord('X'), wx.Newid()),
-                    #(wx.ACCEL_CTRL, ord('H'), wx.Newid()),
+                    (wx.ACCEL_CTRL, ord('G'), wx.NewId(), self.DoGoto),
                     (wx.ACCEL_CTRL, ord('F'), wx.NewId(), self.DoFind),
                     (wx.ACCEL_CTRL, ord('H'), wx.NewId(), self.DoReplace),
                     (wx.ACCEL_NORMAL, wx.WXK_F3, wx.NewId(), self.OnFindForward),
@@ -327,6 +327,25 @@ class EditorCtrl(stc.StyledTextCtrl):
             wx.MessageBox('You have a syntax error on line' + ' ' + str(lineno) + ', ' + 'column' + ' ' + str(offset) + '.', 'Syntax Error')
             self.parent.NotifyDefect(description=str(e), type="20", filename=self.filename, lineno=lineno, offset=offset)
             return None      
+
+    def DoGoto(self, evt):
+        dlg = wx.TextEntryDialog(
+                self, 'Insert line number, or regex expression:',
+                'Goto Line/Regex', '')
+        if dlg.ShowModal() == wx.ID_OK:
+            text = dlg.GetValue()
+            if text.isdigit():
+                pos = self.PositionFromLine(int(text)-1)
+            else:
+                # use STC regex (not standard!)
+                text = "\<" + text.replace(" ", "[ \t]*") 
+                start, end = 0,  self.GetLength()
+                mode = wx.stc.STC_FIND_WHOLEWORD | wx.stc.STC_FIND_MATCHCASE | \
+                       wx.stc.STC_FIND_REGEXP
+                pos = int(self.FindText(start, end, text, mode))
+            if pos>=0:
+                self.GotoPos(pos)
+        dlg.Destroy()
 
 
     def GotoLineOffset(self, lineno, offset):
