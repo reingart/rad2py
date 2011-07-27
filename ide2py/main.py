@@ -41,6 +41,21 @@ TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
 CONFIG_FILE = "ide2py.ini"
 REDIRECT_STDIO = False
 
+ID_COMMENT = wx.NewId()
+ID_GOTO = wx.NewId()
+
+ID_RUN = wx.NewId()
+ID_DEBUG = wx.NewId()
+ID_CHECK = wx.NewId()
+
+ID_BREAKPOINT = wx.NewId()
+ID_STEPIN = wx.NewId()
+ID_STEPRETURN = wx.NewId()
+ID_STEPNEXT = wx.NewId()
+ID_CONTINUE = wx.NewId()
+ID_STOP = wx.NewId()
+
+
 
 class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def __init__(self, parent):
@@ -51,6 +66,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         
         self.children = {}
         self.active_child = None
+        self.debugging = False
         
         # tell FrameManager to manage this frame        
         self._mgr = aui.AuiManager(self)
@@ -65,28 +81,40 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         file_menu = self.menu['file'] = wx.Menu()
         file_menu.Append(wx.ID_NEW, "New")
-        file_menu.Append(wx.ID_OPEN, "Open")
+        file_menu.Append(wx.ID_OPEN, "Open File")
         file_menu.Append(wx.ID_SAVE, "Save")
         file_menu.Append(wx.ID_SAVEAS, "Save As")        
         file_menu.AppendSeparator()        
         file_menu.Append(wx.ID_EXIT, "Exit")
 
         edit_menu = self.menu['edit'] = wx.Menu()
-        edit_menu.Append(wx.ID_UNDO, "Undo")
-        edit_menu.Append(wx.ID_REDO, "Redo")
+        edit_menu.Append(wx.ID_UNDO, "Undo\tCtrl-U")
+        edit_menu.Append(wx.ID_REDO, "Redo\tCtrl-Y")
         edit_menu.AppendSeparator()
-        edit_menu.Append(wx.ID_CUT, "Cut")
-        edit_menu.Append(wx.ID_COPY, "Copy")
-        edit_menu.Append(wx.ID_PASTE, "Paste")
-        edit_menu.AppendSeparator()        
-        edit_menu.Append(wx.ID_FIND, "Find")
-        edit_menu.Append(wx.ID_REPLACE, "Replace")
-          
+        edit_menu.Append(wx.ID_CUT, "Cut\tCtrl-X")
+        edit_menu.Append(wx.ID_COPY, "Copy\tCtrl-C")
+        edit_menu.Append(wx.ID_PASTE, "Paste\tCtrl-P")
+        edit_menu.AppendSeparator()
+        edit_menu.Append(wx.ID_FIND, '&Find\tCtrl-F', 'Find in the Demo Code')
+        edit_menu.Append(wx.ID_REPLACE, "Replace\tCtrl-H", "Search and replace")
+        edit_menu.AppendSeparator()
+        edit_menu.Append(ID_COMMENT, 'Comment/Uncomment\tAlt-3', "")
+        edit_menu.Append(ID_GOTO, "Goto Line/Regex\tCtrl-G", "")
+
+        dbg_menu = self.menu['debug'] = wx.Menu()
+        dbg_menu.Append(ID_STEPIN, "Step\tF8")
+        dbg_menu.Append(ID_STEPNEXT, "Next\tShift-F8")
+        dbg_menu.Append(ID_CONTINUE, "Continue\tF5")
+        dbg_menu.Append(ID_STOP, "Stop")
+        edit_menu.AppendSeparator()
+        dbg_menu.Append(ID_BREAKPOINT, "Toggle Breakpoint\tF9")
+
         help_menu = self.menu['help'] = wx.Menu()
         help_menu.Append(wx.ID_ABOUT, "About...")
         
         self.menubar.Append(file_menu, "File")
         self.menubar.Append(edit_menu, "Edit")
+        self.menubar.Append(dbg_menu, "Debug")
         self.menubar.Append(help_menu, "Help")
         
         self.SetMenuBar(self.menubar)
@@ -144,23 +172,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             wx.ID_ABOUT, GetBmp(wx.ART_HELP, wx.ART_TOOLBAR, tsize), "About")
 
         self.toolbar.AddSeparator()
-        
-        self.ID_RUN = wx.NewId()
-        self.ID_DEBUG = wx.NewId()
-        self.ID_CHECK = wx.NewId()
-
-        self.ID_STEPIN = wx.NewId()
-        self.ID_STEPRETURN = wx.NewId()
-        self.ID_STEPNEXT = wx.NewId()
-        self.ID_CONTINUE = wx.NewId()
-        self.ID_STOP = wx.NewId()
-        
+                
         self.toolbar.AddSimpleTool(
-            self.ID_RUN, images.GetRunningManBitmap(), "Run")
+            ID_RUN, images.GetRunningManBitmap(), "Run")
         self.toolbar.AddSimpleTool(
-            self.ID_DEBUG, images.GetDebuggingBitmap(), "Debug")
+            ID_DEBUG, images.GetDebuggingBitmap(), "Debug")
         self.toolbar.AddSimpleTool(
-            self.ID_CHECK, images.ok_16.GetBitmap(), "Check")
+            ID_CHECK, images.ok_16.GetBitmap(), "Check")
 
         self.toolbar.Realize()
 
@@ -169,17 +187,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             (wx.ID_OPEN, self.OnOpen),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
-            (self.ID_CHECK, self.OnCheck),
-            (self.ID_RUN, self.OnRun),
-            (self.ID_DEBUG, self.OnDebug),
+            (ID_CHECK, self.OnCheck),
+            (ID_RUN, self.OnRun),
+            (ID_DEBUG, self.OnDebugCommand),
             #(wx.ID_PRINT, self.OnPrint),
-            #(wx.ID_FIND, self.OnFind),
-            #(wx.ID_REPLACE, self.OnModify),
-            #(wx.ID_CUT, self.OnCut),
-            #(wx.ID_COPY, self.OnCopy),
-            #(wx.ID_PASTE, self.OnPaste),
-            #(wx.ID_ABOUT, self.OnAbout),
-        ]
+            (wx.ID_FIND, self.OnEditAction),
+            (wx.ID_REPLACE, self.OnEditAction),
+            (wx.ID_CUT, self.OnEditAction),
+            (wx.ID_COPY, self.OnEditAction),
+            (wx.ID_PASTE, self.OnEditAction),
+            (wx.ID_ABOUT, self.OnEditAction),
+            (ID_COMMENT, self.OnEditAction),
+            (ID_GOTO, self.OnEditAction),
+            (ID_BREAKPOINT, self.OnEditAction),
+         ]
         for menu_id, handler in menu_handlers:
             self.Bind(wx.EVT_MENU, handler, id=menu_id)
     
@@ -191,23 +212,23 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.toolbardbg.SetToolBitmapSize(wx.Size(*tsize))
 
         self.toolbardbg.AddSimpleTool(
-            self.ID_DEBUG, images.GetBreakBitmap(), "Break")
+            ID_DEBUG, images.GetBreakBitmap(), "Break")
         self.toolbardbg.AddSimpleTool(
-            self.ID_STEPIN, images.GetStepInBitmap(), "Step")
+            ID_STEPIN, images.GetStepInBitmap(), "Step")
         self.toolbardbg.AddSimpleTool(
-            self.ID_STEPNEXT, images.GetStepReturnBitmap(), "Next")
+            ID_STEPNEXT, images.GetStepReturnBitmap(), "Next")
         self.toolbardbg.AddSimpleTool(
-            self.ID_CONTINUE, images.GetContinueBitmap(), "Continue")
+            ID_CONTINUE, images.GetContinueBitmap(), "Continue")
         self.toolbardbg.AddSimpleTool(
-            self.ID_STOP, images.GetStopBitmap(), "Quit")
+            ID_STOP, images.GetStopBitmap(), "Quit")
         self.toolbardbg.AddSimpleTool(
-            self.ID_DEBUG, images.GetAddWatchBitmap(), "AddWatch")            
+            ID_DEBUG, images.GetAddWatchBitmap(), "AddWatch")            
         self.toolbardbg.AddSimpleTool(
-            self.ID_DEBUG, images.GetCloseBitmap(), "Close")
+            ID_DEBUG, images.GetCloseBitmap(), "Close")
         self.toolbardbg.Realize()
 
-        for menu_id in [self.ID_STEPIN, self.ID_STEPRETURN, self.ID_STEPNEXT,
-                        self.ID_CONTINUE, self.ID_STOP]:
+        for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT,
+                        ID_CONTINUE, ID_STOP]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
         self.debugger = Debugger(self)
@@ -351,6 +372,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             self.children[filename] = child
         else:
             child = self.children[filename]
+            child.Activate()
+            child.SetFocus()
         return child
 
     def OnSave(self, event):
@@ -370,11 +393,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             code = self.active_child.GetCodeObject()
             if code:         
                 self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
-
-    def OnDebug(self, event):
-        self.OnRun(event, debug=True)
-        self.GotoFileLine()
-            
+           
     def GotoFileLine(self, event=None, running=True):
         if event and running:
             filename, lineno = event.data
@@ -395,17 +414,24 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
                     
     def OnDebugCommand(self, event):
         event_id = event.GetId()
-        if event_id == self.ID_STEPIN:
-            self.debugger.Step()
-        elif event_id == self.ID_STEPNEXT:
-            self.debugger.Next()
-        elif event_id == self.ID_STEPRETURN:
-            self.debugger.StepReturn()
-        elif event_id == self.ID_CONTINUE:
-            self.debugger.Continue()
-        elif event_id == self.ID_STOP:
-            self.debugger.Quit()
+        # start debugger (if not running):
+        if event_id == ID_DEBUG or not self.debugging:
+            self.debugging = True
+            self.OnRun(event, debug=True)
+            self.debugging = False
+            # clean running indication
             self.GotoFileLine()
+        elif event_id == ID_STEPIN:
+            self.debugger.Step()
+        elif event_id == ID_STEPNEXT:
+            self.debugger.Next()
+        elif event_id == ID_STEPRETURN:
+            self.debugger.StepReturn()
+        elif event_id == ID_CONTINUE:
+            self.GotoFileLine()
+            self.debugger.Continue()
+        elif event_id == ID_STOP:
+            self.debugger.Quit()
 
     def OnCheck(self, event):
         # TODO: separate checks and tests, add reviews and diffs...
@@ -438,6 +464,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             ctrl.SetStandardFonts()
         ctrl.SetPage("hola!")
         return ctrl    
+        
+    def OnEditAction(self, event):
+        if self.active_child:
+            self.active_child.OnEditAction(event)
 
     def ExceptHook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
@@ -487,6 +517,20 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def OnSaveAs(self, event):
         self.editor.OnSaveAs(event)
+
+    def OnEditAction(self, event):
+        handlers = {
+            wx.ID_FIND: self.editor.DoFind,
+            wx.ID_REPLACE: self.editor.DoReplace,
+            wx.ID_COPY: self.editor.DoBuiltIn,
+            wx.ID_PASTE: self.editor.DoBuiltIn,
+            wx.ID_CUT: self.editor.DoBuiltIn,
+            ID_BREAKPOINT: self.editor.ToggleBreakpoint,
+            ID_COMMENT: self.editor.ToggleComment,
+            ID_GOTO: self.editor.DoGoto,
+            }
+        handlers[event.GetId()](event)
+
 
     def GetCodeObject(self,):
         return self.editor.GetCodeObject()
