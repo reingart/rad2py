@@ -113,6 +113,10 @@ class RepoMixin(object):
         imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16,16)))
         tree.AssignImageList(imglist)
 
+        # icon status mapping
+        self.repo_icons = {'modified': 5, 'added': 2, 'deleted': 3, 'clean': 4,
+                           'missing': 7, 'unknown': 8, 'ignored': 6}
+
         self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.repo_filter.Bind(wx.EVT_TEXT_ENTER, self.OnSearchRepo)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -121,6 +125,19 @@ class RepoMixin(object):
         if 'wxMac' in wx.PlatformInfo:
             sizer.Add((5,5))  # Make sure there is room for the focus ring
         panel.SetSizer(sizer)
+        
+        menu = wx.Menu()
+        #item = menu.AppendRadioItem(-1, "Search Filenames")
+        #self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
+        #item = menu.AppendRadioItem(-1, "Search Content")
+        #self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
+        for st in self.repo_icons:
+            item = menu.AppendCheckItem(-1, "%s" % st, "Show %s files" % st)
+            item.Check((st not in ('ignored', 'unknown')))
+            self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
+        self.repo_filter.SetMenu(menu)
+
+        
         return panel
 
     def PopulateRepoTree(self, path):
@@ -163,16 +180,19 @@ class RepoMixin(object):
         
         wx.BeginBusyCursor()
         
+        # get search filters
         search=self.repo_filter.GetValue()
+        filter_status = []
+        for item in self.repo_filter.GetMenu().GetMenuItems():
+            if item.IsChecked():
+                filter_status.append(item.Text)
+
         tree = self.repo_tree
-        # icon status mapping
-        icons = {'modified': 5, 'added': 2, 'deleted': 3, 'clean': 4,
-                 'missing': 7, 'unknown': 8, 'ignored': 6}
         items = self.repo_dict
         
         # walk through the files, create tree nodes when needed
         for fn, st in sorted(self.repo.status(filename)):
-            if st in ('ignored',):
+            if st not in filter_status:
                 continue
             if search and not fnmatch.fnmatch(fn, search):
                 continue
@@ -188,14 +208,14 @@ class RepoMixin(object):
                     current = current[folder] # chdir
             # create or update file node
             if not basename in current:
-                node = tree.AppendItem(current[None], basename, icons[st])
+                node = tree.AppendItem(current[None], basename, self.repo_icons[st])
                 tree.SetPyData(node, os.path.join(self.path, fn))
                 current[basename] = node
                 if search:
                     tree.EnsureVisible(node)
             else:
                 node = current[basename]
-                tree.SetItemImage(node, icons[st], wx.TreeItemIcon_Normal)
+                tree.SetItemImage(node, self.repo_icons[st], wx.TreeItemIcon_Normal)
 
         wx.EndBusyCursor()
 
