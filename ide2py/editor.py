@@ -663,16 +663,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         # fold and unfold as needed
         lineclicked = self.LineFromPosition(evt.GetPosition())
         if evt.GetMargin() == 0:
-            # toggle breakpoints:
-            if self.MarkerGet(lineclicked) & self.BREAKPOINT_MARKER_MASK:
-                if self.debugger:
-                    self.debugger.ClearBreakpoint(self.filename, lineclicked+1)
-                self.MarkerDelete(int(lineclicked), self.BREAKPOINT_MARKER_NUM)
-            else:
-                if self.debugger:
-                    self.debugger.SetBreakpoint(self.filename, lineclicked+1)
-                self.MarkerAdd(int(lineclicked), self.BREAKPOINT_MARKER_NUM)
-            pass
+            self.ToggleBreakpoint(lineclicked)
         elif evt.GetMargin() == 2:
             if evt.GetShift() and evt.GetControl():
                 self.FoldAll()
@@ -692,6 +683,21 @@ class EditorCtrl(stc.StyledTextCtrl):
                             self.Expand(lineclicked, True, True, 100)
                     else:
                         self.ToggleFold(lineclicked)
+
+    def ToggleBreakpoint(self, evt, lineno=None):
+        #import pdb; pdb.set_trace()
+        if not lineno:
+            lineno = self.LineFromPosition(self.GetCurrentPos())
+        # toggle breakpoints:
+        if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:
+            if self.debugger:
+                self.debugger.ClearBreakpoint(self.filename, lineno+1)
+            self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM)
+        else:
+            if self.debugger:
+                self.debugger.SetBreakpoint(self.filename, lineno+1)
+            self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
+
 
     def FoldAll(self):
         lineCount = self.GetLineCount()
