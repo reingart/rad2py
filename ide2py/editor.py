@@ -187,7 +187,28 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)       
+
+        self.Bind(wx.EVT_FIND, self.OnFind)
+        self.Bind(wx.EVT_FIND_NEXT, self.OnFind)
+        self.Bind(wx.EVT_FIND_REPLACE, self.OnReplace)
+        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnReplace)
+        self.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
     
+        # key bindings (shortcuts). TODO: configuration
+        accels = [
+                    #(wx.ACCEL_ALT,  ord('X'), wx.Newid()),
+                    #(wx.ACCEL_CTRL, ord('H'), wx.Newid()),
+                    (wx.ACCEL_CTRL, ord('F'), wx.NewId(), self.DoFind),
+                    (wx.ACCEL_NORMAL, wx.WXK_F3, wx.NewId(), self.OnFind),
+                    #(wx.ACCEL_NORMAL, wx.WXK_F9, wx.Newid()),
+                ]
+        atable = wx.AcceleratorTable([acc[0:3] for acc in accels])
+        for acc in accels:
+            self.Bind(wx.EVT_MENU, acc[3], id=acc[2])
+        self.SetAcceleratorTable(atable)
+
+        self.finddlg = None
+        
         self.OnOpen()
 
     def SetStyles(self, lang='python', cfg_styles={}):
@@ -393,7 +414,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         # GF We avoid an error while evaluating chr(key), next line.
         if key > 255 or key < 0:
             event.Skip()
-        if alt and chr(key) == "3":  
+        elif alt and chr(key) == "3":  
             self.ToggleComment()
         # GF No keyboard needs control or alt to make '(', ')' or '.'
         # GF Shift is not included as it is needed in some keyboards.
@@ -745,6 +766,53 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.SetSelection(sel[0], sel[1] + nchars)
             else:
                 self.GotoPos(sel[0] + nchars)
+
+    def get_find_mode(self):
+        ret = 0
+        if self.finddata.GetFlags() | wx.FR_WHOLEWORD:
+            ret |= wx.stc.STC_FIND_WHOLEWORD
+        elif self.finddata.GetFlags() | wx.FR_MATCHCASE:
+            ret |= wx.stc.STC_FIND_MATCHCASE
+        return ret
+
+
+    def DoFind(self, evt=None):
+        if self.finddlg:
+            return
+        self.finddata = wx.FindReplaceData()
+        self.finddata.SetFlags(wx.FR_DOWN)
+        self.finddlg = wx.FindReplaceDialog(self, self.finddata, "Find")
+        self.finddlg.Show(True)
+        
+    def OnFind(self, evt):
+        findstring = self.finddata.GetFindString()
+        mode = self.get_find_mode()
+        if (self.finddata.GetFlags() & wx.FR_DOWN):
+            start = self.GetCurrentPos()
+            end = self.GetLength()
+        else: 
+            # revert direction:
+            start, end = self.GetSelection()[0], 0
+
+        pos = int(self.FindText(start, end, findstring, mode))
+        if pos != -1:
+            self.GotoPos(pos+len(findstring))
+            self.SetSelection(pos, pos + len(findstring))
+            self.SearchAnchor()
+        else:
+            wx.Bell()
+
+    def OnReplace(self, evt):
+        if et in [wx.wxEVT_COMMAND_FIND_REPLACE, wx.wxEVT_COMMAND_FIND_REPLACE_ALL]:
+            replaceTxt = "Replace text: %s" % evt.GetReplaceString()
+        else:
+            replaceTxt = ""
+
+    def OnFindClose(self, evt):
+        self.finddlg.Destroy()
+        del self.finddata
+        self.finddlg = None
+        
 
 
 class StandaloneEditor(wx.Frame):
