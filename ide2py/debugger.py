@@ -32,6 +32,7 @@ class Debugger(bdb.Bdb):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
+        self.waiting = False
         self.gui = gui # for callbacks
 
     def user_line(self, frame):
