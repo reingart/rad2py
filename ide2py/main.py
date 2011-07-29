@@ -80,9 +80,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.menu = {}
 
         file_menu = self.menu['file'] = wx.Menu()
-        file_menu.Append(wx.ID_NEW, "New")
-        file_menu.Append(wx.ID_OPEN, "Open File")
-        file_menu.Append(wx.ID_SAVE, "Save")
+        file_menu.Append(wx.ID_NEW, "New\tCtrl-N")
+        file_menu.Append(wx.ID_OPEN, "Open File\tCtrl-O")
+        file_menu.Append(wx.ID_SAVE, "Save\tCtrl-S")
         file_menu.Append(wx.ID_SAVEAS, "Save As")        
         file_menu.AppendSeparator()        
         file_menu.Append(wx.ID_EXIT, "Exit")
@@ -599,6 +599,7 @@ class MainApp(wx.App):
 
 
 if __name__ == '__main__':
-    app = MainApp()
+    # start main app, avoid wx redirection on windows
+    app = MainApp(redirect=False)
     app.MainLoop()
 

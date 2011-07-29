@@ -41,7 +41,7 @@ class RepoMixin(object):
             if it.GetId() == wx.ID_OPEN:
                 break
         self.ID_OPEN_REPO = wx.NewId()
-        self.menu['file'].Insert(pos+1, self.ID_OPEN_REPO, "Open Repo")
+        self.menu['file'].Insert(pos+1, self.ID_OPEN_REPO, "Open Repo\tCtrl-Shift-O")
         self.Bind(wx.EVT_MENU, self.OnOpenRepo, id=self.ID_OPEN_REPO)
             
         self.repo = None #MercurialRepo(path, self.username)
