@@ -19,6 +19,9 @@ from repo_hg import MercurialRepo
 # Define notification event for repository refresh
 EVT_REPO_ID = wx.NewId()
 
+# ID for base file in recent repository history
+ID_FILE_REPO = [wx.NewId() for x in range(10)]
+
 
 class RepoEvent(wx.PyEvent):
     "Simple event to carry repository notification"
@@ -43,7 +46,19 @@ class RepoMixin(object):
         self.ID_OPEN_REPO = wx.NewId()
         self.menu['file'].Insert(pos+1, self.ID_OPEN_REPO, "Open Repo\tCtrl-Shift-O")
         self.Bind(wx.EVT_MENU, self.OnOpenRepo, id=self.ID_OPEN_REPO)
-            
+
+        # search "recent files" menu item to insert "recent repos" one
+        for pos, it in enumerate(self.menu['file'].GetMenuItems()):
+            if it.GetId() == wx.ID_FILE:
+                break
+        # and a file history
+        recent_repos_submenu = wx.Menu()
+        self.repo_filehistory = wx.FileHistory(idBase=ID_FILE_REPO[0])
+        self.repo_filehistory.UseMenu(recent_repos_submenu)
+        self.menu['file'].InsertMenu(pos+1, -1, "Recent Repos", recent_repos_submenu)
+        self.Bind(wx.EVT_MENU_RANGE, self.OnRepoFileHistory, 
+            id=ID_FILE_REPO[0], id2=ID_FILE_REPO[9])
+           
         self.repo = None #MercurialRepo(path, self.username)
         repo_panel = self.CreateRepoTreeCtrl()
         self._mgr.AddPane(repo_panel, aui.AuiPaneInfo().
@@ -137,6 +152,12 @@ class RepoMixin(object):
             self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
         self.repo_filter.SetMenu(menu)
 
+        # restore file history config:
+        cfg_history = wx.GetApp().get_config("HISTORY")
+        for filenum in range(9,-1,-1):
+            filename = cfg_history.get('repo_%s' % filenum, "")
+            if filename:
+                self.repo_filehistory.AddFileToHistory(filename)
         
         return panel
 
@@ -164,10 +185,23 @@ class RepoMixin(object):
                            )
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
-            self.path = path
-            self.repo = MercurialRepo(path, self.username)
-            self.PopulateRepoTree(path)
+            self.DoOpenRepo(path)
+            self.repo_filehistory.AddFileToHistory(path)
         dlg.Destroy()
+
+    def DoOpenRepo(self, path):
+        self.path = path
+        self.repo = MercurialRepo(path, self.username)
+        self.PopulateRepoTree(path)
+
+    def OnRepoFileHistory(self, evt):
+        # get the file based on the menu ID
+        filenum = evt.GetId() - ID_FILE_REPO[0]
+        filepath = self.repo_filehistory.GetHistoryFile(filenum)
+        self.DoOpenRepo(filepath)
+        # add it back to the history so it will be moved up the list
+        self.repo_filehistory.AddFileToHistory(filepath)
+
 
     def OnSearchRepo(self, event=None):
         self.CleanRepoTree()
@@ -316,4 +350,13 @@ class RepoMixin(object):
         from wxpydiff import PyDiff
         PyDiff(None, 'wxPyDiff', "repository", filename, old, new)
 
+    def RepoMixinCleanup(self):
+        # A little extra cleanup is required for the FileHistory control
+        if hasattr(self, "repo_filehistory"):
+            # save recent file history in config file
+            for filenum in range(0,10):
+                filename = self.repo_filehistory.GetHistoryFile(filenum)
+                wx.GetApp().config.set('HISTORY', 'repo_%s' % filenum, filename)
+            del self.repo_filehistory
+            #self.recent_repos_submenu.Destroy() # warning: SEGV!
 

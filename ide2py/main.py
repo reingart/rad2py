@@ -84,6 +84,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         file_menu.Append(wx.ID_OPEN, "Open File\tCtrl-O")
         file_menu.Append(wx.ID_SAVE, "Save\tCtrl-S")
         file_menu.Append(wx.ID_SAVEAS, "Save As")        
+        file_menu.AppendSeparator()
+        
+        # and a file history
+        recent_files_submenu = wx.Menu()
+        self.filehistory = wx.FileHistory()
+        self.filehistory.UseMenu(recent_files_submenu)
+        file_menu.AppendMenu(wx.ID_FILE, "Recent Files", recent_files_submenu)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.Cleanup)
+        self.Bind(wx.EVT_MENU_RANGE, self.OnFileHistory, 
+                    id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        
         file_menu.AppendSeparator()        
         file_menu.Append(wx.ID_EXIT, "Exit")
 
@@ -203,7 +214,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
          ]
         for menu_id, handler in menu_handlers:
             self.Bind(wx.EVT_MENU, handler, id=menu_id)
-    
+            
         # debugging facilities:
 
         self.toolbardbg = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
@@ -285,6 +296,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             self._mgr.Update()
             self._mgr.LoadPerspective(perspective)
 
+        # restore file history config:
+        cfg_history = wx.GetApp().get_config("HISTORY")
+        for filenum in range(9,-1,-1):
+            filename = cfg_history.get('file_%s' % filenum, "")
+            if filename:
+                self.filehistory.AddFileToHistory(filename)
+
         # redirect all inputs and outputs to own console window
         # WARNING: Shell takes over raw_input (TODO: Fix?)
         if REDIRECT_STDIO:
@@ -304,6 +322,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
                 event.Veto()
             dlg.Destroy()
 
+    def Cleanup(self, *args):
+        if RepoMixin is not object:
+            self.RepoMixinCleanup()
+        # A little extra cleanup is required for the FileHistory control
+        if hasattr(self, "filehistory"):
+            # save recent file history in config file
+            for filenum in range(0,10):
+                filename = self.filehistory.GetHistoryFile(filenum)
+                wx.GetApp().config.set('HISTORY', 'file_%s' % filenum, filename)
+            del self.filehistory
+            #self.recent_files_submenu.Destroy() # warning: SEGV!
 
     def OnClose(self, event):
         # Save current perspective layout. WARNING: all panes must have a name! 
@@ -362,9 +391,19 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             # This returns a Python list of files that were selected.
             filename = dlg.GetPaths()[0]        
             self.DoOpen(filename)
-            
+            # add it to the history
+            self.filehistory.AddFileToHistory(filename)
+
         dlg.Destroy()
-   
+
+    def OnFileHistory(self, evt):
+        # get the file based on the menu ID
+        filenum = evt.GetId() - wx.ID_FILE1
+        filepath = self.filehistory.GetHistoryFile(filenum)
+        self.DoOpen(filepath)
+        # add it back to the history so it will be moved up the list
+        self.filehistory.AddFileToHistory(filepath)
+
     def DoOpen(self, filename):
         if filename not in self.children:
             child = AUIChildFrame(self, filename)
