@@ -11,6 +11,13 @@ import os
 
 from mercurial import ui, hg, cmdutil
 
+try:
+    from mercurial.cmdutil import revpair, revsingle, match
+except ImportError:
+    # mercurial version 1.9 API changes
+    from mercurial.scmutil import revpair, revsingle, match as hg_match
+    match = lambda repo, paths: hg_match(repo[None], paths) 
+    
 # based on web2py mercurial support
 
 _hgignore_content = """\
@@ -45,26 +52,26 @@ class MercurialRepo(object):
 
     def add(self, filepaths, dry_run=False, subrepo=None):
         "add the specified files on the next commit"
-        match = cmdutil.match(self.repo, filepaths)
+        m = match(self.repo, filepaths)
         prefix = ""
         uio = self.repo.ui
-        rejected = cmdutil.add(uio, self.repo, match, dry_run, subrepo, prefix)
+        rejected = cmdutil.add(uio, self.repo, m, dry_run, subrepo, prefix)
         return rejected
 
     def commit(self, filepaths, message):
         "commit the specified files or all outstanding changes"
         oldid = self.repo[self.repo.lookup('.')]
         user = date = None
-        match = cmdutil.match(self.repo, filepaths)
-        node = self.repo.commit(message, user, date, match)
+        m = match(self.repo, filepaths)
+        node = self.repo.commit(message, user, date, m)
         if self.repo[self.repo.lookup('.')] == oldid:
             return None # no changes
         return True # sucess
 
     def cat(self, file1, revision=None):
         "return the current or given revision of a file"
-        ctx = cmdutil.revsingle(self.repo, revision)
-        m = cmdutil.match(self.repo, (file1,))
+        ctx = revsingle(self.repo, revision)
+        m = match(self.repo, (file1,))
         for abs in ctx.walk(m):
             data = ctx[abs].data()
             if self.decode:
@@ -85,7 +92,7 @@ class MercurialRepo(object):
         raise NotImplementedError("HG remove is not implemented!")
 
     def revert(self, revision=None):
-        ctx = cmdutil.revsingle(self.repo, revision)
+        ctx = revsingle(self.repo, revision)
         hg.update(self.repo, revision)
         print "reverted to revision %s" % ctx.rev()
 
@@ -93,14 +100,14 @@ class MercurialRepo(object):
         "show changed files in the working directory"
 
         revs = None
-        node1, node2 = cmdutil.revpair(self.repo, revs)
+        node1, node2 = revpair(self.repo, revs)
 
         cwd = (path and self.repo.getcwd()) or ''
         copy = {}
         states = 'modified added removed deleted unknown ignored clean'.split()
         show = states
 
-        stat = self.repo.status(node1, node2, cmdutil.match(self.repo, path),
+        stat = self.repo.status(node1, node2, match(self.repo, path),
                     'ignored' in show, 'clean' in show, 'unknown' in show,
                     )
         changestates = zip(states, 'MAR!?IC', stat)
