@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-"Integrated Simpler Wiki Text WYSWYG Edit Control (using web2py markmin)"
+"Integrated Simple Wiki Text WYSWYG Edit Control (using web2py markmin)"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
@@ -15,7 +15,7 @@ import wx.html
 
 
 try:
-    sys.path.append(r"/home/reingart/web2py-hg")
+    sys.path.append(os.path.abspath("../web2py"))
     from gluon.contrib.markmin.markmin2html import render
 except ImportError:
     raise
@@ -40,13 +40,10 @@ SAMPLE_WIKI_TEXT = """
 - Cat
 - Mouse
 
-Two new lines between items break the list in two lists.
-
 ## Ordered Lists
 + Dog
 + Cat
 + Mouse
-
 
 ## Tables
 
@@ -58,13 +55,10 @@ X | 0 | 0
 -----:abc
 
 ### Blockquote
-
 -----
 Hello world
 -----
-
 ### Code, ``<code>``, escaping and extra stuff
-
 ``
 def test():
     return "this is Python code"
@@ -102,21 +96,6 @@ class WikiPanel(wx.Panel):
         self.Bind(fnb.EVT_FLATNOTEBOOK_PAGE_CHANGED, self.OnPageChanged)
         
         #self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
-
-
-    def OnActivate(self, event):
-        pass
-        
-    def OnDeactivate(self, event):
-        pass 
-        
-    def OnKeyDown(self, event):
-        key = event.GetKeyCode()
-        control = event.ControlDown()
-        shift=event.ShiftDown()
-        alt = event.AltDown()
-        if key == wx.WXK_TAB and control:
-            self.pass1
 
     def OnPageChanging(self, event):
         page = event.GetOldSelection()
