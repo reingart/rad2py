@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # coding:utf-8
 
-"Integration of several python code checkers"
+"Diff facilities enhancing python stdlib (difflib.SequenceMatcher)"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
