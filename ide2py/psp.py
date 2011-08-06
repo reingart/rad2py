@@ -10,8 +10,10 @@ __license__ = "GPL 3.0"
 # PSP Time Toolbar & Defect Log inspired by PSP Dashboard (java/open source)
 # Most GUI classes are based on wxPython demos
 
+import datetime
 import shelve
 import sys
+import uuid
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin, TextEditMixin
@@ -29,7 +31,7 @@ def pretty_time(counter):
     for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
         if counter < (60 * factor):
             break
-    # only print fraction if not a round number
+    # only print fraction if it is not an integer result
     if counter % factor:
         return "%0.2f %s" % (counter/factor, unit)
     else:
@@ -154,7 +156,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
         self.col_defs = {
             "number": (0, wx.LIST_FORMAT_RIGHT, 50),
             "description": (1, wx.LIST_FORMAT_LEFT, wx.LIST_AUTOSIZE),
-            "date": (2, wx.LIST_FORMAT_CENTER, 75),
+            "date": (2, wx.LIST_FORMAT_CENTER, 80),
             "type": (3, wx.LIST_FORMAT_LEFT, 50),
             "inject_phase": (4, wx.LIST_FORMAT_LEFT, 75),
             "remove_phase": (5, wx.LIST_FORMAT_LEFT, 75),
@@ -163,6 +165,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
             "filename": (8, wx.LIST_FORMAT_LEFT, 100),
             "lineno": (9, wx.LIST_FORMAT_RIGHT, 50),
             "offset": (10, wx.LIST_FORMAT_RIGHT, 50),
+            "uuid": (11, wx.LIST_FORMAT_RIGHT, 50),
             }
         for col_key, col_def in sorted(self.col_defs.items(), key=lambda k: k[1][0]):
             col_name = col_key.replace("_", " ").capitalize()
@@ -177,7 +180,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self)
 
         self.selecteditemindex = None
-
+        self.key_map = {}  # pos -> key
+        
         self.data = shelve.open(filename, writeback=True)
         for key, item in self.data.items():
             self.AddItem(item, key)
@@ -190,7 +194,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
             item["_checked"] = False
         index = self.InsertStringItem(sys.maxint, item["number"])
         if key is None:
-            key = str(index)
+            key = str(uuid.uuid1())
+            item['uuid'] = key
             self.data[key] = item
             self.data.sync()
         for col_key, col_def in self.col_defs.items():
@@ -200,13 +205,15 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
             else:
                 val = str(val)
             self.SetStringItem(index, col_def[0], val)
-        self.SetItemData(index, long(key))
+        self.key_map[long(index)] = key
+        self.SetItemData(index, long(index))
         if item["_checked"]:
             self.ToggleItem(index)
             
     def OnItemActivated(self, evt):
-        #self.ToggleItem(evt.m_itemIndex)
-        key = str(self.GetItemData(evt.m_itemIndex))
+        #self.ToggleItem(evt.m_itemIndex)      
+        pos = long(self.GetItemData(evt.m_itemIndex))
+        key = self.key_map[pos]
         item = self.data[key]
         event = item["filename"], item["lineno"], item["offset"]
         self.parent.GotoFileLine(event,running=False)
@@ -214,7 +221,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
 
     # this is called by the base class when an item is checked/unchecked
     def OnCheckItem(self, index, flag):
-        key = str(self.GetItemData(index))
+        pos = long(self.GetItemData(index))
+        key = self.key_map[pos]
         item = self.data[key]
         title = item["number"]
         if flag:
@@ -239,7 +247,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
         "Increment actual user time to fix selected defect"
         if self.selecteditemindex is not None:
             index = self.selecteditemindex
-            key = str(self.GetItemData(index))
+            pos = long(self.GetItemData(index))
+            key = self.key_map[pos]
             col_key = "fix_time"
             col_index = self.col_defs[col_key][0]
             flag =  self.data[key]["_checked"]
@@ -378,10 +387,10 @@ class PSPMixin(object):
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
         no = str(len(self.psp_defect_list.data)+1)
         phase = self.GetPSPPhase()
-        item = {'number': no, 'description': description, "date": "hoy", 
+        item = {'number': no, 'description': description, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
             "fix_defect": "", 
             "filename": filename, "lineno": lineno, "offset": offset}
 
         self.psp_defect_list.AddItem(item)
-   
+
