@@ -8,6 +8,7 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 
+import cStringIO
 import fnmatch
 import os
 import sys
@@ -15,6 +16,7 @@ import wx
 import wx.lib.agw.aui as aui
 
 from repo_hg import MercurialRepo
+import fileutil
 
 # Define notification event for repository refresh
 EVT_REPO_ID = wx.NewId()
@@ -345,10 +347,31 @@ class RepoMixin(object):
         dlg.Destroy()
 
     def DoDiff(self, filename):
-        old = self.repo.cat(filename)
-        new = open(filename, "U").read()
+        # open files (use in-memmory file-like buffer for working base)
+        file_old = cStringIO.StringIO(self.repo.cat(filename))
+        file_new = open(filename, "U")
+        
+        # read files returning proper unicode text and other flags
+        old_text, old_encoding, old_bom, old_eol, old_nl = \
+            fileutil.unicode_file_read(file_old, encoding=None)
+        
+        new_text, new_encoding, new_bom, new_eol, new_nl = \
+            fileutil.unicode_file_read(file_new, encoding=None)
+        
+        # normalize newlines (eol changes not supported by wxPyDiff/SM by now)
+        nl = '\r\n'
+        if old_nl != nl:
+            old_text = old_text.replace(old_nl, nl)
+        if new_nl != nl:
+            new_text = new_text.replace(new_nl, nl)
+        
+        # re-encode unicode to same encoding
+        old_text = old_text.encode("utf8")
+        new_text = new_text.encode("utf8")
+        
+        # render the diff
         from wxpydiff import PyDiff
-        PyDiff(None, 'wxPyDiff', "repository", filename, old, new)
+        PyDiff(None, 'wxPyDiff', "repository", filename, old_text, new_text)
 
     def RepoMixinCleanup(self):
         # A little extra cleanup is required for the FileHistory control

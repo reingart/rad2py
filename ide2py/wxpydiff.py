@@ -304,7 +304,11 @@ class PyDiff(wx.Frame):
         self.populateText()
         print "done!"
 
-    def populateText(self):        
+    def populateText(self):
+        # set default windows end-of-line mode (\r\n)
+        self.leftView.SetEOLMode(wx.stc.STC_EOL_CRLF)
+        self.rightView.SetEOLMode(wx.stc.STC_EOL_CRLF)
+        
         self.leftView.StyleSetSpec(stc.STC_STYLE_DEFAULT, "size:%d,face:%s" % (FACE_SIZE, FACE3))
         self.rightView.StyleSetSpec(stc.STC_STYLE_DEFAULT, "size:%d,face:%s" % (FACE_SIZE, FACE3))
 

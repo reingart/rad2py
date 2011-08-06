@@ -23,6 +23,8 @@ import wx.stc as stc
 import wx.py
 
 import images
+import fileutil
+
 
 # Some configuration constants 
 WORDCHARS = "_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -32,7 +34,6 @@ FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono',
 CALLTIPS = True # False or 'first paragraph only'     
 AUTOCOMPLETE = True
 AUTOCOMPLETE_IGNORE = []
-PY_CODING_RE = re.compile(r'coding[:=]\s*([-\w.]+)')
 
 
 def getargspec(func):
@@ -241,47 +242,23 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"
-        start = 0
+        # open the file with universal line-endings support
         f = open(filename, "Ur")
-        # detect encoding
-        sniff = f.read(240)
-        match = PY_CODING_RE.search(sniff)
-        if match:
-            encoding = match.group(1)
-        # First 2 to 4 bytes are BOM?
-        boms = (codecs.BOM, codecs.BOM_BE, codecs.BOM_LE, codecs.BOM_UTF8, 
-                codecs.BOM_UTF16, codecs.BOM_UTF16_BE, codecs.BOM_UTF16_LE,
-                codecs.BOM_UTF32, codecs.BOM_UTF32_BE, codecs.BOM_UTF32_LE)
-        encodings = ("utf_16", "utf_16_be", "utf_16_le", "utf_8", 
-                     "utf_16", "utf_16_be", "utf_16_le", None, None, None)                    
-        for i, bom in enumerate(boms):
-            if sniff[:len(bom)] == bom:
-                encoding = encodings[i]
-                start = len(bom)
-                self.bom = bom
-                break
-        else:
-            # no BOM found, use to platform default if no encoding specified
-            if not encoding:
-                encoding = locale.getpreferredencoding()
-            self.bom = None
 
-        if not encoding:
-            raise RuntimeError("Unsupported encoding!")
-
-        # detect line endings ['CRLF', 'CR', 'LF'][self.eol]
-        line = f.readline()
-        if f.newlines:
-            self.eol = {'\r\n': stc.STC_EOL_CRLF, '\n\r': stc.STC_EOL_CRLF,
-                        '\r': wx.stc.STC_EOL_CR, 
-                        '\n': stc.STC_EOL_LF}[f.newlines]
-            self.SetEOLMode(self.eol)
-            
-        # rewin and load text
-        f.seek(start)
-        self.SetText(f.read().decode(encoding))
-        f.close()
+        # analyze encoding and line ending, get text properly decoded
+        text, encoding, bom, eol, nl = fileutil.unicode_file_read(f, encoding)
+        
+        # store internal values for future reference
         self.encoding = encoding 
+        self.bom = bom
+        self.eol = eol
+        
+        # set line endings mode
+        self.SetEOLMode(self.eol)
+            
+        # load text (unicode!)
+        self.SetText(text)
+        f.close()
 
 
     def SaveFile(self, filename, encoding=None):
