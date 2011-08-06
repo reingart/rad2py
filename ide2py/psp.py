@@ -23,6 +23,34 @@ PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption"]
 
 
+def pretty_time(counter):
+    "return formatted string of a time count in seconds (days/hours/min/seg)"
+    # find time unit and convert to it
+    for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
+        if counter < (60 * factor):
+            break
+    return "%0.2f %s" % (counter/factor, unit)
+
+def parse_time(user_input):
+    "analyze user input, return a time count number in seconds"
+    # sanity checks on user input:
+    user_input = str(user_input).strip().lower()
+    if not user_input:
+        return 0
+    elif ' ' in user_input:
+        user_time, user_unit = user_input.split()
+    elif not user_input[-1].isdigit():
+        user_time, user_unit = user_input[:-1], user_input[-1]
+    else:
+        user_time, user_unit = user_input, ""
+    # find time unit and convert from it to seconds
+    user_time = user_time.replace(",", ".")
+    for factor, unit in ((1, 's'), (60, 'm'), (3600, 'h')):
+        if unit == user_unit:
+            break
+    return float(user_time) * factor
+
+
 class PlanSummaryTable(wx.grid.PyGridTableBase):
     "PSP Planning tracking summary (actual vs estimated)"
     def __init__(self, grid, filename="psp-summary.pkl"):
@@ -51,10 +79,11 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
         val = self.cells.get(key_phase, {}).get(key_time, 0)
-        return val
+        return pretty_time(val)
         #return "%02d:%02d" % (val / 60, val % 60)
 
     def SetValue(self, row, col, value):
+        value = parse_time(value)
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
         self.cells.setdefault(key_phase, {})[key_time] = value
@@ -68,17 +97,17 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
 
     def count(self, phase, interruption):
         "Increment actual user time according selected phase"
-        row = PSP_PHASES.index(phase)
-        col = PSP_TIMES.index("plan")
-        plan = self.GetValue(row, col)
+        key_phase = phase
+        key_time = "plan"
+        plan = self.cells.get(key_phase, {}).get(key_time, 0)
         if not interruption:
-            col = PSP_TIMES.index("actual")
+            key_time = "actual"
         else:
-            col = PSP_TIMES.index("interruption")
-        value = self.GetValue(row, col) + 1
-        self.SetValue(row, col, value)
-        #self.grid.SetCellValue(row, col, str(value))
-        #self.grid.Refresh()
+            key_time = "interruption"
+        value = self.cells.get(phase, {}).get(key_time, 0) + 1
+        self.cells.setdefault(key_phase, {})[key_time] = value
+        self.cells.sync()
+        row = PSP_PHASES.index(phase)
         self.UpdateValues(row)
         self.grid.SelectRow(row)
         if plan:
@@ -146,7 +175,11 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
             self.data.sync()
         for col_key, col_def in self.col_defs.items():
             val = item.get(col_key, "")
-            self.SetStringItem(index, col_def[0], str(val))
+            if col_key == 'fix_time':
+                val = pretty_time(val)
+            else:
+                val = str(val)
+            self.SetStringItem(index, col_def[0], val)
         self.SetItemData(index, long(key))
         if item["_checked"]:
             self.ToggleItem(index)
@@ -194,7 +227,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
                 value = self.data[key][col_key] + 1
                 self.data[key][col_key] = value
                 self.data.sync()
-                self.SetStringItem(index, col_index, str(value))
+                self.SetStringItem(index, col_index, pretty_time(value))
 
 
 
@@ -207,8 +240,9 @@ class PSPMixin(object):
         # shelves (persistent dictionaries)
         psp_defects = cfg.get("psp_defects", "psp_defects.dat")
         psp_times = cfg.get("psp_times", "psp_times.dat")
+        psp_summary = cfg.get("psp_summary", "psp_summary.dat")
 
-        # text recording logs
+        # text recording logs (TODO)
         psp_time_log = cfg.get("psp_time_log", "")
         psp_defect_log = cfg.get("psp_defect_log", "")
         
