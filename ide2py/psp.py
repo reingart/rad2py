@@ -20,7 +20,7 @@ import wx.lib.agw.aui as aui
 import images
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
-PSP_TIMES = ["plan", "actual", "interruption"]
+PSP_TIMES = ["plan", "actual", "interruption", "comments"]
 
 
 def pretty_time(counter):
@@ -29,7 +29,11 @@ def pretty_time(counter):
     for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
         if counter < (60 * factor):
             break
-    return "%0.2f %s" % (counter/factor, unit)
+    # only print fraction if not a round number
+    if counter % factor:
+        return "%0.2f %s" % (counter/factor, unit)
+    else:
+        return "%d %s" % (counter/factor, unit)
 
 def parse_time(user_input):
     "analyze user input, return a time count number in seconds"
@@ -53,7 +57,7 @@ def parse_time(user_input):
 
 class PlanSummaryTable(wx.grid.PyGridTableBase):
     "PSP Planning tracking summary (actual vs estimated)"
-    def __init__(self, grid, filename="psp-summary.pkl"):
+    def __init__(self, grid, filename="psp_summary.dat"):
         wx.grid.PyGridTableBase.__init__(self)
         self.rows = PSP_PHASES
         self.cols = PSP_TIMES
@@ -79,10 +83,15 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
         val = self.cells.get(key_phase, {}).get(key_time, 0)
-        return pretty_time(val)
-        #return "%02d:%02d" % (val / 60, val % 60)
+        if key_time != "comments":
+            return pretty_time(val)
+        elif val:
+            return '; '.join(['%s %s' % (msg, pretty_time(delta)) 
+                                for msg, delta in val])
+        else:
+            return ''
 
-    def SetValue(self, row, col, value):
+    def SetValue(self, row, col, value):    
         value = parse_time(value)
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
@@ -112,6 +121,17 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.grid.SelectRow(row)
         if plan:
             return value/float(plan) * 100
+
+    def comment(self, phase, message, delta):
+        "Record the comment of an interruption in selected phase"
+        key_phase = phase
+        comments = self.cells.get(key_phase, {}).get('comments', [])
+        comments.append((message, delta))
+        self.cells[key_phase]['comments'] = comments
+        self.cells.sync()
+        row = PSP_PHASES.index(phase)
+        self.UpdateValues(row)
+        self.grid.SelectRow(row)
         
     def UpdateValues(self, row=None):
         self.grid.BeginBatch()
@@ -242,9 +262,11 @@ class PSPMixin(object):
         psp_times = cfg.get("psp_times", "psp_times.dat")
         psp_summary = cfg.get("psp_summary", "psp_summary.dat")
 
-        # text recording logs (TODO)
-        psp_time_log = cfg.get("psp_time_log", "")
-        psp_defect_log = cfg.get("psp_defect_log", "")
+        # text recording logs
+        psp_time_log = cfg.get("psp_time_log", "psp_time_log.txt")
+        self.psp_time_log_file = open(psp_time_log, "a")
+        psp_defect_log = cfg.get("psp_defect_log", "psp_defect_log.txt")
+        self.psp_defect_log_file = open(psp_defect_log, "a")
         
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
@@ -253,7 +275,7 @@ class PSPMixin(object):
 
         grid = self.CreatePSPPlanSummaryGrid(filename=psp_times)
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
-                          Caption("PSP Plan Summary").Name("psp_plan").
+                          Caption("PSP Plan Summary Times").Name("psp_plan").
                           Bottom().Position(1).Row(2).
                           FloatingSize(wx.Size(200, 200)).CloseButton(True).MaximizeButton(True))
         self.psp_defect_list = self.CreatePSPDefectRecordingLog(filename=psp_defects)
@@ -263,7 +285,7 @@ class PSPMixin(object):
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
         # flag for time not spent on psp task
-        self.interruption = False
+        self.psp_interruption = None
 
     def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
@@ -318,20 +340,36 @@ class PSPMixin(object):
         self.timer.Start(1000)
 
     def OnPause(self, event):
-        if self.interruption:
-            #TODO: ask a message for the time recording log!
-            pass
-        self.interruption = not self.interruption
+        # check if we are in a interruption delta or not:
+        if self.psp_interruption is not None:
+            dlg = wx.TextEntryDialog(self, 
+                'Enter a comment for the time recording log:', 
+                'Interruption', 'phone call')
+            if dlg.ShowModal() == wx.ID_OK:
+                phase = self.GetPSPPhase()
+                message = dlg.GetValue()
+                self.psptimetable.comment(phase, message, self.psp_interruption)
+            dlg.Destroy()
+            # disable interruption counter
+            self.psp_interruption = None
+        else:
+            # start interruption counter
+            self.psp_interruption = 0
+            print "pausing!"
 
     def OnStop(self, event):
         self.timer.Stop()
     
     def TimerHandler(self, event):
+        # increment interruption delta time counter (if any)
+        if self.psp_interruption is not None:
+            self.psp_interruption += 1
+            print "psp_interruption", self.psp_interruption
         phase = self.GetPSPPhase()
         if phase:
-            percent = self.psptimetable.count(phase, self.interruption)
+            percent = self.psptimetable.count(phase, self.psp_interruption)
             self.psp_gauge.SetValue(percent or 0)
-            if not self.interruption:
+            if not self.psp_interruption:
                 self.psp_defect_list.count(phase)
             
     def __del__(self):
