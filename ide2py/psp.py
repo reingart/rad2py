@@ -24,6 +24,7 @@ import images
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
 
+PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
@@ -198,6 +199,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
             item['uuid'] = key
             self.data[key] = item
             self.data.sync()
+            self.parent.psp_log_event("new_defect", uuid=key, comments=str(data[key]))
         for col_key, col_def in self.col_defs.items():
             val = item.get(col_key, "")
             if col_key == 'fix_time':
@@ -218,6 +220,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
         event = item["filename"], item["lineno"], item["offset"]
         self.parent.GotoFileLine(event,running=False)
         self.selecteditemindex = evt.m_itemIndex
+        self.parent.psp_log_event("activate_defect", uuid=key)
 
     # this is called by the base class when an item is checked/unchecked
     def OnCheckItem(self, index, flag):
@@ -225,17 +228,19 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
         key = self.key_map[pos]
         item = self.data[key]
         title = item["number"]
-        if flag:
-            what = "checked"
-            col_key = 'remove_phase' # update phase when removed 
-            col_index = self.col_defs[col_key][0]
-            if not item[col_key]:
-                phase = item[col_key] = self.parent.GetPSPPhase()
-                self.SetStringItem(index, col_index, str(phase))
-        else:
-            what = "unchecked"
-        item["_checked"] = flag
-        self.data.sync()
+        if item.get("_checked") != flag:
+            if flag:
+                what = "checked"
+                col_key = 'remove_phase' # update phase when removed 
+                col_index = self.col_defs[col_key][0]
+                if not item[col_key]:
+                    phase = item[col_key] = self.parent.GetPSPPhase()
+                    self.SetStringItem(index, col_index, str(phase))
+            else:
+                what = "unchecked"
+            self.parent.psp_log_event("%s_defect" % what, uuid=key)
+            item["_checked"] = flag
+            self.data.sync()
         
     def OnItemSelected(self, evt):
         pass ##print('item selected: %s\n' % evt.m_itemIndex)
@@ -272,10 +277,8 @@ class PSPMixin(object):
         psp_summary = cfg.get("psp_summary", "psp_summary.dat")
 
         # text recording logs
-        psp_time_log = cfg.get("psp_time_log", "psp_time_log.txt")
-        self.psp_time_log_file = open(psp_time_log, "a")
-        psp_defect_log = cfg.get("psp_defect_log", "psp_defect_log.txt")
-        self.psp_defect_log_file = open(psp_defect_log, "a")
+        psp_event_log_filename = cfg.get("psp_event_log", "psp_event_log.txt")
+        self.psp_event_log_file = open(psp_event_log_filename, "a")
         
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
@@ -347,6 +350,7 @@ class PSPMixin(object):
 
     def OnPlay(self, event):
         self.timer.Start(1000)
+        self.psp_log_event("start")
 
     def OnPause(self, event):
         # check if we are in a interruption delta or not:
@@ -358,17 +362,19 @@ class PSPMixin(object):
                 phase = self.GetPSPPhase()
                 message = dlg.GetValue()
                 self.psptimetable.comment(phase, message, self.psp_interruption)
+                self.psp_log_event("resuming", comment=message)
             dlg.Destroy()
             # disable interruption counter
             self.psp_interruption = None
         else:
             # start interruption counter
             self.psp_interruption = 0
-            print "pausing!"
+            self.psp_log_event("pausing!")
 
     def OnStop(self, event):
         self.timer.Stop()
-    
+        self.psp_log_event("stop")
+            
     def TimerHandler(self, event):
         # increment interruption delta time counter (if any)
         if self.psp_interruption is not None:
@@ -383,7 +389,8 @@ class PSPMixin(object):
             
     def __del__(self):
         self.OnStop(None)
-
+        close(self.psp_event_log_file)
+        
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
         no = str(len(self.psp_defect_list.data)+1)
         phase = self.GetPSPPhase()
@@ -393,4 +400,13 @@ class PSPMixin(object):
             "filename": filename, "lineno": lineno, "offset": offset}
 
         self.psp_defect_list.AddItem(item)
+
+    def psp_log_event(self, event, uuid="no_uuid", comment=""):
+        phase = self.GetPSPPhase()
+        timestamp = str(datetime.datetime.now())
+        msg = PSP_EVENT_LOG_FORMAT % {'timestamp': timestamp, 'phase': phase, 
+            'event': event, 'comment': comment, 'uuid': uuid}
+        print msg
+        self.psp_event_log_file.write("%s\r\n" % msg)
+        self.psp_event_log_file.flush()
 
