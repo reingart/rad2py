@@ -26,6 +26,9 @@ PSP_TIMES = ["plan", "actual", "interruption", "comments"]
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
+ID_PLAY, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
+
+
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
     # find time unit and convert to it
@@ -120,7 +123,9 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.cells.setdefault(key_phase, {})[key_time] = value
         self.cells.sync()
         row = PSP_PHASES.index(phase)
-        self.UpdateValues(row)
+        col = PSP_TIMES.index(key_time)
+        self.UpdateValues(row, col)
+        self.grid.SelectRow(-1)
         self.grid.SelectRow(row)
         if plan:
             return value/float(plan) * 100
@@ -136,13 +141,15 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.UpdateValues(row)
         self.grid.SelectRow(row)
         
-    def UpdateValues(self, row=None):
-        self.grid.BeginBatch()
-        msg = wx.grid.GridTableMessage(self,
-            wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
-        self.grid.ProcessTableMessage(msg)
-        self.grid.ForceRefresh()
-        self.grid.EndBatch()
+    def UpdateValues(self, row=-1, col=-1):
+        if not self.grid.IsCellEditControlEnabled():
+            self.grid.BeginBatch()
+            msg = wx.grid.GridTableMessage(self,
+                wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES,
+                    row, col)
+            self.grid.ProcessTableMessage(msg)
+            #self.grid.ForceRefresh()
+            self.grid.EndBatch()
 
         
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #TextEditMixin
@@ -311,7 +318,6 @@ class PSPMixin(object):
         return list
         
     def CreatePSPToolbar(self):
-        ID_PLAY, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
         tb4 = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
                          wx.TB_FLAT | wx.TB_NODIVIDER)
         tb4.SetToolBitmapSize(wx.Size(16, 16))
@@ -323,6 +329,10 @@ class PSPMixin(object):
         tb4.AddCheckLabelTool(ID_PAUSE, "Pause", images.pause.GetBitmap(),
                                     shortHelp="Pause timer (interruption)")
         tb4.AddSimpleTool(ID_STOP, images.stop.GetBitmap(), "Stop timer")
+
+        tb4.EnableTool(ID_PLAY, True)
+        tb4.EnableTool(ID_PAUSE, False)
+        tb4.EnableTool(ID_STOP, False)
         
         self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
         tb4.AddControl(self.psp_phase_choice)
@@ -339,6 +349,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnStop, id=ID_STOP)
         
         tb4.Realize()
+        self.psp_toolbar = tb4
         return tb4
 
     def GetPSPPhase(self):
@@ -351,6 +362,9 @@ class PSPMixin(object):
     def OnPlay(self, event):
         self.timer.Start(1000)
         self.psp_log_event("start")
+        self.psp_toolbar.EnableTool(ID_PLAY, False)
+        self.psp_toolbar.EnableTool(ID_PAUSE, True)
+        self.psp_toolbar.EnableTool(ID_STOP, True)
 
     def OnPause(self, event):
         # check if we are in a interruption delta or not:
@@ -374,12 +388,17 @@ class PSPMixin(object):
     def OnStop(self, event):
         self.timer.Stop()
         self.psp_log_event("stop")
-            
+        if self.psp_interruption: 
+            self.OnPause(event)
+            self.psp_toolbar.ToggleTool(ID_PAUSE, False)
+        self.psp_toolbar.EnableTool(ID_PLAY, True)
+        self.psp_toolbar.EnableTool(ID_PAUSE, False)
+        self.psp_toolbar.EnableTool(ID_STOP, False)
+                    
     def TimerHandler(self, event):
         # increment interruption delta time counter (if any)
         if self.psp_interruption is not None:
             self.psp_interruption += 1
-            print "psp_interruption", self.psp_interruption
         phase = self.GetPSPPhase()
         if phase:
             percent = self.psptimetable.count(phase, self.psp_interruption)
@@ -401,7 +420,7 @@ class PSPMixin(object):
 
         self.psp_defect_list.AddItem(item)
 
-    def psp_log_event(self, event, uuid="no_uuid", comment=""):
+    def psp_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
         timestamp = str(datetime.datetime.now())
         msg = PSP_EVENT_LOG_FORMAT % {'timestamp': timestamp, 'phase': phase, 
