@@ -29,7 +29,24 @@ class ConsoleCtrl(wx.TextCtrl):
         self.history = []           # history buffer
         self.historyindex = 0
         self.encoding = "utf_8"
+        self.startpos = 0           # readline start position
+        self.process = None         # executing a piped process?
+        self.inputstream = self.errorstream = self.outputstream = None
+
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
+        self.Bind(wx.EVT_IDLE, self.OnIdle)
+
+    def OnIdle(self, event):
+        if self.process is not None:
+            pid = self.process.GetPid()
+            if not self.process.Exists(pid):
+                return
+            if self.process.IsInputAvailable() and self.inputstream:
+                if self.inputstream.CanRead():
+                    self.write(self.inputstream.read())
+            if self.process.IsErrorAvailable() and self.errorstream:
+                if self.errorstream.CanRead():
+                    self.write(self.errorstream.read())
 
     def OnKeyDown(self, event):
         "Key press event handler"
@@ -40,8 +57,15 @@ class ConsoleCtrl(wx.TextCtrl):
         
         if controldown and key in BREAK_KEYS:
             if DEBUG: print >> sys.stdout, "CTRL+C"
-            raise KeyboardInterrupt()
-        elif not self.isreading:
+            if self.process:
+                self.process.Kill(self.process.pid, wx.SIGKILL)
+            else:
+                raise KeyboardInterrupt()
+        elif self.process and key!=wx.WXK_RETURN:
+            if not self.startpos: # simulate readline!
+                self.startpos = self.GetInsertionPoint()
+            event.Skip()
+        elif not self.isreading and self.process is None:
             pass # ignore 
         elif (not controldown and not shiftdown and not altdown) and \
            key in [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER]:
@@ -67,6 +91,9 @@ class ConsoleCtrl(wx.TextCtrl):
             text = '\n'
         self.input = text
         self.write(os.linesep)
+        if self.process:
+            self.outputstream.write(text+"\n")
+            self.startpos = None
         
     def readline(self):
         "Replacement for stdin.readline()"
@@ -101,7 +128,11 @@ class ConsoleCtrl(wx.TextCtrl):
         text = self.fixlineendings(text)
         if DEBUG: print >> sys.stderr, "writing", text
         self.AppendText(text)
-        
+        #self.AddEncodedText(text)
+        #editpoint = self.GetLength()
+        #self.GotoPos(editpoint)
+        #self.ScrollToLine(self.LineFromPosition(editpoint))
+
     def writelines(self, l):
         map(self.write, l)
 

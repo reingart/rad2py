@@ -47,6 +47,9 @@ ID_GOTO = wx.NewId()
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
 ID_CHECK = wx.NewId()
+ID_EXEC = wx.NewId()
+ID_SETARGS = wx.NewId()
+ID_KILL = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
 ID_STEPIN = wx.NewId()
@@ -67,6 +70,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.children = {}
         self.active_child = None
         self.debugging = False
+        self.lastprogargs = ""
+        self.pythonargs = ""
+        self.pid = None      
         
         # tell FrameManager to manage this frame        
         self._mgr = aui.AuiManager(self)
@@ -112,6 +118,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         edit_menu.Append(ID_COMMENT, 'Comment/Uncomment\tAlt-3', "")
         edit_menu.Append(ID_GOTO, "Goto Line/Regex\tCtrl-G", "")
 
+        run_menu = self.menu['run'] = wx.Menu()
+        run_menu.Append(ID_RUN, "Run in Interpreter\tShift+F5")
+        run_menu.Append(ID_DEBUG, "Run in Debugger\tF5")
+        run_menu.Append(ID_EXEC, "Execute as a external process\tCtrl+F5")
+        run_menu.Append(ID_KILL, "Kill external process\tCtrl+C")
+        run_menu.Append(ID_SETARGS, "Set Arguments (sys.argv)")       
+
         dbg_menu = self.menu['debug'] = wx.Menu()
         dbg_menu.Append(ID_STEPIN, "Step\tF8")
         dbg_menu.Append(ID_STEPNEXT, "Next\tShift-F8")
@@ -125,6 +138,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         
         self.menubar.Append(file_menu, "File")
         self.menubar.Append(edit_menu, "Edit")
+        self.menubar.Append(run_menu, "Run")
         self.menubar.Append(dbg_menu, "Debug")
         self.menubar.Append(help_menu, "Help")
         
@@ -142,54 +156,36 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         # create some toolbars
 
-        self.toolbar = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
+        # aui tool_id, label, bitmap, short_help_string='', kind=0)
+        # wx  id, bitmap, shortHelpString='', longHelpString='', isToggle=
+        self.toolbar = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
                          wx.TB_FLAT | wx.TB_NODIVIDER)
         tsize = (16, 16)
         self.toolbar.SetToolBitmapSize(wx.Size(*tsize))
 
-        GetBmp = wx.ArtProvider.GetBitmap
-        self.toolbar.AddSimpleTool(
-            wx.ID_NEW, GetBmp(wx.ART_NEW, wx.ART_TOOLBAR, tsize), "New")
-        self.toolbar.AddSimpleTool(
-            wx.ID_OPEN, GetBmp(wx.ART_FILE_OPEN, wx.ART_TOOLBAR, tsize), "Open")
-        self.toolbar.AddSimpleTool(
-            wx.ID_SAVE, GetBmp(wx.ART_FILE_SAVE, wx.ART_TOOLBAR, tsize), "Save")
-        self.toolbar.AddSimpleTool(
-            wx.ID_SAVEAS, GetBmp(wx.ART_FILE_SAVE_AS, wx.ART_TOOLBAR, tsize),
-            "Save As...")
-        self.toolbar.AddSimpleTool(
-            wx.ID_PRINT, GetBmp(wx.ART_PRINT, wx.ART_TOOLBAR, tsize), "Print")
-        #-------
+        GetBmp = lambda id: wx.ArtProvider.GetBitmap(id, wx.ART_TOOLBAR, tsize)
+        self.toolbar.AddSimpleTool(wx.ID_NEW, "New", GetBmp(wx.ART_NEW))
+        self.toolbar.AddSimpleTool(wx.ID_OPEN, "Open", GetBmp(wx.ART_FILE_OPEN))
+        self.toolbar.AddSimpleTool(wx.ID_SAVE, "Save", GetBmp(wx.ART_FILE_SAVE))
+        self.toolbar.AddSimpleTool(wx.ID_SAVEAS, "Save As...", GetBmp(wx.ART_FILE_SAVE_AS))
+        self.toolbar.AddSimpleTool(wx.ID_PRINT, "Print", GetBmp(wx.ART_PRINT))
         self.toolbar.AddSeparator()
-        self.toolbar.AddSimpleTool(
-            wx.ID_UNDO, GetBmp(wx.ART_UNDO, wx.ART_TOOLBAR, tsize), "Undo")
-        self.toolbar.AddSimpleTool(
-            wx.ID_REDO, GetBmp(wx.ART_REDO, wx.ART_TOOLBAR, tsize), "Redo")
+        self.toolbar.AddSimpleTool(wx.ID_UNDO, "Undo", GetBmp(wx.ART_UNDO))
+        self.toolbar.AddSimpleTool(wx.ID_REDO, "Redo", GetBmp(wx.ART_REDO))
         self.toolbar.AddSeparator()
-        #-------
-        self.toolbar.AddSimpleTool(
-            wx.ID_CUT, GetBmp(wx.ART_CUT, wx.ART_TOOLBAR, tsize), "Cut")
-        self.toolbar.AddSimpleTool(
-            wx.ID_COPY, GetBmp(wx.ART_COPY, wx.ART_TOOLBAR, tsize), "Copy")
-        self.toolbar.AddSimpleTool(
-            wx.ID_PASTE, GetBmp(wx.ART_PASTE, wx.ART_TOOLBAR, tsize), "Paste")
+        self.toolbar.AddSimpleTool(wx.ID_CUT, "Cut", GetBmp(wx.ART_CUT))
+        self.toolbar.AddSimpleTool(wx.ID_COPY, "Copy", GetBmp(wx.ART_COPY))
+        self.toolbar.AddSimpleTool(wx.ID_PASTE, "Paste", GetBmp(wx.ART_PASTE))
         self.toolbar.AddSeparator()
-        self.toolbar.AddSimpleTool(
-            wx.ID_FIND, GetBmp(wx.ART_FIND, wx.ART_TOOLBAR, tsize), "Find")
-        self.toolbar.AddSimpleTool(
-            wx.ID_REPLACE, GetBmp(wx.ART_FIND_AND_REPLACE, wx.ART_TOOLBAR, tsize), "Replace")
+        self.toolbar.AddSimpleTool(wx.ID_FIND, "Find", GetBmp(wx.ART_FIND))
+        self.toolbar.AddSimpleTool(wx.ID_REPLACE, "Replace", GetBmp(wx.ART_FIND_AND_REPLACE))
         self.toolbar.AddSeparator()
-        self.toolbar.AddSimpleTool(
-            wx.ID_ABOUT, GetBmp(wx.ART_HELP, wx.ART_TOOLBAR, tsize), "About")
-
-        self.toolbar.AddSeparator()
-                
-        self.toolbar.AddSimpleTool(
-            ID_RUN, images.GetRunningManBitmap(), "Run")
-        self.toolbar.AddSimpleTool(
-            ID_DEBUG, images.GetDebuggingBitmap(), "Debug")
-        self.toolbar.AddSimpleTool(
-            ID_CHECK, images.ok_16.GetBitmap(), "Check")
+        self.toolbar.AddSimpleTool(wx.ID_ABOUT, "About", GetBmp(wx.ART_HELP))
+        self.toolbar.AddSeparator()               
+        self.toolbar.AddSimpleTool(ID_RUN, "Run", images.GetRunningManBitmap())
+        self.toolbar.SetToolDropDown(ID_RUN, True)
+        #self.toolbar.AddSimpleTool(ID_DEBUG, "Debug", images.GetDebuggingBitmap())
+        self.toolbar.AddSimpleTool(ID_CHECK, "Check", images.ok_16.GetBitmap())
 
         self.toolbar.Realize()
 
@@ -200,6 +196,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             (wx.ID_SAVEAS, self.OnSaveAs),
             (ID_CHECK, self.OnCheck),
             (ID_RUN, self.OnRun),
+            (ID_EXEC, self.OnExecute),
+            (ID_SETARGS, self.OnSetArgs),
+            (ID_KILL, self.OnKill),
             (ID_DEBUG, self.OnDebugCommand),
             #(wx.ID_PRINT, self.OnPrint),
             (wx.ID_FIND, self.OnEditAction),
@@ -214,7 +213,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
          ]
         for menu_id, handler in menu_handlers:
             self.Bind(wx.EVT_MENU, handler, id=menu_id)
-            
+
+        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnDropDownRun, id=ID_RUN)
+
         # debugging facilities:
 
         self.toolbardbg = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
@@ -426,12 +427,91 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
     def OnRun(self, event, debug=False):
         if self.active_child:
             # add the path of this script so we can import things
-            syspath = [ os.path.split(self.active_child.filename)[0] ]  
+            syspath = [ os.path.split(self.active_child.filename)[0] ]
      
             # create a code object and run it in the main thread
             code = self.active_child.GetCodeObject()
             if code:         
                 self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
+
+    def OnSetArgs(self, event):
+        dlg = wx.TextEntryDialog(self, 
+            'Enter program arguments (sys.argv):', 
+            'Interruption', self.lastprogargs)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.lastprogargs = dlg.GetValue()
+        dlg.Destroy()
+    
+    def OnExecute(self, event):
+        if self.active_child:
+            filename = self.active_child.filename
+            cdir, filen = os.path.split(filename)
+            cwd = os.getcwd()
+            try:
+                os.chdir(cdir)
+                largs = self.lastprogargs and ' ' + self.lastprogargs or ""
+                if wx.Platform == '__WXMSW__':
+                    pythexec = sys.prefix.replace("\\", "/") + "/pythonw.exe"
+                    filename = filename.replace("\\", "/")
+                else:
+                    pythexec = sys.executable
+                self.Execute((pythexec + " -u " +  self.pythonargs + ' "' + 
+                    filename + '"'  + largs), filen)
+            except Exception, e:
+                raise
+                #ShowMessage("Error Setting current directory for Execute")
+            finally:
+                os.chdir(cwd)
+    
+    def OnKill(self, event):
+        if self.console.process:
+            self.console.process.Kill(self.console.process.pid, wx.SIGKILL)
+
+    def Execute(self, command, filename, redin="", redout="", rederr=""):
+        "Execute a command and redirect input/output/error to internal console"
+        statusbar = self.statusbar
+        console = self.console
+        statusbar.SetStatusText("Executing %s" % filename, 0)
+        statusbar.SetStatusText(command, 1)
+        
+        class MyProcess(wx.Process):
+            "Custom Process Class to handle OnTerminate event method"
+
+            def OnTerminate(self, pid, status):
+                "Clean up on termination (prevent SEGV!)"
+                console.process = None
+                statusbar.SetStatusText("Executed %s!" % filename, 0)
+                statusbar.SetStatusText("", 1)
+        
+        process = console.process = MyProcess(self)
+        process.Redirect()
+        flags = wx.EXEC_ASYNC
+        if wx.Platform == '__WXMSW__':
+            flags |= wx.EXEC_NOHIDE
+        self.pid = process.pid = wx.Execute(command, flags, process)
+        console.inputstream = process.GetInputStream()
+        console.errorstream = process.GetErrorStream()
+        console.outputstream = process.GetOutputStream()
+        console.process.redirectOut = redout
+        console.process.redirectErr = rederr
+        console.SetFocus()
+
+
+    def OnDropDownRun(self, event):
+        if event.IsDropDownClicked():
+            tb = event.GetEventObject()
+            tb.SetToolSticky(event.GetId(), True)
+
+            # create the popup menu
+            menuPopup = self.menu['run'] 
+
+            # line up our menu with the button
+            rect = tb.GetToolRect(event.GetId())
+            pt = tb.ClientToScreen(rect.GetBottomLeft())
+            pt = self.ScreenToClient(pt)
+            self.PopupMenu(menuPopup, pt)
+            # make sure the button is "un-stuck"
+            tb.SetToolSticky(event.GetId(), False)
            
     def GotoFileLine(self, event=None, running=True):
         if event and running:
