@@ -431,13 +431,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
      
             # create a code object and run it in the main thread
             code = self.active_child.GetCodeObject()
+            filename = os.path.split(self.active_child.filename)[1]
+            msg = not debug and "Running" or "Debugging"
+            self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
             if code:         
                 self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
+            self.statusbar.SetStatusText("", 1)
 
     def OnSetArgs(self, event):
         dlg = wx.TextEntryDialog(self, 
             'Enter program arguments (sys.argv):', 
-            'Interruption', self.lastprogargs)
+            'Set Arguments', self.lastprogargs)
         if dlg.ShowModal() == wx.ID_OK:
             self.lastprogargs = dlg.GetValue()
         dlg.Destroy()
@@ -471,8 +475,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         "Execute a command and redirect input/output/error to internal console"
         statusbar = self.statusbar
         console = self.console
-        statusbar.SetStatusText("Executing %s" % filename, 0)
-        statusbar.SetStatusText(command, 1)
+        statusbar.SetStatusText("Executing %s" % command, 1)
         
         class MyProcess(wx.Process):
             "Custom Process Class to handle OnTerminate event method"
@@ -480,7 +483,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             def OnTerminate(self, pid, status):
                 "Clean up on termination (prevent SEGV!)"
                 console.process = None
-                statusbar.SetStatusText("Executed %s!" % filename, 0)
+                statusbar.SetStatusText("Terminated: %s!" % filename, 0)
                 statusbar.SetStatusText("", 1)
         
         process = console.process = MyProcess(self)
