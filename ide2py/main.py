@@ -164,7 +164,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.statusbar = self.CreateStatusBar(2, wx.ST_SIZEGRIP)
         self.statusbar.SetStatusWidths([-2, -3])
         self.statusbar.SetStatusText("Ready", 0)
-        self.statusbar.SetStatusText("Welcome To wxPython!", 1)
+        self.statusbar.SetStatusText("Welcome To ide2py!", 1)
 
         # min size for the frame itself isn't completely done.
         # see the end up FrameManager::Update() for the test
@@ -201,7 +201,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.toolbar.AddSeparator()               
         self.toolbar.AddSimpleTool(ID_RUN, "Run", images.GetRunningManBitmap())
         self.toolbar.SetToolDropDown(ID_RUN, True)
-        #self.toolbar.AddSimpleTool(ID_DEBUG, "Debug", images.GetDebuggingBitmap())
         self.toolbar.AddSimpleTool(ID_CHECK, "Check", images.ok_16.GetBitmap())
 
         self.toolbar.Realize()
@@ -253,7 +252,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         self.debugger = Debugger(self)
 
-        # add a bunch of panes                      
         self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().Name("toolbar").
                           ToolbarPane().Top().Position(0))
 
@@ -281,9 +279,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        # Show How To Use The Closing Panes Event
-        self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
-        
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
 
@@ -316,20 +311,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         # WARNING: Shell takes over raw_input (TODO: Fix?)
         if REDIRECT_STDIO:
             sys.stdin = sys.stdout = sys.stderr = self.console
-
-        
-    def OnPaneClose(self, event):
-
-        caption = event.GetPane().caption
-
-        if caption in ["Tree Pane", "Dock Manager Settings", "Fixed Pane"]:
-            msg = "Are You Sure You Want To Close This Pane?"
-            dlg = wx.MessageDialog(self, msg, "AUI Question",
-                                   wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-
-            if dlg.ShowModal() in [wx.ID_NO, wx.ID_CANCEL]:
-                event.Veto()
-            dlg.Destroy()
 
     def Cleanup(self, *args):
         if RepoMixin is not object:
@@ -457,7 +438,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         dlg.Destroy()
     
     def OnExecute(self, event):
-        if self.active_child:
+        if self.active_child and not self.console.process:
             filename = self.active_child.filename
             cdir, filen = os.path.split(filename)
             cwd = os.getcwd()
