@@ -30,6 +30,7 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP, ID_DEFECT = [wx.NewId() for i in range(4)]
+ID_ADD, ID_DEL, ID_EDIT = [wx.NewId() for i in range(3)]
 
 
 def pretty_time(counter):
@@ -198,6 +199,17 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         for key, item in self.data.items():
             self.AddItem(item, key)
 
+        # make a popup-menu
+        self.menu = wx.Menu()
+        self.menu.Append(ID_EDIT, "Edit")
+        self.menu.Append(ID_DEL, "Delete")
+        self.Bind(wx.EVT_MENU, self.OnEditItem, id=ID_EDIT)
+        self.Bind(wx.EVT_MENU, self.OnDeleteItem, id=ID_DEL)
+        # for wxMSW
+        self.Bind(wx.EVT_COMMAND_RIGHT_CLICK, self.OnRightClick)
+        # for wxGTK 
+        self.Bind(wx.EVT_RIGHT_UP, self.OnRightClick)
+
     def __del__(self):
         self.data.close()
 
@@ -222,6 +234,9 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.SetItemData(index, long(index))
         if item["_checked"]:
             self.ToggleItem(index)
+
+    def OnRightClick(self, event):
+        self.PopupMenu(self.menu)
             
     def OnItemActivated(self, evt):
         #self.ToggleItem(evt.m_itemIndex)      
@@ -252,12 +267,44 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self.parent.psp_log_event("%s_defect" % what, uuid=key)
             item["_checked"] = flag
             self.data.sync()
+
+    def OnDeleteItem(self, evt):
+        pos = long(self.GetItemData(self.selected_index))
+        key = self.key_map[pos]
+        del self.data[key]
+        self.DeleteItem(self.selected_index)
+        self.data.sync()
+            
+    def OnEditItem(self, evt):
+        pos = long(self.GetItemData(self.selected_index))
+        key = self.key_map[pos]
+        item = self.data[key]
+ 
+        dlg = DefectDialog(None, -1, "Edit Defect No. %s" % item['number'], 
+                           size=(350, 200), style=wx.DEFAULT_DIALOG_STYLE, )
+        dlg.CenterOnScreen()
+        dlg.SetValue(item)
+        if dlg.ShowModal() == wx.ID_OK:
+            item.update(dlg.GetValue())
+            self.UpdateItem(self.selected_index, item)
+        self.data[key] = item
+        self.data.sync()
+
+    def UpdateItem(self, index, item):
+        for col_key, col_def in self.col_defs.items():
+            val = item.get(col_key, "")
+            if col_key == 'fix_time':
+                val = pretty_time(val)
+            else:
+                val = str(val)
+            self.SetStringItem(index, col_def[0], val)
+
         
     def OnItemSelected(self, evt):
-        pass ##print('item selected: %s\n' % evt.m_itemIndex)
+        self.selected_index = evt.m_itemIndex
         
     def OnItemDeselected(self, evt):
-        pass ##print('item deselected: %s\n' % evt.m_itemIndex)
+        self.selected_index = None
         
     def count(self, phase):
         "Increment actual user time to fix selected defect"
@@ -294,9 +341,10 @@ class DefectDialog(wx.Dialog):
                                        style=wx.TE_MULTILINE)
         grid1.Add(self.description, 1, wx.EXPAND, 5)
 
-        types = ["%s: %s" % (k, v) for k, v in sorted(PSP_DEFECT_TYPES.items())]
-        phases = [""] + PSP_PHASES
-
+        self.types = sorted(PSP_DEFECT_TYPES.keys())
+        self.phases = phases = [""] + PSP_PHASES
+        types = ["%s: %s" % (k, PSP_DEFECT_TYPES[k]) for k in self.types]
+        
         label = wx.StaticText(self, -1, "Defect Type:")
         grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
         self.defect_type = wx.Choice(self, -1, choices=types, size=(80,-1))
@@ -342,25 +390,23 @@ class DefectDialog(wx.Dialog):
         sizer.Fit(self)
 
     def SetValue(self, item):
-        types = sorted(PSP_DEFECT_TYPES.keys())
-        self.label.SetLabel(item.get("date", ""))
+        self.label.SetLabel(str(item.get("date", "")))
         self.description.SetValue(item.get("description", ""))
         if 'type' in item:
-            self.defect_type.SetSelection(types.index(item['type'])+1)
+            self.defect_type.SetSelection(self.types.index(item['type']))
         if 'inject_phase' in item:
-            self.inject_phase.SetSelection(PSP_PHASES.index(item['inject_phase'])+1)
+            self.inject_phase.SetSelection(self.phases.index(item['inject_phase']))
         if 'remove_phase' in item:
-            self.remove_phase.SetSelection(PSP_PHASES.index(item['remove_phase'])+1)        
-        self.fix_time.SetValue(item.get("fix_time", ""))
+            self.remove_phase.SetSelection(self.phases.index(item['remove_phase']))
+        if 'fix_time' in item:
+            self.fix_time.SetValue(pretty_time(item.get("fix_time", 0)))
         self.fix_defect.SetValue(item.get("fix_defect", ""))
         
     def GetValue(self):
-        types = sorted(PSP_DEFECT_TYPES.keys())
-        phases = [""] + PSP_PHASES
         item = {"description": self.description.GetValue(), 
-                "type": types[self.defect_type.GetCurrentSelection()], 
-                "inject_phase": phases[self.inject_phase.GetCurrentSelection()],
-                "remove_phase": phases[self.remove_phase.GetCurrentSelection()], 
+                "type": self.types[self.defect_type.GetCurrentSelection()], 
+                "inject_phase": self.phases[self.inject_phase.GetCurrentSelection()],
+                "remove_phase": self.phases[self.remove_phase.GetCurrentSelection()], 
                 "fix_time": parse_time(self.fix_time.GetValue()), 
                 "fix_defect": self.fix_defect.GetValue(), 
                 }
@@ -520,6 +566,7 @@ class PSPMixin(object):
             item = dlg.GetValue()
             item["date"] = datetime.date.today()
             item["number"] = str(len(self.psp_defect_list.data)+1)
+            item["filename"] = item["lineno"] = item["offset"] = None
             self.psp_defect_list.AddItem(item)
         
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
@@ -549,10 +596,8 @@ if __name__ == "__main__":
                      style=wx.DEFAULT_DIALOG_STYLE, # & ~wx.CLOSE_BOX,
                      )
     dlg.CenterOnScreen()
-
     # this does not return until the dialog is closed.
     val = dlg.ShowModal()
-
     print dlg.GetValue()
     #dlg.Destroy()
     app.MainLoop()
