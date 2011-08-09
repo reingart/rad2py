@@ -217,7 +217,7 @@ class RepoMixin(object):
         wx.BeginBusyCursor()
         
         # get search filters
-        search=self.repo_filter.GetValue()
+        search = "*%s*" % self.repo_filter.GetValue()
         filter_status = []
         for item in self.repo_filter.GetMenu().GetMenuItems():
             if item.IsChecked():
