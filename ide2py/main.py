@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
-__version__ = "0.03"
+__version__ = "0.04"
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
@@ -737,9 +737,12 @@ class MainApp(wx.App):
 
     def OnInit(self):
         self.config = ConfigParser.ConfigParser()
+        # read default configuration
+        self.config.read("ide2py.ini.dist")
+        # merge user custom configuration
         self.config.read(CONFIG_FILE)
         if not self.config.sections():
-            raise RuntimeError("No hay configuracion!")
+            raise RuntimeError("No configuration found, use ide2py.ini.dist!")
         self.aui_frame = PyAUIFrame(None)
         self.aui_frame.Show()
         return True

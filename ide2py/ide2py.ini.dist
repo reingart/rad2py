@@ -1,0 +1,62 @@
+[REPOSITORY]
+username = Your Name <your.mail@gmail.com>
+type = hg
+
+[AUI]
+perspective = 
+maximize = True
+
+[CHECKER]
+pep8 = True
+doctest = True
+pyflakes = True
+
+[EDITOR]
+face_helv = DejaVu Serif
+view_eol = False
+face_other = DejaVu
+calltips = True
+encoding = utf_8
+face_size = 10
+view_white_space = False
+edge_column = 79
+face_times = DejaVu Sans
+autocomplete = True
+eol_mode = 0
+face_mono = DejaVu Sans Mono
+set_identation_guides = True
+use_tabs = False
+face_size2 = 8
+tab_width = 4
+
+[PSP]
+phases = Planning, Design, Code, Compile, Test, Review, Postmortem
+data = /home/reingart/tesis/psp-data.dat
+checklist = /home/reingart/tesis/psp-checklist.dat
+
+[MAIN]
+settings = settings.pkl
+
+[STC.PY]
+stc_p_triple = face:%(mono)s,fore:#7F0000,size:%(size)d
+stc_p_tripledouble = face:%(mono)s,fore:#7F0000,size:%(size)d
+stc_p_number = face:%(mono)s,fore:#007F7F,size:%(size)d
+stc_p_word = face:%(mono)s,fore:#00007F,bold,size:%(size)d
+stc_p_stringeol = face:%(mono)s,fore:#000000,face:%(mono)s,back:#E0C0E0,eol,size:%(size)d
+stc_style_default = face:%(mono)s,size:%(size)d
+stc_style_linenumber = back:#C0C0C0,face:%(mono)s,size:%(size2)d
+stc_style_bracebad = fore:#000000,back:#FF0000,bold
+stc_style_bracelight = fore:#FFFFFF,back:#0000FF,bold
+stc_p_commentline = face:%(mono)s,fore:#007F00,back:#E8FFE8,italic,size:%(size)d
+stc_style_controlchar = face:%(mono)s
+stc_p_identifier = face:%(mono)s,size:%(size)d
+stc_p_string = face:%(mono)s,fore:#7F007F,size:%(size)d
+stc_p_character = face:%(mono)s,fore:#7F007F,size:%(size)d
+stc_p_default = face:%(mono)s,size:%(size)d
+stc_p_commentblock = face:%(mono)s,fore:#990000,back:#C0C0C0,italic,size:%(size)d
+stc_p_classname = face:%(mono)s,fore:#0000FF,bold,underline,size:%(size)d
+stc_p_operator = face:%(mono)s,bold,size:%(size)d
+stc_p_defname = face:%(mono)s,fore:#007F7F,bold,size:%(size)d
+
+[HISTORY]
+
