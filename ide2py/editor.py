@@ -678,10 +678,8 @@ class EditorCtrl(stc.StyledTextCtrl):
     def ClearBreakpoints(self, evt):
         lineno = 1
         while True:
-            print "lineno", lineno
             lineno = self.MarkerNext(lineno, self.BREAKPOINT_MARKER_MASK)
             if lineno<0:
-                print "break"
                 break
             self.ToggleBreakpoint(evt, lineno)
 

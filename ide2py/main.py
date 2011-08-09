@@ -15,6 +15,7 @@ __version__ = "0.03"
 import ConfigParser
 
 import os
+import shlex
 import sys
 import traceback
 
@@ -127,8 +128,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         run_menu = self.menu['run'] = wx.Menu()
         run_menu.Append(ID_RUN, "Run in Interpreter\tShift+F5")
         run_menu.Append(ID_DEBUG, "Run in Debugger\tF5")
-        run_menu.Append(ID_EXEC, "Execute as a external process\tCtrl+F5")
+        run_menu.AppendSeparator()
+        run_menu.Append(ID_EXEC, "Execute as an external process\tCtrl+F5")
         run_menu.Append(ID_KILL, "Kill external process\tCtrl+C")
+        run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set Arguments (sys.argv)")       
 
         dbg_menu = self.menu['debug'] = wx.Menu()
@@ -439,13 +442,15 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             filename = os.path.split(self.active_child.filename)[1]
             msg = not debug and "Running" or "Debugging"
             self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
-            if code:         
+            if code:
+                # set program arguments (workaround shlex unicode bug)
+                args = self.lastprogargs.encode("ascii", "ignore")
+                sys.argv = [filename] + shlex.split(args)
                 self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
             self.statusbar.SetStatusText("", 1)
 
     def OnSetArgs(self, event):
-        dlg = wx.TextEntryDialog(self, 
-            'Enter program arguments (sys.argv):', 
+        dlg = wx.TextEntryDialog(self, 'Enter program arguments (sys.argv):', 
             'Set Arguments', self.lastprogargs)
         if dlg.ShowModal() == wx.ID_OK:
             self.lastprogargs = dlg.GetValue()
