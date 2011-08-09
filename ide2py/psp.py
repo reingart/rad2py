@@ -35,6 +35,7 @@ ID_START, ID_PAUSE, ID_STOP, ID_DEFECT = [wx.NewId() for i in range(4)]
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
     # find time unit and convert to it
+    counter = int(counter)
     for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
         if counter < (60 * factor):
             break
@@ -209,7 +210,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             item['uuid'] = key
             self.data[key] = item
             self.data.sync()
-            self.parent.psp_log_event("new_defect", uuid=key, comments=str(data[key]))
+            self.parent.psp_log_event("new_defect", uuid=key, comment=str(self.data[key]))
         for col_key, col_def in self.col_defs.items():
             val = item.get(col_key, "")
             if col_key == 'fix_time':
