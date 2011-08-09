@@ -34,6 +34,7 @@ class Debugger(bdb.Bdb):
         self.interacting = 0
         self.waiting = False
         self.gui = gui # for callbacks
+        self.start_continue = True # continue on first run
 
     def user_line(self, frame):
         self.interaction(frame)
@@ -44,7 +45,7 @@ class Debugger(bdb.Bdb):
     def Run(self, code, interp=None, *args, **kwargs):
         try:
             self.interp = interp
-            self.interacting = 1
+            self.interacting = self.start_continue and 1 or 2
             return self.run(code, *args, **kwargs)
         finally:
             self.interacting = 0
@@ -59,6 +60,11 @@ class Debugger(bdb.Bdb):
         return check_fn
 
     def interaction(self, frame, info=None):
+        # first callback (Run)?, just continue...
+        if self.interacting == 1:
+            self.interacting += 1
+            self.set_continue()
+            return
         code, lineno = frame.f_code, frame.f_lineno
         filename = code.co_filename
         basename = os.path.basename(filename)
@@ -111,14 +117,40 @@ class Debugger(bdb.Bdb):
         self.set_quit()
         self.waiting = False
 
-    def SetBreakpoint(self, filename, lineno):
-        self.set_break(filename, lineno)
+    @check_interaction
+    def Jump(self, lineno):
+        arg = int(lineno)
+        try:
+            self.frame.f_lineno = arg
+        except ValueError, e:
+            print '*** Jump failed:', e
+            return False
+
+    def SetBreakpoint(self, filename, lineno, temporary=0):
+        self.set_break(filename, lineno, temporary)
 
     def ClearBreakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
 
     def ClearFileBreakpoints(self, filename):
         self.clear_all_file_breaks(filename)
+
+    def do_clear(self, arg):
+        # required by BDB to remove temp breakpoints!
+        err = self.clear_bpbynumber(arg)
+        if err:
+            print '*** DO_CLEAR failed', err
+                        
+    def inspect(self, arg):
+        try:
+            return eval(arg, self.frame.f_globals,
+                        self.frame.f_locals)
+        except:
+            t, v = sys.exc_info()[:2]
+            if isinstance(t, str):
+                exc_type_name = t
+            else: exc_type_name = t.__name__
+            return '*** %s: %s' % (exc_type_name, repr(v))
 
 
 def set_trace():

@@ -52,11 +52,16 @@ ID_SETARGS = wx.NewId()
 ID_KILL = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
+ID_CLEARBREAKPOINTS = wx.NewId()
 ID_STEPIN = wx.NewId()
 ID_STEPRETURN = wx.NewId()
 ID_STEPNEXT = wx.NewId()
+ID_STEPRETURN = wx.NewId()
+ID_JUMP = wx.NewId()
 ID_CONTINUE = wx.NewId()
+ID_CONTINUETO = wx.NewId()
 ID_STOP = wx.NewId()
+ID_INSPECT = wx.NewId()
 
 
 
@@ -68,7 +73,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         #sys.excepthook  = self.ExceptHook
         
         self.children = {}
-        self.active_child = None
+        self.active_child = None        # current editing file
+        self.debugging_child = None     # current debugged file
         self.debugging = False
         self.lastprogargs = ""
         self.pythonargs = ""
@@ -126,13 +132,21 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         run_menu.Append(ID_SETARGS, "Set Arguments (sys.argv)")       
 
         dbg_menu = self.menu['debug'] = wx.Menu()
-        dbg_menu.Append(ID_STEPIN, "Step\tF8")
-        dbg_menu.Append(ID_STEPNEXT, "Next\tShift-F8")
+        dbg_menu.Append(ID_STEPIN, "Step In\tF8")
+        dbg_menu.Append(ID_STEPNEXT, "Step Next\tShift-F8")
+        dbg_menu.Append(ID_STEPRETURN, "Step Return\tCtrl-Shift-F8")
+        dbg_menu.Append(ID_CONTINUETO, "Continue up to the cursor\tCtrl-F8")
         dbg_menu.Append(ID_CONTINUE, "Continue\tF5")
+        dbg_menu.Append(ID_JUMP, "Jump to instruction\tCtrl-F9")
         dbg_menu.Append(ID_STOP, "Stop")
-        edit_menu.AppendSeparator()
+        dbg_menu.AppendSeparator()
+        dbg_menu.Append(ID_INSPECT, "Quick Inspection\tShift-F9", 
+                        help="Evaluate selected text (expression) in context")
+        dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_BREAKPOINT, "Toggle Breakpoint\tF9")
+        dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
 
+        
         help_menu = self.menu['help'] = wx.Menu()
         help_menu.Append(wx.ID_ABOUT, "About...")
         
@@ -210,6 +224,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             (ID_COMMENT, self.OnEditAction),
             (ID_GOTO, self.OnEditAction),
             (ID_BREAKPOINT, self.OnEditAction),
+            (ID_CLEARBREAKPOINTS, self.OnEditAction),
          ]
         for menu_id, handler in menu_handlers:
             self.Bind(wx.EVT_MENU, handler, id=menu_id)
@@ -218,29 +233,19 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
 
         # debugging facilities:
 
-        self.toolbardbg = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
-                         wx.TB_FLAT | wx.TB_NODIVIDER)
-        tsize = (16, 16)
+        self.toolbardbg = aui.AuiToolBar(self, -1, 
+                            style=wx.TB_FLAT | wx.TB_NODIVIDER)
         self.toolbardbg.SetToolBitmapSize(wx.Size(*tsize))
 
-        self.toolbardbg.AddSimpleTool(
-            ID_DEBUG, images.GetBreakBitmap(), "Break")
-        self.toolbardbg.AddSimpleTool(
-            ID_STEPIN, images.GetStepInBitmap(), "Step")
-        self.toolbardbg.AddSimpleTool(
-            ID_STEPNEXT, images.GetStepReturnBitmap(), "Next")
-        self.toolbardbg.AddSimpleTool(
-            ID_CONTINUE, images.GetContinueBitmap(), "Continue")
-        self.toolbardbg.AddSimpleTool(
-            ID_STOP, images.GetStopBitmap(), "Quit")
-        self.toolbardbg.AddSimpleTool(
-            ID_DEBUG, images.GetAddWatchBitmap(), "AddWatch")            
-        self.toolbardbg.AddSimpleTool(
-            ID_DEBUG, images.GetCloseBitmap(), "Close")
+        self.toolbardbg.AddSimpleTool(ID_STEPIN, "Step", images.GetStepInBitmap())
+        self.toolbardbg.AddSimpleTool(ID_STEPNEXT, "Next", images.GetStepReturnBitmap())
+        self.toolbardbg.AddSimpleTool(ID_CONTINUE, "Continue", images.GetContinueBitmap())
+        self.toolbardbg.AddSimpleTool(ID_STOP, "Quit", images.GetStopBitmap())
+        self.toolbardbg.AddSimpleTool(ID_INSPECT, "Inspect", images.GetAddWatchBitmap())
         self.toolbardbg.Realize()
 
-        for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT,
-                        ID_CONTINUE, ID_STOP]:
+        for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT, ID_STEPRETURN,
+                        ID_CONTINUE, ID_STOP, ID_INSPECT, ID_JUMP, ID_CONTINUETO]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
         self.debugger = Debugger(self)
@@ -525,20 +530,31 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         for child in self.children.values():
             if running:
                 child.SynchCurrentLine(None)
+                self.debugging_child = None
         # then look for the file being debugged
         if event:
             child = self.DoOpen(filename)
             if child:
                 if running:
                     child.SynchCurrentLine(lineno)
+                    self.debugging_child = child
                 else:
                     child.GotoLineOffset(lineno, offset)
                     
     def OnDebugCommand(self, event):
         event_id = event.GetId()
+
+        # Not debbuging?, set temp breakpoint to be hit on first run!
+        if event_id == ID_CONTINUETO and not self.debugging_child and self.active_child:
+            lineno = self.active_child.GetCurrentLine()
+            filename = self.active_child.filename
+            self.debugger.SetBreakpoint(filename, lineno, temporary=1)
+
         # start debugger (if not running):
         if event_id == ID_DEBUG or not self.debugging:
             self.debugging = True
+            # should it open debugger inmediatelly or continue?
+            self.debugger.start_continue = event_id in (ID_CONTINUE, ID_CONTINUETO)
             self.OnRun(event, debug=True)
             self.debugging = False
             # clean running indication
@@ -554,6 +570,28 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
             self.debugger.Continue()
         elif event_id == ID_STOP:
             self.debugger.Quit()
+        elif event_id == ID_INSPECT and self.active_child:
+            # Eval selected text (expression) in debugger running context
+            arg = self.active_child.GetSelectedText()
+            val = self.debugger.inspect(arg)
+            dlg = wx.MessageDialog(self, "Expression: %s\nValue: %s" % (arg, val), 
+                                   "Debugger Quick Inspection",
+                                   wx.ICON_INFORMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+        elif event_id == ID_JUMP and self.debugging_child:
+            # change actual line number (if possible)
+            lineno = self.debugging_child.GetCurrentLine()
+            if self.debugger.Jump(lineno) is not False:
+                self.debugging_child.SynchCurrentLine(lineno)
+            else:
+                print "Fail!"
+        elif event_id == ID_CONTINUETO and self.debugging_child:
+            # Continue execution until we reach selected line (temp breakpoint)
+            lineno = self.debugging_child.GetCurrentLine()
+            filename = self.debugging_child.filename
+            self.debugger.SetBreakpoint(filename, lineno, temporary=1)
+            self.debugger.Continue()
 
     def OnCheck(self, event):
         # TODO: separate checks and tests, add reviews and diffs...
@@ -648,6 +686,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
             wx.ID_PASTE: self.editor.DoBuiltIn,
             wx.ID_CUT: self.editor.DoBuiltIn,
             ID_BREAKPOINT: self.editor.ToggleBreakpoint,
+            ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
             ID_COMMENT: self.editor.ToggleComment,
             ID_GOTO: self.editor.DoGoto,
             }
@@ -657,6 +696,12 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def GetCodeObject(self,):
         return self.editor.GetCodeObject()
 
+    def GetSelectedText(self,):
+        return self.editor.GetSelectedText()
+
+    def GetCurrentLine(self):
+        return self.editor.GetCurrentLine() + 1
+        
     def SynchCurrentLine(self, lineno):
         if lineno:
             self.SetFocus()

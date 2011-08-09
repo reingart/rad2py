@@ -675,6 +675,15 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.debugger.SetBreakpoint(self.filename, lineno+1)
             self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
 
+    def ClearBreakpoints(self, evt):
+        lineno = 1
+        while True:
+            print "lineno", lineno
+            lineno = self.MarkerNext(lineno, self.BREAKPOINT_MARKER_MASK)
+            if lineno<0:
+                print "break"
+                break
+            self.ToggleBreakpoint(evt, lineno)
 
     def FoldAll(self):
         lineCount = self.GetLineCount()
