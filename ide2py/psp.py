@@ -16,17 +16,20 @@ import sys
 import uuid
 import wx
 import wx.grid
-from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin, TextEditMixin
+from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
 
 import images
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
+PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build', 
+    40: 'Assignment', 50: 'Interface',  60: 'Checking', 70: 'Data', 
+    80: 'Function', 90: 'System', 100: 'Enviroment'}
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_PLAY, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
+ID_START, ID_PAUSE, ID_STOP, ID_DEFECT = [wx.NewId() for i in range(4)]
 
 
 def pretty_time(counter):
@@ -152,7 +155,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
             self.grid.EndBatch()
 
         
-class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #TextEditMixin
+class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
     "Defect recording log facilities"
     def __init__(self, parent, filename=""):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
@@ -271,6 +274,84 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin): #
                 self.SetStringItem(index, col_index, pretty_time(value))
 
 
+class DefectDialog(wx.Dialog):
+    def __init__(self, parent, ID, title, size=wx.DefaultSize, 
+            pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE, ):
+
+        wx.Dialog.__init__(self, parent, ID, title, size=size, pos=pos, style=style)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.label = wx.StaticText(self, -1, "Defect Nº - date - UUID")
+        sizer.Add(self.label, 0, wx.ALIGN_CENTRE, 10)
+
+        grid1 = wx.FlexGridSizer( 0, 2, 5, 5 )
+
+        label = wx.StaticText(self, -1, "Description:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.description = wx.TextCtrl(self, -1, "", size=(200, 100), 
+                                       style=wx.TE_MULTILINE)
+        grid1.Add(self.description, 1, wx.EXPAND, 5)
+
+        types = ["%s: %s" % (k, v) for k, v in sorted(PSP_DEFECT_TYPES.items())]
+        phases = [""] + PSP_PHASES
+
+        label = wx.StaticText(self, -1, "Defect Type:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.defect = wx.Choice(self, -1, choices=types, size=(80,-1))
+        grid1.Add(self.defect, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Inject Phase:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.inject_phase = wx.Choice(self, -1, choices=phases, size=(80,-1))
+        grid1.Add(self.inject_phase, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Remove Phase:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.remove_phase = wx.Choice(self, -1, choices=phases, size=(80,-1))
+        grid1.Add(self.remove_phase, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Fix time:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.fix_time = wx.TextCtrl(self, -1, "", size=(80,-1))
+        grid1.Add(self.fix_time, 1, wx.ALIGN_LEFT, 5)
+
+        label = wx.StaticText(self, -1, "Fix defect:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.fix_defect = wx.TextCtrl(self, -1, "", size=(80,-1))
+        grid1.Add(self.fix_defect, 1, wx.ALIGN_LEFT, 5)
+
+        sizer.Add(grid1, 0, wx.GROW|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+
+        btnsizer = wx.StdDialogButtonSizer()
+               
+        btn = wx.Button(self, wx.ID_OK)
+        btn.SetHelpText("The OK button completes the dialog")
+        btn.SetDefault()
+        btnsizer.AddButton(btn)
+
+        btn = wx.Button(self, wx.ID_CANCEL)
+        btn.SetHelpText("The Cancel button cancels the dialog. (Cool, huh?)")
+        btnsizer.AddButton(btn)
+        btnsizer.Realize()
+
+        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+
+        self.SetSizer(sizer)
+        sizer.Fit(self)
+
+    def GetValue(self):
+        types = sorted(PSP_DEFECT_TYPES.keys())
+        phases = [""] + PSP_PHASES
+        item = {"description": self.description.GetValue(), 
+                "type": types[self.inject_phase.GetCurrentSelection()], 
+                "inject_phase": phases[self.inject_phase.GetCurrentSelection()],
+                "remove_phase": phases[self.remove_phase.GetCurrentSelection()], 
+                "fix_time": parse_time(self.fix_time.GetValue()), 
+                "fix_defect": self.fix_defect.GetValue(), 
+                }
+        return item
+
 
 class PSPMixin(object):
     "ide2py extension for integrated PSP support"
@@ -314,39 +395,44 @@ class PSPMixin(object):
 
     def CreatePSPDefectRecordingLog(self, filename):
         list = DefectListCtrl(self, filename)
-        #list.AddItem(["1", "defecto de prueba",  "hoy", "20", "code", "compile", 0, "", "","",""])
         return list
         
     def CreatePSPToolbar(self):
-        tb4 = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
+        tb4 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
                          wx.TB_FLAT | wx.TB_NODIVIDER)
         tb4.SetToolBitmapSize(wx.Size(16, 16))
 
         text = wx.StaticText(tb4, -1, "PSP")
-        tb4.AddControl(text)
+        tb4.AddControl(text, "Personal Software Process")
 
-        tb4.AddSimpleTool(ID_PLAY, images.play.GetBitmap(), "Start timer")
-        tb4.AddCheckLabelTool(ID_PAUSE, "Pause", images.pause.GetBitmap(),
-                                    shortHelp="Pause timer (interruption)")
-        tb4.AddSimpleTool(ID_STOP, images.stop.GetBitmap(), "Stop timer")
+        tb4.AddSimpleTool(ID_START, "Start timer", images.record.GetBitmap(),
+                         short_help_string="Start stopwatch (start phase)")
+        tb4.AddCheckTool(ID_PAUSE, "Pause", images.pause.GetBitmap(), wx.NullBitmap,
+                         short_help_string="Pause stopwatch (interruption)")
+        tb4.AddSimpleTool(ID_STOP, "Stop timer", images.stop.GetBitmap(),
+                          short_help_string="Stop stopwatch (finish phase)")
 
-        tb4.EnableTool(ID_PLAY, True)
+        tb4.EnableTool(ID_START, True)
         tb4.EnableTool(ID_PAUSE, False)
         tb4.EnableTool(ID_STOP, False)
         
         self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
-        tb4.AddControl(self.psp_phase_choice)
+        tb4.AddControl(self.psp_phase_choice, "PSP Phase")
 
         #wx.StaticText(self, -1, "Fase", (45, 15))
         self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 10))
-        tb4.AddControl(self.psp_gauge)
+        tb4.AddControl(self.psp_gauge, "Progressbar")
+
+        tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
+                          short_help_string="Add a defect")
         
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
 
-        self.Bind(wx.EVT_MENU, self.OnPlay, id=ID_PLAY)
+        self.Bind(wx.EVT_MENU, self.OnStart, id=ID_START)
         self.Bind(wx.EVT_MENU, self.OnPause, id=ID_PAUSE)
         self.Bind(wx.EVT_MENU, self.OnStop, id=ID_STOP)
+        self.Bind(wx.EVT_MENU, self.OnDefect, id=ID_DEFECT)
         
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -359,10 +445,10 @@ class PSPMixin(object):
         else:
             return ''
 
-    def OnPlay(self, event):
+    def OnStart(self, event):
         self.timer.Start(1000)
         self.psp_log_event("start")
-        self.psp_toolbar.EnableTool(ID_PLAY, False)
+        self.psp_toolbar.EnableTool(ID_START, False)
         self.psp_toolbar.EnableTool(ID_PAUSE, True)
         self.psp_toolbar.EnableTool(ID_STOP, True)
 
@@ -391,7 +477,7 @@ class PSPMixin(object):
         if self.psp_interruption: 
             self.OnPause(event)
             self.psp_toolbar.ToggleTool(ID_PAUSE, False)
-        self.psp_toolbar.EnableTool(ID_PLAY, True)
+        self.psp_toolbar.EnableTool(ID_START, True)
         self.psp_toolbar.EnableTool(ID_PAUSE, False)
         self.psp_toolbar.EnableTool(ID_STOP, False)
                     
@@ -409,6 +495,18 @@ class PSPMixin(object):
     def __del__(self):
         self.OnStop(None)
         close(self.psp_event_log_file)
+        
+    def OnDefect(self, event):
+        dlg = DefectDialog(None, -1, "New Defect", size=(350, 200),
+                         style=wx.DEFAULT_DIALOG_STYLE, 
+                         )
+        dlg.CenterOnScreen()
+        dlg.label = ""
+        if dlg.ShowModal() == wx.ID_OK:
+            item = dlg.GetValue()
+            item["date"] = datetime.date.today()
+            item["number"] = str(len(self.psp_defect_list.data)+1)
+            self.psp_defect_list.AddItem(item)
         
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
         no = str(len(self.psp_defect_list.data)+1)
@@ -428,4 +526,20 @@ class PSPMixin(object):
         print msg
         self.psp_event_log_file.write("%s\r\n" % msg)
         self.psp_event_log_file.flush()
+
+if __name__ == "__main__":
+    app = wx.App()
+
+    dlg = DefectDialog(None, -1, "Sample Dialog", size=(350, 200),
+                     #style=wx.CAPTION | wx.SYSTEM_MENU | wx.THICK_FRAME,
+                     style=wx.DEFAULT_DIALOG_STYLE, # & ~wx.CLOSE_BOX,
+                     )
+    dlg.CenterOnScreen()
+
+    # this does not return until the dialog is closed.
+    val = dlg.ShowModal()
+
+    print dlg.GetValue()
+    #dlg.Destroy()
+    app.MainLoop()
 
