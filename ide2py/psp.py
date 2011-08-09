@@ -299,8 +299,8 @@ class DefectDialog(wx.Dialog):
 
         label = wx.StaticText(self, -1, "Defect Type:")
         grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
-        self.defect = wx.Choice(self, -1, choices=types, size=(80,-1))
-        grid1.Add(self.defect, 1, wx.EXPAND, 5)
+        self.defect_type = wx.Choice(self, -1, choices=types, size=(80,-1))
+        grid1.Add(self.defect_type, 1, wx.EXPAND, 5)
 
         label = wx.StaticText(self, -1, "Inject Phase:")
         grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
@@ -341,11 +341,24 @@ class DefectDialog(wx.Dialog):
         self.SetSizer(sizer)
         sizer.Fit(self)
 
+    def SetValue(self, item):
+        types = sorted(PSP_DEFECT_TYPES.keys())
+        self.label.SetLabel(item.get("date", ""))
+        self.description.SetValue(item.get("description", ""))
+        if 'type' in item:
+            self.defect_type.SetSelection(types.index(item['type'])+1)
+        if 'inject_phase' in item:
+            self.inject_phase.SetSelection(PSP_PHASES.index(item['inject_phase'])+1)
+        if 'remove_phase' in item:
+            self.remove_phase.SetSelection(PSP_PHASES.index(item['remove_phase'])+1)        
+        self.fix_time.SetValue(item.get("fix_time", ""))
+        self.fix_defect.SetValue(item.get("fix_defect", ""))
+        
     def GetValue(self):
         types = sorted(PSP_DEFECT_TYPES.keys())
         phases = [""] + PSP_PHASES
         item = {"description": self.description.GetValue(), 
-                "type": types[self.inject_phase.GetCurrentSelection()], 
+                "type": types[self.defect_type.GetCurrentSelection()], 
                 "inject_phase": phases[self.inject_phase.GetCurrentSelection()],
                 "remove_phase": phases[self.remove_phase.GetCurrentSelection()], 
                 "fix_time": parse_time(self.fix_time.GetValue()), 
@@ -502,7 +515,7 @@ class PSPMixin(object):
                          style=wx.DEFAULT_DIALOG_STYLE, 
                          )
         dlg.CenterOnScreen()
-        dlg.label = ""
+        dlg.SetValue({'inject_phase': self.GetPSPPhase()})
         if dlg.ShowModal() == wx.ID_OK:
             item = dlg.GetValue()
             item["date"] = datetime.date.today()
