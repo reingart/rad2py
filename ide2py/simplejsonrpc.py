@@ -41,7 +41,7 @@ class JSONRPCError(RuntimeError):
 
 class JSONRPCClient(object):
     "JSON RPC Simple Client Service Proxy"
-    def __init__(self, location=None, exceptions=True, trace=True, timeout=60):
+    def __init__(self, location=None, exceptions=True, trace=False, timeout=60):
         self.location = location        # server location (url)
         self.trace = trace              # show debug messages
         self.exceptions = exceptions    # raise errors? (JSONRPCError)
