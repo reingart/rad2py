@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: latin-1 -*-
+# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by the
 # Free Software Foundation; either version 3, or (at your option) any later
@@ -19,8 +19,14 @@ __version__ = "0.01"
 
 
 import urllib2
-import json
-
+import sys
+try:
+    import gluon.contrib.simplejson as json     # try web2py json serializer 
+except ImportError:
+    try:
+        import json                             # try stdlib (py2.6)
+    except:
+        import simplejson as json               # try external module
 
 class JSONRPCError(RuntimeError):
     "Error object for remote procedure call fail"
@@ -38,7 +44,7 @@ class JSONRPCClient(object):
     def __init__(self, location=None, exceptions=True, trace=True, timeout=60):
         self.location = location        # server location (url)
         self.trace = trace              # show debug messages
-        self.exceptions = exceptions    # lanzar execpiones? (JSONRPCError)
+        self.exceptions = exceptions    # raise errors? (JSONRPCError)
         self.timeout = timeout
         self.json_request = self.json_response = ''
 
@@ -67,8 +73,11 @@ class JSONRPCClient(object):
             print '\n'.join(["%s: %s" % (k,v) for k,v in headers.items()])
             print u"\n%s" % body
 
-        # send request and receive result:
-        f = urllib2.urlopen(req, timeout=self.timeout)
+        # send request and receive result (timeout only available on py2.6):
+        if sys.version_info[0:2] > (2,5):
+            f = urllib2.urlopen(req, timeout=self.timeout)
+        else:
+            f = urllib2.urlopen(req)
         content = f.read()
         
         # store plain request and response for further debugging
