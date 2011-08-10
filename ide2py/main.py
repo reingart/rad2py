@@ -748,10 +748,13 @@ class MainApp(wx.App):
         return True
 
     def OnExit(self):
-        self.config.write(open(CONFIG_FILE, "w"))
+        self.write_config()
 
     def get_config(self, section):
         return FancyConfigDict(section, self.config)
+
+    def write_config(self):
+        self.config.write(open(CONFIG_FILE, "w"))
 
 
 if __name__ == '__main__':
