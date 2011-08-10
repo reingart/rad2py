@@ -67,6 +67,7 @@ class JSONRPCClient(object):
             print '\n'.join(["%s: %s" % (k,v) for k,v in headers.items()])
             print u"\n%s" % body
 
+        # send request and receive result:
         f = urllib2.urlopen(req, timeout=self.timeout)
         content = f.read()
         
@@ -82,11 +83,11 @@ class JSONRPCClient(object):
         response = json.loads(content)
 
         self.error = response['error']
-        if self.error:
+        if self.error and self.exceptions:
             # {'name': 'JSONRPCError', 'code': code, 'message': message}
             raise JSONRPCError(self.error['code'], self.error['message'])
             
-        return response['result']
+        return response.get('result')
 
 
 if __name__ == "__main__":
@@ -94,6 +95,6 @@ if __name__ == "__main__":
                 location="http://localhost:8000/psp2py/services/call/jsonrpc",
                 exceptions=True, trace=True,
                 )
-    print client.add(1,2)
+    print client.add(1, 2)
     print client.get_projects()
-    
+
