@@ -608,7 +608,18 @@ class PSPMixin(object):
 
     def OnProjectPSP(self, event):
         "Fetch available projects, change to selected one and load/save metrics"
-        projects = self.psp_rpc_client.get_projects()
+        try:
+            projects = self.psp_rpc_client.get_projects()
+        except Exception, e:
+            projects = []
+            dlg = wx.MessageDialog(self, u"Exception: %s\n\n" 
+                       "Configure server_url in [PSP] section "
+                       "and start web2py server" % unicode(e), 
+                       "Cannot connect to psp2py application server!",
+                       wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+
         dlg = wx.SingleChoiceDialog(self, 'Select a project', 'PSP Project',
                                     projects, wx.CHOICEDLG_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
