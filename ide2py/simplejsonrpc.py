@@ -91,10 +91,10 @@ class JSONRPCClient(object):
 
 
 if __name__ == "__main__":
+    # basic tests:
     client = JSONRPCClient(
                 location="http://localhost:8000/psp2py/services/call/jsonrpc",
                 exceptions=True, trace=True,
                 )
     print client.add(1, 2)
-    print client.get_projects()
 
