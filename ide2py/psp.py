@@ -18,8 +18,9 @@ import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
-
+        
 import images
+import simplejsonrpc
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
@@ -29,9 +30,9 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_START, ID_PAUSE, ID_STOP, ID_DEFECT = [wx.NewId() for i in range(4)]
-ID_ADD, ID_DEL, ID_EDIT = [wx.NewId() for i in range(3)]
-
+ID_START, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
+ID_DEFECT, ID_DEL, ID_EDIT = [wx.NewId() for i in range(3)]
+ID_PROJECT = wx.NewId()
 
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
@@ -216,7 +217,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
     def AddItem(self, item, key=None):
         if "_checked" not in item:
             item["_checked"] = False
-        index = self.InsertStringItem(sys.maxint, item["number"])
+        index = self.InsertStringItem(sys.maxint, str(item["number"]))
         if key is None:
             key = str(uuid.uuid1())
             item['uuid'] = key
@@ -227,8 +228,10 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             val = item.get(col_key, "")
             if col_key == 'fix_time':
                 val = pretty_time(val)
-            else:
+            elif val is not None:
                 val = str(val)
+            else:
+                val = ""
             self.SetStringItem(index, col_def[0], val)
         self.key_map[long(index)] = key
         self.SetItemData(index, long(index))
@@ -295,11 +298,18 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             val = item.get(col_key, "")
             if col_key == 'fix_time':
                 val = pretty_time(val)
-            else:
+            elif val is not None:
                 val = str(val)
+            else:
+                val = ""
             self.SetStringItem(index, col_def[0], val)
 
-        
+    def DeleteAllItems(self):
+        for key in self.data:
+            del self.data[key]
+        self.data.sync()
+        wx.ListCtrl.DeleteAllItems(self)
+       
     def OnItemSelected(self, evt):
         self.selected_index = evt.m_itemIndex
         
@@ -320,7 +330,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
                 self.data[key][col_key] = value
                 self.data.sync()
                 self.SetStringItem(index, col_index, pretty_time(value))
-
+        
 
 class DefectDialog(wx.Dialog):
     def __init__(self, parent, ID, title, size=wx.DefaultSize, 
@@ -375,12 +385,10 @@ class DefectDialog(wx.Dialog):
         btnsizer = wx.StdDialogButtonSizer()
                
         btn = wx.Button(self, wx.ID_OK)
-        btn.SetHelpText("The OK button completes the dialog")
         btn.SetDefault()
         btnsizer.AddButton(btn)
 
         btn = wx.Button(self, wx.ID_CANCEL)
-        btn.SetHelpText("The Cancel button cancels the dialog. (Cool, huh?)")
         btnsizer.AddButton(btn)
         btnsizer.Realize()
 
@@ -393,14 +401,14 @@ class DefectDialog(wx.Dialog):
         self.label.SetLabel(str(item.get("date", "")))
         self.description.SetValue(item.get("description", ""))
         if 'type' in item:
-            self.defect_type.SetSelection(self.types.index(item['type']))
+            self.defect_type.SetSelection(self.types.index(int(item['type'])))
         if 'inject_phase' in item:
             self.inject_phase.SetSelection(self.phases.index(item['inject_phase']))
         if 'remove_phase' in item:
             self.remove_phase.SetSelection(self.phases.index(item['remove_phase']))
         if 'fix_time' in item:
             self.fix_time.SetValue(pretty_time(item.get("fix_time", 0)))
-        self.fix_defect.SetValue(item.get("fix_defect", ""))
+        self.fix_defect.SetValue(item.get("fix_defect", "") or '')
         
     def GetValue(self):
         item = {"description": self.description.GetValue(), 
@@ -427,7 +435,7 @@ class PSPMixin(object):
         # text recording logs
         psp_event_log_filename = cfg.get("psp_event_log", "psp_event_log.txt")
         self.psp_event_log_file = open(psp_event_log_filename, "a")
-        
+       
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
                           Name("psp_toolbar").Caption("PSP Toolbar").
@@ -447,6 +455,12 @@ class PSPMixin(object):
         # flag for time not spent on psp task
         self.psp_interruption = None
 
+        # web2py json rpc client
+        self.psp_rpc_client = simplejsonrpc.JSONRPCClient(cfg.get("server_url"))
+        self.psp_project_name = cfg.get("project_name")
+        if self.psp_project_name:
+            self.psp_set_project(self.psp_project_name)
+
     def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
         self.psptimetable = PlanSummaryTable(grid, filename)
@@ -459,43 +473,47 @@ class PSPMixin(object):
         
     def CreatePSPToolbar(self):
         tb4 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
-                         wx.TB_FLAT | wx.TB_NODIVIDER)
+                         agwStyle = aui.AUI_TB_DEFAULT_STYLE | 
+                         aui.AUI_TB_OVERFLOW | aui.AUI_TB_TEXT | aui.AUI_TB_HORZ_TEXT)
         tb4.SetToolBitmapSize(wx.Size(16, 16))
-
-        text = wx.StaticText(tb4, -1, "PSP")
-        tb4.AddControl(text, "Personal Software Process")
-
-        tb4.AddSimpleTool(ID_START, "Start timer", images.record.GetBitmap(),
+        
+        tb4.AddLabel(-1, "PSP:", width=30)
+        tb4.AddSimpleTool(ID_PROJECT, "select project...", images.month.GetBitmap(),
+                         short_help_string="Current Project")
+        
+        tb4.AddSimpleTool(ID_START, "", images.record.GetBitmap(),
                          short_help_string="Start stopwatch (start phase)")
-        tb4.AddCheckTool(ID_PAUSE, "Pause", images.pause.GetBitmap(), wx.NullBitmap,
+        tb4.AddCheckTool(ID_PAUSE, "", images.pause.GetBitmap(), wx.NullBitmap,
                          short_help_string="Pause stopwatch (interruption)")
-        tb4.AddSimpleTool(ID_STOP, "Stop timer", images.stop.GetBitmap(),
+        tb4.AddSimpleTool(ID_STOP, "", images.stop.GetBitmap(),
                           short_help_string="Stop stopwatch (finish phase)")
 
         tb4.EnableTool(ID_START, True)
         tb4.EnableTool(ID_PAUSE, False)
         tb4.EnableTool(ID_STOP, False)
         
+        ##tb4.AddLabel(-1, "Phase:", width=50)
         self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
         tb4.AddControl(self.psp_phase_choice, "PSP Phase")
 
-        #wx.StaticText(self, -1, "Fase", (45, 15))
         self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 10))
         tb4.AddControl(self.psp_gauge, "Progressbar")
 
-        tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
+        tb4.AddSimpleTool(ID_DEFECT, "", images.GetDebuggingBitmap(),
                           short_help_string="Add a defect")
         
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
 
-        self.Bind(wx.EVT_MENU, self.OnStart, id=ID_START)
-        self.Bind(wx.EVT_MENU, self.OnPause, id=ID_PAUSE)
-        self.Bind(wx.EVT_MENU, self.OnStop, id=ID_STOP)
-        self.Bind(wx.EVT_MENU, self.OnDefect, id=ID_DEFECT)
+        self.Bind(wx.EVT_MENU, self.OnStartPSP, id=ID_START)
+        self.Bind(wx.EVT_MENU, self.OnPausePSP, id=ID_PAUSE)
+        self.Bind(wx.EVT_MENU, self.OnStopPSP, id=ID_STOP)
+        self.Bind(wx.EVT_MENU, self.OnDefectPSP, id=ID_DEFECT)
+        self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT)
         
         tb4.Realize()
         self.psp_toolbar = tb4
+
         return tb4
 
     def GetPSPPhase(self):
@@ -505,14 +523,14 @@ class PSPMixin(object):
         else:
             return ''
 
-    def OnStart(self, event):
+    def OnStartPSP(self, event):
         self.timer.Start(1000)
         self.psp_log_event("start")
         self.psp_toolbar.EnableTool(ID_START, False)
         self.psp_toolbar.EnableTool(ID_PAUSE, True)
         self.psp_toolbar.EnableTool(ID_STOP, True)
 
-    def OnPause(self, event):
+    def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
         if self.psp_interruption is not None:
             dlg = wx.TextEntryDialog(self, 
@@ -531,7 +549,7 @@ class PSPMixin(object):
             self.psp_interruption = 0
             self.psp_log_event("pausing!")
 
-    def OnStop(self, event):
+    def OnStopPSP(self, event):
         self.timer.Stop()
         self.psp_log_event("stop")
         if self.psp_interruption: 
@@ -556,7 +574,7 @@ class PSPMixin(object):
         self.OnStop(None)
         close(self.psp_event_log_file)
         
-    def OnDefect(self, event):
+    def OnDefectPSP(self, event):
         dlg = DefectDialog(None, -1, "New Defect", size=(350, 200),
                          style=wx.DEFAULT_DIALOG_STYLE, 
                          )
@@ -587,6 +605,47 @@ class PSPMixin(object):
         print msg
         self.psp_event_log_file.write("%s\r\n" % msg)
         self.psp_event_log_file.flush()
+
+    def OnProjectPSP(self, event):
+        "Fetch available projects, change to selected one and load/save metrics"
+        projects = self.psp_rpc_client.get_projects()
+        dlg = wx.SingleChoiceDialog(self, 'Select a project', 'PSP Project',
+                                    projects, wx.CHOICEDLG_STYLE)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.psp_save_project()
+            project_name = dlg.GetStringSelection()
+            self.psp_load_project(project_name)
+        dlg.Destroy()
+
+    def psp_save_project(self):
+        "Send metrics to remote server"
+        if self.psp_project_name:
+            defects = []
+            for defect in self.psp_defect_list.data.values():
+                defect = defect.copy()
+                defect['date'] = str(defect['date'])
+                del defect['_checked']
+                defects.append(defect)
+            self.psp_rpc_client.save_project(self.psp_project_name, defects)
+
+    def psp_load_project(self, project_name):
+        "Receive metrics from remote server"
+        defects, times = self.psp_rpc_client.load_project(project_name)
+        self.psp_defect_list.DeleteAllItems()
+        for defect in defects:
+            defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
+            self.psp_defect_list.AddItem(defect)
+        self.psp_set_project(project_name)
+
+    def psp_set_project(self, project_name):
+        "Set project_name in toolbar and config file"
+        self.psp_project_name = project_name
+        self.psp_toolbar.SetToolLabel(ID_PROJECT, project_name)
+        self.psp_toolbar.Refresh()
+        # store project name in config file
+        wx.GetApp().config.set('PSP', 'project_name', project_name)
+        wx.GetApp().write_config()
+
 
 if __name__ == "__main__":
     app = wx.App()

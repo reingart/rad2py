@@ -461,3 +461,14 @@ record = PyEmbeddedImage(
     "ipAkcEeGRBeBbkG24ltfHCD40mDgRBBS23mOPWa6dQyd12j1E2gKrR0B1uupdrMjcPXzm4+Z"
     "PeKrfv40Adk5kvgEAAAAAElFTkSuQmCC")
 
+#----------------------------------------------------------------------
+month = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABSUlEQVR42qWQS0/CQBSF+0f9"
+    "Wy7UROUlLbaAQFsaGWw7IBrkEQQ1oVrA6KIQjYkLi+2xnRLXMi6+zM25yZd7RshVyUTW7TAC"
+    "Bd2CxDAhaSZE1UQ+Qkxg+9O6DdmgKNTNBwCCcFg6/56+vCNmPF9i5HoYzZboTz30HA9dJ3n7"
+    "Tx6G7gqTxQqPr2/IqmbABAclEnTunxHTGs/Rup3BGkyjeQY6ctGJMjp0WH55t4A5cNjuqGqF"
+    "TLBfbiI+f9sKhzUbTHCst7Eu7myNRLq/giAO8CEw/jYzQZgINE5B4zoRpFQacFVoXG0uUG2u"
+    "C0SyEWTqnBUuNn+QNdpcFRQ6SARpnXJdINu9RJDTWyGXwLpJBHmD+lwVzO6aCXZPSrKiEVdR"
+    "yTpfMfxc2fAzRd1PR6QULZrjrOGLZ8QXK8SXauRLqTU/98RKkQkA/IsfUGoT+AhV64MAAAAA"
+    "SUVORK5CYII=")
+

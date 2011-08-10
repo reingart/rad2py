@@ -33,6 +33,7 @@ tab_width = 4
 phases = Planning, Design, Code, Compile, Test, Review, Postmortem
 data = /home/reingart/tesis/psp-data.dat
 checklist = /home/reingart/tesis/psp-checklist.dat
+server_url = http://localhost:8000/psp2py/services/call/jsonrpc
 
 [MAIN]
 settings = settings.pkl
