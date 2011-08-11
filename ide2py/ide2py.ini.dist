@@ -2,6 +2,14 @@
 username = Your Name <your.mail@gmail.com>
 type = hg
 
+[WEB2PY]
+# full (or relative) path to web2py installation folder
+path = ../web2py
+# admin password:
+password = a
+# port (default 8006):
+port = 8006
+
 [AUI]
 perspective = 
 maximize = True
