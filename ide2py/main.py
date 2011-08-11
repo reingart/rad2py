@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
-__version__ = "0.04"
+__version__ = "0.05"
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
@@ -31,14 +31,26 @@ from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
 from console import ConsoleCtrl
-from psp import PSPMixin
 
+# optional extensions that may have special dependencies (disabled if not meet)
+ADDONS = []
+try:
+    from psp import PSPMixin
+    ADDONS.append("psp")
+except:
+    class PSPMixin(object):
+        pass
 try:
     from repo import RepoMixin, RepoEvent, EVT_REPO_ID
+    ADDONS.extend(["repo", "hg"])
 except ImportError:
-    RepoMixin = object
+    class RepoMixin(object):
+        pass
 
-TITLE = "ide2py w/PSP - v%s (rad2py)" % __version__
+from web2py import Web2pyMixin
+ADDONS.append("web2py")
+
+TITLE = "ide2py %s (rad2py) [%s]" % (__version__, ', '.join(ADDONS))
 CONFIG_FILE = "ide2py.ini"
 REDIRECT_STDIO = False
 
@@ -66,7 +78,7 @@ ID_INSPECT = wx.NewId()
 
 
 
-class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
+class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def __init__(self, parent):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
@@ -312,8 +324,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         if REDIRECT_STDIO:
             sys.stdin = sys.stdout = sys.stderr = self.console
 
+        # web2py initialization (on own thread to enable debugger)
+        Web2pyMixin.__init__(self)
+
     def Cleanup(self, *args):
-        if RepoMixin is not object:
+        if 'repo' in ADDONS:
             self.RepoMixinCleanup()
         # A little extra cleanup is required for the FileHistory control
         if hasattr(self, "filehistory"):
@@ -628,7 +643,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin):
         self.debugger.pm()
 
     def NotifyRepo(self, filename, action="", status=""):
-        if RepoMixin is not object:
+        if 'repo' in ADDONS:
             wx.PostEvent(self, RepoEvent(filename, action, status))
 
 
