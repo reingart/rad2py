@@ -37,6 +37,8 @@ ID_PROJECT = wx.NewId()
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
     # find time unit and convert to it
+    if counter is None:
+        return ""
     counter = int(counter)
     for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
         if counter < (60 * factor):
@@ -630,6 +632,8 @@ class PSPMixin(object):
 
     def psp_save_project(self):
         "Send metrics to remote server"
+        # convert to plain dictionaries to be searialized and sent to web2py DAL
+        # remove GUI implementation details, match psp2py database model
         if self.psp_project_name:
             defects = []
             for defect in self.psp_defect_list.data.values():
@@ -637,15 +641,32 @@ class PSPMixin(object):
                 defect['date'] = str(defect['date'])
                 del defect['_checked']
                 defects.append(defect)
-            self.psp_rpc_client.save_project(self.psp_project_name, defects)
+            time_summaries = []
+            comments = []
+            for phase, times in self.psptimetable.cells.items():
+                time_summary = {'phase': phase}
+                time_summary.update(times)
+                for message, delta in time_summary.pop('comments', []):
+                    comment = {'phase': phase, 'message': message, 'delta': delta}
+                    comments.append(comment)
+                time_summaries.append(time_summary)
+            self.psp_rpc_client.save_project(self.psp_project_name, defects, time_summaries, comments)
 
     def psp_load_project(self, project_name):
         "Receive metrics from remote server"
-        defects, times = self.psp_rpc_client.load_project(project_name)
+        # fetch and deserialize web2py rows to GUI data structures
+        defects, time_summaries, comments = self.psp_rpc_client.load_project(project_name)
         self.psp_defect_list.DeleteAllItems()
         for defect in defects:
             defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
             self.psp_defect_list.AddItem(defect)
+        self.psptimetable.cells.clear()
+        for time_summary in time_summaries:
+            self.psptimetable.cells[str(time_summary['phase'])] = time_summary
+        for comment in comments:
+            phase, message, delta = comment['phase'], comment['message'], comment['delta']
+            self.psptimetable.comment(str(phase), message, delta)
+        self.psptimetable.UpdateValues()
         self.psp_set_project(project_name)
 
     def psp_set_project(self, project_name):
