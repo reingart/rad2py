@@ -50,6 +50,14 @@ class Debugger(bdb.Bdb):
         finally:
             self.interacting = 0
 
+    def RunCall(self, function, interp=None, *args, **kwargs):
+        try:
+            self.interp = interp
+            self.interacting = self.start_continue and 1 or 2
+            return self.runcall(function, *args, **kwargs)
+        finally:
+            self.interacting = 0
+
     def check_interaction(fn):
         "Decorator for exclusive functions (not allowed during interaction)"
         def check_fn(self, *args, **kwargs):
@@ -83,6 +91,8 @@ class Debugger(bdb.Bdb):
          # save and change interpreter namespaces to the current frame
         i_locals = self.interp.locals
         self.interp.locals = frame.f_locals
+        # copy globals into interpreter, so them can be inspected (DANGEROUS!)
+        self.interp.locals.update(frame.f_globals)
         try:
             while self.waiting:
                 wx.YieldIfNeeded()  # hope this is thread safe...
