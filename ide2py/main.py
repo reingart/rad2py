@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
-__version__ = "0.05"
+__version__ = "0.06"
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
@@ -431,19 +431,25 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnRun(self, event, debug=False):
         if self.active_child:
             # add the path of this script so we can import things
-            syspath = [ os.path.split(self.active_child.filename)[0] ]
-     
-            # create a code object and run it in the main thread
-            code = self.active_child.GetCodeObject()
-            filename = os.path.split(self.active_child.filename)[1]
-            msg = not debug and "Running" or "Debugging"
-            self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
-            if code:
-                # set program arguments (workaround shlex unicode bug)
-                args = self.lastprogargs.encode("ascii", "ignore")
-                sys.argv = [filename] + shlex.split(args)
-                self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
-            self.statusbar.SetStatusText("", 1)
+            syspath = [ os.path.split(self.active_child.filename)[0] ]            
+            # preserve current directory
+            cwd = os.getcwd()
+            try:
+                # change to script directory
+                os.chdir(syspath[0])                 
+                # create a code objectbject and run it in the main thread
+                code = self.active_child.GetCodeObject()
+                filename = os.path.split(self.active_child.filename)[1]
+                msg = not debug and "Running" or "Debugging"
+                self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
+                if code:
+                    # set program arguments (workaround shlex unicode bug)
+                    args = self.lastprogargs.encode("ascii", "ignore")
+                    sys.argv = [filename] + shlex.split(args)
+                    self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
+                self.statusbar.SetStatusText("", 1)
+            finally:
+                os.chdir(cwd)
 
     def OnSetArgs(self, event):
         dlg = wx.TextEntryDialog(self, 'Enter program arguments (sys.argv):', 
