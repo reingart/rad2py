@@ -1,28 +1,80 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"Mono-thread web2py for development"
+"Async mono-thread web2py (development) server extension to ide2py"
 
-# Just for debug test by now
+__author__ = "Mariano Reingart (reingart@gmail.com)"
+__copyright__ = "Copyright (C) 2011 Mariano Reingart"
+__license__ = "GPL 3.0"
+
+# Just for debug by now, based on web2py widget app and stlib serve_forever
+# WARNING: do not request a web2py page from main thread! (it will block!)
 
 import os
-import sys
-
-sys.argv.extend(["-a", "a"])
-
-path = "/home/reingart/web2py"
-os.chdir(path)
-
-sys.path.insert(0, path)
-
-### no_threads_web2py.py ### 
+import select
 from wsgiref.simple_server import make_server, demo_app 
-from gluon.main import wsgibase 
-httpd = make_server('', 8006, wsgibase) 
-print "Serving HTTP on port 8006..." 
-# Respond to requests until process is killed 
+import sys
+import wx
 
-import dummy_threading as dummy_threading
-import thread
-thread.start_new_thread(httpd.serve_forever,())
-### end file ### 
+
+class Web2pyMixin(object):
+    "ide2py extension to execute web2py under debugger and shell"
+
+    def __init__(self, path="../web2py", port=8006, password="a"):
+        "start-up a web2py server instance"
+
+        # read configuration with safe defaults        
+        cfg = wx.GetApp().get_config("WEB2PY")
+        path = cfg.get("path", path)
+        password = cfg.get("password", password)
+        port = cfg.get("port", port)
+        host = "127.0.0.1"
+        
+        if path:           
+            # store current directory
+            prevdir = os.path.abspath(os.curdir)
+           
+            try:
+                os.chdir(path)
+                sys.path.insert(0, path)
+                from gluon.main import wsgibase, save_password
+
+                # store admin password
+                save_password(password, port)
+
+                # create a wsgi server
+                self.web2py_httpd = make_server(host, port, wsgibase)
+                print "Serving HTTP on port %s..." % port
+
+                # connect to idle event to poll and serve requests
+                self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
+                
+                # open internal browser at default page:
+                self.browser.LoadURL("http://%s:%s/" % (host, port))
+            except Exception, e:
+                dlg = wx.MessageDialog(self, unicode(e),
+                           'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
+            finally:
+                # recover original directory
+                os.chdir(prevdir)
+
+    def OnIdleServeWeb2py(self, event):
+        "If there is a request pending, serve it under debugger control"
+        poll_interval = 0   # return inmediatelly
+        # check if socket is ready to read data (incoming request):
+        r, w, e = select.select([self.web2py_httpd], [], [], poll_interval)
+        if self.web2py_httpd in r and not self.debugging:
+            # prevent reentry on debug critical section (TODO mutex)
+            self.debugging = True
+            # debug, but continue at "full-speed" (set breakpoints!)
+            self.debugger.start_continue = True
+            self.debugger.RunCall(self.web2py_httpd.handle_request, 
+                                  interp=self.shell.interp)
+            # clean running line indication
+            self.GotoFileLine()
+            # allow new request to be served:
+            self.debugging = False
+
+
