@@ -463,6 +463,10 @@ class PSPMixin(object):
         if self.psp_project_name:
             self.psp_set_project(self.psp_project_name)
 
+        self.Bind(wx.EVT_CHOICE, self.OnPSPPhaseChoice, self.psp_phase_choice)
+        self.SetPSPPhase(cfg.get("current_phase"))
+
+
     def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
         self.psptimetable = PlanSummaryTable(grid, filename)
@@ -518,12 +522,22 @@ class PSPMixin(object):
 
         return tb4
 
+    def SetPSPPhase(self, phase):
+        if phase:
+            self.psp_phase_choice.SetSelection(PSP_PHASES.index(phase))
+
     def GetPSPPhase(self):
         phase = self.psp_phase_choice.GetCurrentSelection()
         if phase>=0:
             return PSP_PHASES[phase]
         else:
             return ''
+
+    def OnPSPPhaseChoice(self, event):
+        # store current phase in config file
+        phase = self.GetPSPPhase()
+        wx.GetApp().config.set('PSP', 'current_phase', phase)
+        wx.GetApp().write_config()
 
     def OnStartPSP(self, event):
         self.timer.Start(1000)
