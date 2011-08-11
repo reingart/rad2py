@@ -103,11 +103,11 @@ db.define_table("psp_time_summary",
     Field("interruption", "integer"),
     )
 
-db.define_table("psp_interruption",
+db.define_table("psp_comment",
     Field("id", "id"),
     Field("project_id", db.psp_project),
     Field("phase", "string", requires=IS_IN_SET(PSP_PHASES)),
-    Field("comment", "string"),
+    Field("message", "text"),
     Field("delta", "integer"),
     )
 
@@ -116,7 +116,7 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
     80: 'Function', 90: 'System', 100: 'Enviroment'}
     
 db.define_table("psp_defect",
-    Field("defect_id", "id"),
+    Field("id", "id"),
     Field("project_id", db.psp_project),
     Field("number", "integer"),
     Field("description", "text"),
