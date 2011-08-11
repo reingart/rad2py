@@ -18,7 +18,7 @@ import wx
 DEFAULT_URL = 'http://www.python.org'
 
 
-if wx.Platform == '__WXGTK__':
+if wx.Platform in ('__WXGTK__', '__WXMAC__'):
     import gobject
     gobject.threads_init()
     import gtk, gtk.gdk

@@ -26,7 +26,6 @@ import wx.lib.agw.aui as aui
 
 import images
 
-from browser import SimpleBrowserPanel
 from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID
@@ -46,6 +45,12 @@ try:
 except ImportError:
     class RepoMixin(object):
         pass
+
+try:
+    from browser import SimpleBrowserPanel
+    ADDONS.append("webbrowser")
+except ImportError:
+    SimpleBrowserPanel = None
 
 from web2py import Web2pyMixin
 ADDONS.append("web2py")
@@ -271,7 +276,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                           ToolbarPane().Top().Position(1))
                       
         self.browser = self.CreateBrowserCtrl()
-        self._mgr.AddPane(self.browser, aui.AuiPaneInfo().Name("browser").
+        if self.browser:
+            self._mgr.AddPane(self.browser, aui.AuiPaneInfo().Name("browser").
                           Caption("Simple Browser").Right().CloseButton(True))
 
         self.shell = Shell(self)
@@ -616,7 +622,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                            wx.NO_BORDER | wx.TE_MULTILINE)
 
     def CreateBrowserCtrl(self):
-        return SimpleBrowserPanel(self)
+        if SimpleBrowserPanel:
+            return SimpleBrowserPanel(self)
 
     def CreateGrid(self):
         grid = wx.grid.Grid(self, -1, wx.Point(0, 0), wx.Size(150, 250),

@@ -50,7 +50,17 @@ class Web2pyMixin(object):
                 self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
                 
                 # open internal browser at default page:
-                self.browser.LoadURL("http://%s:%s/" % (host, port))
+                url = "http://%s:%s/" % (host, port)
+                if self.browser:
+                    self.browser.LoadURL(url)
+                else:
+                    # no interna browser, open external one
+                    try:
+                        import webbrowser
+                        webbrowser.open(url)
+                    except:
+                        print 'warning: unable to detect your browser'
+
             except Exception, e:
                 dlg = wx.MessageDialog(self, unicode(e),
                            'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)

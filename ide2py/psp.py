@@ -32,7 +32,7 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
 ID_DEFECT, ID_DEL, ID_EDIT = [wx.NewId() for i in range(3)]
-ID_PROJECT = wx.NewId()
+ID_PROJECT, ID_PROJECT_LABEL = [wx.NewId() for i in range(2)]
 
 def pretty_time(counter):
     "return formatted string of a time count in seconds (days/hours/min/seg)"
@@ -478,20 +478,22 @@ class PSPMixin(object):
         return list
         
     def CreatePSPToolbar(self):
+        # old version of wx, dont use text text
         tb4 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
-                         agwStyle = aui.AUI_TB_DEFAULT_STYLE | 
-                         aui.AUI_TB_OVERFLOW | aui.AUI_TB_TEXT | aui.AUI_TB_HORZ_TEXT)
+                             wx.TB_FLAT | wx.TB_NODIVIDER)
+
         tb4.SetToolBitmapSize(wx.Size(16, 16))
         
         tb4.AddLabel(-1, "PSP:", width=30)
-        tb4.AddSimpleTool(ID_PROJECT, "select project...", images.month.GetBitmap(),
-                         short_help_string="Current Project")
+        tb4.AddSimpleTool(ID_PROJECT, "Project", images.month.GetBitmap(),
+                         short_help_string="Change current PSP Project")
+        tb4.AddLabel(ID_PROJECT_LABEL, "select project...", width=100)
         
-        tb4.AddSimpleTool(ID_START, "", images.record.GetBitmap(),
+        tb4.AddSimpleTool(ID_START, "Start", images.record.GetBitmap(),
                          short_help_string="Start stopwatch (start phase)")
-        tb4.AddCheckTool(ID_PAUSE, "", images.pause.GetBitmap(), wx.NullBitmap,
+        tb4.AddCheckTool(ID_PAUSE, "Pause", images.pause.GetBitmap(), wx.NullBitmap,
                          short_help_string="Pause stopwatch (interruption)")
-        tb4.AddSimpleTool(ID_STOP, "", images.stop.GetBitmap(),
+        tb4.AddSimpleTool(ID_STOP, "Stop", images.stop.GetBitmap(),
                           short_help_string="Stop stopwatch (finish phase)")
 
         tb4.EnableTool(ID_START, True)
@@ -505,8 +507,8 @@ class PSPMixin(object):
         self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 10))
         tb4.AddControl(self.psp_gauge, "Progressbar")
 
-        tb4.AddSimpleTool(ID_DEFECT, "", images.GetDebuggingBitmap(),
-                          short_help_string="Add a defect")
+        tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
+                          short_help_string="Add a PSP defect")
         
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
@@ -516,6 +518,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnStopPSP, id=ID_STOP)
         self.Bind(wx.EVT_MENU, self.OnDefectPSP, id=ID_DEFECT)
         self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT)
+        self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT_LABEL)
         
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -686,7 +689,7 @@ class PSPMixin(object):
     def psp_set_project(self, project_name):
         "Set project_name in toolbar and config file"
         self.psp_project_name = project_name
-        self.psp_toolbar.SetToolLabel(ID_PROJECT, project_name)
+        self.psp_toolbar.SetToolLabel(ID_PROJECT_LABEL, project_name)
         self.psp_toolbar.Refresh()
         # store project name in config file
         wx.GetApp().config.set('PSP', 'project_name', project_name)
