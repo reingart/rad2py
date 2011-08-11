@@ -120,6 +120,9 @@ class SimpleBrowserPanel(wx.Panel):
         self.TxtUrl.SetValue(url)
         #self.SetTitle('wxSimpleBrowser - %s' % url)
 
+    def LoadURL(self, url):
+        self.TxtUrl.SetValue(url)
+        self.browser.LoadURL(url)
 
 class SimpleBrowser(wx.Frame):
 
