@@ -60,6 +60,8 @@ class Web2pyMixin(object):
                         webbrowser.open(url)
                     except:
                         print 'warning: unable to detect your browser'
+                
+                self.web2py_environment = self.build_web2py_environment()
 
             except Exception, e:
                 dlg = wx.MessageDialog(self, unicode(e),
@@ -87,8 +89,9 @@ class Web2pyMixin(object):
             # allow new request to be served:
             self.debugging = False
 
-    def web2py_namespace(self):
+    def build_web2py_environment(self):
         "build a namespace suitable for editor autocompletion and calltips"
+        # warning: this can alter current global variable, use with care!
         try:
             from gluon.globals import Request, Response, Session
             from gluon.compileapp import build_environment, DAL
@@ -100,7 +103,7 @@ class Web2pyMixin(object):
             request.application = "welcome"
             request.controller = "default"
             request.function = "index"
-            ns = build_environment(request, response, session)
+            ns = build_environment(request, response, session, )
             # fake common model objects
             db = ns['db'] = DAL("sqlite:memory")
             from gluon.tools import Auth, Crud, Service
@@ -112,3 +115,5 @@ class Web2pyMixin(object):
             ns = {}
         return ns
 
+    def web2py_namespace(self):
+        return self.web2py_environment
