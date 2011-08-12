@@ -62,7 +62,6 @@ class Web2pyMixin(object):
                         print 'warning: unable to detect your browser'
 
             except Exception, e:
-                raise
                 dlg = wx.MessageDialog(self, unicode(e),
                            'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)
                 dlg.ShowModal()
@@ -109,7 +108,6 @@ class Web2pyMixin(object):
             ns['crud'] = Crud(db)
             ns['service'] = Service()
         except Exception, e:
-            raise
             print e
             ns = {}
         return ns
