@@ -771,8 +771,8 @@ class MainApp(wx.App):
         self.config.read(CONFIG_FILE)
         if not self.config.sections():
             raise RuntimeError("No configuration found, use ide2py.ini.dist!")
-        self.aui_frame = PyAUIFrame(None)
-        self.aui_frame.Show()
+        self.main_frame = PyAUIFrame(None)
+        self.main_frame.Show()
         return True
 
     def OnExit(self):

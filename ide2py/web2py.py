@@ -48,7 +48,7 @@ class Web2pyMixin(object):
 
                 # connect to idle event to poll and serve requests
                 self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
-                
+
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)
                 if self.browser:
@@ -62,6 +62,7 @@ class Web2pyMixin(object):
                         print 'warning: unable to detect your browser'
 
             except Exception, e:
+                raise
                 dlg = wx.MessageDialog(self, unicode(e),
                            'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)
                 dlg.ShowModal()
@@ -87,4 +88,29 @@ class Web2pyMixin(object):
             # allow new request to be served:
             self.debugging = False
 
+    def web2py_namespace(self):
+        "build a namespace suitable for editor autocompletion and calltips"
+        try:
+            from gluon.globals import Request, Response, Session
+            from gluon.compileapp import build_environment, DAL
+            request = Request()
+            response = Response()
+            session = Session()
+            # fake request values
+            request.folder = ""
+            request.application = "welcome"
+            request.controller = "default"
+            request.function = "index"
+            ns = build_environment(request, response, session)
+            # fake common model objects
+            db = ns['db'] = DAL("sqlite:memory")
+            from gluon.tools import Auth, Crud, Service
+            ns['auth'] = Auth(db)
+            ns['crud'] = Crud(db)
+            ns['service'] = Service()
+        except Exception, e:
+            raise
+            print e
+            ns = {}
+        return ns
 

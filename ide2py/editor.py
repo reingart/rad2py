@@ -92,7 +92,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.filename = filename
         self.modified = False
         self.calltip = 0
-        self.namespace = {}
+        self.namespace = wx.GetApp().main_frame.web2py_namespace()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
         self.bom = codecs.BOM_UTF8
@@ -507,7 +507,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         return '"%s.py"'%'.'.join(wordList[:-1])
 
     def Evaluate(self, word):
-        if word in self.namespace.keys():return self.namespace[word]
+        if word in self.namespace:return self.namespace[word]
         try:
             self.namespace[word] = eval(word,self.namespace)
             return self.namespace[word]
