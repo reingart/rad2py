@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
-__version__ = "0.06"
+__version__ = "0.06b"
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
@@ -165,7 +165,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_BREAKPOINT, "Toggle Breakpoint\tF9")
         dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
-
         
         help_menu = self.menu['help'] = wx.Menu()
         help_menu.Append(wx.ID_ABOUT, "About...")
