@@ -641,7 +641,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         lineclicked = self.LineFromPosition(evt.GetPosition())
         if evt.GetMargin() == 0:
             self.ToggleBreakpoint(lineclicked)
-        elif evt.GetMargin() == 2:
+        elif evt.GetMargin() == 3:
             if evt.GetShift() and evt.GetControl():
                 self.FoldAll()
             else:
