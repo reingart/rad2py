@@ -57,7 +57,7 @@ class RepoMixin(object):
         recent_repos_submenu = wx.Menu()
         self.repo_filehistory = wx.FileHistory(idBase=ID_FILE_REPO[0])
         self.repo_filehistory.UseMenu(recent_repos_submenu)
-        self.menu['file'].InsertMenu(pos+1, -1, "Recent Repos", recent_repos_submenu)
+        self.menu['file'].InsertMenu(pos+1, -1, "Recent &Repos", recent_repos_submenu)
         self.Bind(wx.EVT_MENU_RANGE, self.OnRepoFileHistory, 
             id=ID_FILE_REPO[0], id2=ID_FILE_REPO[9])
            
