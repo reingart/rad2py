@@ -90,7 +90,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         #sys.excepthook  = self.ExceptHook
         
-        self.children = {}
+        self.children = []
         self.active_child = None        # current editing file
         self.debugging_child = None     # current debugged file
         self.debugging = False
@@ -386,6 +386,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnNew(self, event):
         child = AUIChildFrame(self, "")
         child.Show()
+        self.children.append(child)
         return child
 
     def OnOpen(self, event):
@@ -415,12 +416,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.filehistory.AddFileToHistory(filepath)
 
     def DoOpen(self, filename):
-        if filename not in self.children:
+        found = [child for child in self.children if child.GetFilename()==filename]
+        if not found:
             child = AUIChildFrame(self, filename)
             child.Show()
-            self.children[filename] = child
+            self.children.append(child)
         else:
-            child = self.children[filename]
+            child = found[0]
             child.Activate()
             child.SetFocus()
         return child
@@ -436,7 +438,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnRun(self, event, debug=False):
         if self.active_child:
             # add the path of this script so we can import things
-            syspath = [ os.path.split(self.active_child.filename)[0] ]            
+            syspath = [ os.path.split(self.active_child.GetFilename())[0] ]            
             # preserve current directory
             cwd = os.getcwd()
             try:
@@ -444,7 +446,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 os.chdir(syspath[0])                 
                 # create a code objectbject and run it in the main thread
                 code = self.active_child.GetCodeObject()
-                filename = os.path.split(self.active_child.filename)[1]
+                filename = os.path.split(self.active_child.GetFilename())[1]
                 msg = not debug and "Running" or "Debugging"
                 self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
                 if code:
@@ -465,7 +467,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     
     def OnExecute(self, event):
         if self.active_child and not self.console.process:
-            filename = self.active_child.filename
+            filename = self.active_child.GetFilename()
             cdir, filen = os.path.split(filename)
             cwd = os.getcwd()
             try:
@@ -539,7 +541,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         elif not running:
             filename, lineno, offset = event
         # first, clean all current debugging markers
-        for child in self.children.values():
+        for child in self.children:
             if running:
                 child.SynchCurrentLine(None)
                 self.debugging_child = None
@@ -559,7 +561,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # Not debbuging?, set temp breakpoint to be hit on first run!
         if event_id == ID_CONTINUETO and not self.debugging_child and self.active_child:
             lineno = self.active_child.GetCurrentLine()
-            filename = self.active_child.filename
+            filename = self.active_child.GetFilename()
             self.debugger.SetBreakpoint(filename, lineno, temporary=1)
 
         # start debugger (if not running):
@@ -601,7 +603,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         elif event_id == ID_CONTINUETO and self.debugging_child:
             # Continue execution until we reach selected line (temp breakpoint)
             lineno = self.debugging_child.GetCurrentLine()
-            filename = self.debugging_child.filename
+            filename = self.debugging_child.GetFilename()
             self.debugger.SetBreakpoint(filename, lineno, temporary=1)
             self.debugger.Continue()
 
@@ -609,10 +611,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # TODO: separate checks and tests, add reviews and diffs...
         if self.active_child:
             import checker
-            for error in checker.check(self.active_child.filename):
+            for error in checker.check(self.active_child.GetFilename()):
                 self.NotifyDefect(**error)
             import tester
-            for error in tester.test(self.active_child.filename):
+            for error in tester.test(self.active_child.GetFilename()):
                 self.NotifyDefect(**error)
 
     def CreateTextCtrl(self):
@@ -666,7 +668,6 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
                                          title="")  
         app = wx.GetApp()
         
-        self.filename = filename     
         self.editor = EditorCtrl(self,-1, filename=filename,    
                                  debugger=parent.debugger,
                                  lang="python", 
@@ -705,6 +706,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
             }
         handlers[event.GetId()](event)
 
+    def GetFilename(self):
+        return self.editor.filename
 
     def GetCodeObject(self,):
         return self.editor.GetCodeObject()
