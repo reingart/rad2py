@@ -169,11 +169,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         help_menu = self.menu['help'] = wx.Menu()
         help_menu.Append(wx.ID_ABOUT, "About...")
         
-        self.menubar.Append(file_menu, "File")
-        self.menubar.Append(edit_menu, "Edit")
-        self.menubar.Append(run_menu, "Run")
-        self.menubar.Append(dbg_menu, "Debug")
-        self.menubar.Append(help_menu, "Help")
+        self.menubar.Append(file_menu, "&File")
+        self.menubar.Append(edit_menu, "&Edit")
+        self.menubar.Append(run_menu, "&Run")
+        self.menubar.Append(dbg_menu, "&Debug")
+        self.menubar.Append(help_menu, "&Help")
         
         self.SetMenuBar(self.menubar)
 
@@ -338,7 +338,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # A little extra cleanup is required for the FileHistory control
         if hasattr(self, "filehistory"):
             # save recent file history in config file
-            for filenum in range(0,10):
+            for filenum in range(0, self.filehistory.Count):
                 filename = self.filehistory.GetHistoryFile(filenum)
                 wx.GetApp().config.set('HISTORY', 'file_%s' % filenum, filename)
             del self.filehistory
@@ -346,10 +346,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
     def OnClose(self, event):
         # Save current perspective layout. WARNING: all panes must have a name! 
-        perspective = self._mgr.SavePerspective()
-        wx.GetApp().config.set('AUI', 'perspective', perspective)
-        self._mgr.UnInit()
-        del self._mgr
+        if hasattr(self, "_mgr"):
+            perspective = self._mgr.SavePerspective()
+            wx.GetApp().config.set('AUI', 'perspective', perspective)
+            self._mgr.UnInit()
+            del self._mgr
         self.Destroy()
 
 

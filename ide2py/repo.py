@@ -377,7 +377,7 @@ class RepoMixin(object):
         # A little extra cleanup is required for the FileHistory control
         if hasattr(self, "repo_filehistory"):
             # save recent file history in config file
-            for filenum in range(0,10):
+            for filenum in range(0, self.repo_filehistory.Count):
                 filename = self.repo_filehistory.GetHistoryFile(filenum)
                 wx.GetApp().config.set('HISTORY', 'repo_%s' % filenum, filename)
             del self.repo_filehistory
