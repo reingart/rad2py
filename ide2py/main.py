@@ -167,6 +167,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
         
         help_menu = self.menu['help'] = wx.Menu()
+        help_menu.Append(wx.ID_HELP, "Quick &Help\tF1",
+                        help="help() on selected expression")
+        dbg_menu.AppendSeparator()
         help_menu.Append(wx.ID_ABOUT, "&About...")
         
         self.menubar.Append(file_menu, "&File")
@@ -238,7 +241,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (wx.ID_CUT, self.OnEditAction),
             (wx.ID_COPY, self.OnEditAction),
             (wx.ID_PASTE, self.OnEditAction),
-            (wx.ID_ABOUT, self.OnEditAction),
+            (wx.ID_HELP, self.OnHelp),
             (ID_COMMENT, self.OnEditAction),
             (ID_GOTO, self.OnEditAction),
             (ID_BREAKPOINT, self.OnEditAction),
@@ -618,6 +621,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             for error in tester.test(self.active_child.GetFilename()):
                 self.NotifyDefect(**error)
 
+    def OnHelp(self, event):
+        "Show help on selected text"
+        # TODO: show html help!
+        sel = self.active_child.GetSelectedText()
+        stdin, stdout, sterr = sys.stdin, sys.stdout, sys.stderr 
+        try:
+            sys.stdin = sys.stdout = sys.stderr = self.console
+            help(sel.encode("utf8"))
+        except Exception, e:
+            tip = unicode(e)
+        finally:
+            sys.stdin, sys.stdout, sys.stderr = stdin, stdout, sterr 
+
+        
     def CreateTextCtrl(self):
         text = ("This is text box")
         return wx.TextCtrl(self,-1, text, wx.Point(0, 0), wx.Size(150, 90),
