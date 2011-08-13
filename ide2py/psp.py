@@ -483,7 +483,9 @@ class PSPMixin(object):
                              wx.TB_FLAT | wx.TB_NODIVIDER)
 
         tb4.SetToolBitmapSize(wx.Size(16, 16))
-        
+
+        if wx.version() < (2, 8, 11): # TODO: prevent SEGV!
+            tb4.AddSpacer(200)        
         tb4.AddLabel(-1, "PSP:", width=30)
         tb4.AddSimpleTool(ID_PROJECT, "Project", images.month.GetBitmap(),
                          short_help_string="Change current PSP Project")
@@ -501,11 +503,13 @@ class PSPMixin(object):
         tb4.EnableTool(ID_STOP, False)
         
         ##tb4.AddLabel(-1, "Phase:", width=50)
-        self.psp_phase_choice = wx.Choice(tb4, -1, choices=PSP_PHASES)
-        tb4.AddControl(self.psp_phase_choice, "PSP Phase")
+        self.psp_phase_choice = wx.Choice(tb4, -1, size=(100,-1), choices=PSP_PHASES)
+        if wx.version() > (2, 8, 11): # TODO: prevent SEGV!
+            tb4.AddControl(self.psp_phase_choice, "PSP Phase")
 
-        self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 10))
-        tb4.AddControl(self.psp_gauge, "Progressbar")
+        self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 8))
+        if wx.version() > (2, 8, 11): # TODO: prevent SEGV!
+            tb4.AddControl(self.psp_gauge, "Progressbar")
 
         tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
                           short_help_string="Add a PSP defect")
