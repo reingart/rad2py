@@ -23,6 +23,7 @@ import wx
 import wx.grid
 import wx.html
 import wx.lib.agw.aui as aui
+import wx.lib.dialogs
 
 import images
 
@@ -88,7 +89,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
 
-        #sys.excepthook  = self.ExceptHook
+        sys.excepthook  = self.ExceptHook
         
         self.children = []
         self.active_child = None        # current editing file
@@ -573,7 +574,21 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.debugging = True
             # should it open debugger inmediatelly or continue?
             self.debugger.start_continue = event_id in (ID_CONTINUE, ID_CONTINUETO)
-            self.OnRun(event, debug=True)
+            try:
+                sys.exc_clear()
+                self.OnRun(event, debug=True)
+            except SystemExit:
+                # In most cases SystemExit does not warrant a post-mortem session.
+                print "The program exited via sys.exit(). Exit status: ",
+                print sys.exc_info()[1]
+            except:
+                extype, exvalue, trace = sys.exc_info()
+                traceback.print_exc()
+                print "Uncaught exception. Entering post mortem debugging"
+                self.ExceptHook(extype, exvalue, trace)
+                self.debugger.start_continue = False
+                self.debugger.post_mortem(trace)
+                print "Post mortem debugger finished"
             self.debugging = False
             # clean running indication
             self.GotoFileLine()
@@ -664,15 +679,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
     def ExceptHook(self, type, value, trace): 
         exc = traceback.format_exception(type, value, trace) 
-        for e in exc: wx.LogError(e) 
-        wx.LogError(u'Unhandled Error: %s: %s'%(str(type), unicode(value)))
+        #for e in exc: wx.LogError(e) 
+        # format exception message
+        title = traceback.format_exception_only(type, value)[0]
+        msg = ''.join(traceback.format_exception(type, value, trace))
+        # display the exception
+        print u'Unhandled Error: %s' % title
+        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
+        dlg.ShowModal()
+        dlg.Destroy()
         # TODO: automatic defect classification
         tb = traceback.extract_tb(trace)
         if tb:
             filename, lineno, function_name, text = tb[-1]
-            self.NotifyDefect(description=str(e), type="60", filename=filename, lineno=lineno, offset=1)
-        # enter post-mortem debugger
-        self.debugger.pm()
+            self.NotifyDefect(description=title, type="60", filename=filename, lineno=lineno, offset=1)
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:

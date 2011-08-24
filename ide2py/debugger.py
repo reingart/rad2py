@@ -40,6 +40,8 @@ class Debugger(bdb.Bdb):
         self.interaction(frame)
 
     def user_exception(self, frame, info):
+        if self.gui:
+            self.gui.ExceptHook(*info)
         self.interaction(frame, info)
 
     def Run(self, code, interp=None, *args, **kwargs):
@@ -161,6 +163,32 @@ class Debugger(bdb.Bdb):
                 exc_type_name = t
             else: exc_type_name = t.__name__
             return '*** %s: %s' % (exc_type_name, repr(v))
+
+    def reset(self):
+        bdb.Bdb.reset(self)
+        self.waiting = False
+        self.frame = None
+
+    def post_mortem(self, t=None):
+        # handling the default
+        if t is None:
+            # sys.exc_info() returns (type, value, traceback) if an exception is
+            # being handled, otherwise it returns None
+            t = sys.exc_info()[2]
+            if t is None:
+                raise ValueError("A valid traceback must be passed if no "
+                                 "exception is being handled")
+
+        self.reset()
+        
+        # get last frame:
+        while t is not None:
+            frame = t.tb_frame
+            t = t.tb_next
+            print frame, t
+            print frame.f_code, frame.f_lineno
+
+        self.interaction(frame)
 
 
 def set_trace():
