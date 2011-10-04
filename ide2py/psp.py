@@ -32,7 +32,7 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT = [wx.NewId() for i in range(4)]
-ID_PROJECT, ID_PROJECT_LABEL = [wx.NewId() for i in range(2)]
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(4)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -493,7 +493,9 @@ class PSPMixin(object):
         tb4 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
                              wx.TB_FLAT | wx.TB_NODIVIDER)
 
-        tb4.SetToolBitmapSize(wx.Size(16, 16))
+        tsize = wx.Size(16, 16)
+        GetBmp = lambda id: wx.ArtProvider.GetBitmap(id, wx.ART_TOOLBAR, tsize)
+        tb4.SetToolBitmapSize(tsize)
 
         if WX_VERSION < (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddSpacer(200)        
@@ -501,6 +503,12 @@ class PSPMixin(object):
         tb4.AddSimpleTool(ID_PROJECT, "Project", images.month.GetBitmap(),
                          short_help_string="Change current PSP Project")
         tb4.AddLabel(ID_PROJECT_LABEL, "select project...", width=100)
+
+        tb4.AddSimpleTool(ID_UP, "Upload", GetBmp(wx.ART_GO_UP),
+                          short_help_string="send metrics to remote server")
+        tb4.AddSimpleTool(ID_DOWN, "Download", GetBmp(wx.ART_GO_DOWN),
+                          short_help_string="receive metrics from remote server")
+
         
         tb4.AddSimpleTool(ID_START, "Start", images.record.GetBitmap(),
                          short_help_string="Start stopwatch (start phase)")
@@ -534,6 +542,8 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnDefectPSP, id=ID_DEFECT)
         self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT)
         self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT_LABEL)
+        self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
+        self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -662,11 +672,22 @@ class PSPMixin(object):
             self.psp_load_project(project_name)
         dlg.Destroy()
 
+    def OnUploadProjectPSP(self, event):
+        self.psp_save_project()
+    
+    def OnDownloadProjectPSP(self, event):
+        self.psp_load_project(self.psp_project_name)
+
     def psp_save_project(self):
         "Send metrics to remote server"
         # convert to plain dictionaries to be searialized and sent to web2py DAL
         # remove GUI implementation details, match psp2py database model
-        if self.psp_project_name:
+        dlg = wx.MessageDialog(self, "Send Metrics from remote site?",
+                               "PSP Project Change", 
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        result = dlg.ShowModal() == wx.ID_YES
+        dlg.Destroy()
+        if result and self.psp_project_name:
             defects = []
             for defect in self.psp_defect_list.data.values():
                 defect = defect.copy()
@@ -683,23 +704,31 @@ class PSPMixin(object):
                     comments.append(comment)
                 time_summaries.append(time_summary)
             self.psp_rpc_client.save_project(self.psp_project_name, defects, time_summaries, comments)
-
+        return result
+        
     def psp_load_project(self, project_name):
         "Receive metrics from remote server"
         # fetch and deserialize web2py rows to GUI data structures
-        defects, time_summaries, comments = self.psp_rpc_client.load_project(project_name)
-        self.psp_defect_list.DeleteAllItems()
-        for defect in defects:
-            defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
-            self.psp_defect_list.AddItem(defect)
-        self.psptimetable.cells.clear()
-        for time_summary in time_summaries:
-            self.psptimetable.cells[str(time_summary['phase'])] = time_summary
-        for comment in comments:
-            phase, message, delta = comment['phase'], comment['message'], comment['delta']
-            self.psptimetable.comment(str(phase), message, delta)
-        self.psptimetable.UpdateValues()
-        self.psp_set_project(project_name)
+        dlg = wx.MessageDialog(self, "Receive Metrics from remote site?", 
+                               "PSP Project Change", 
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        result = dlg.ShowModal() == wx.ID_YES
+        dlg.Destroy()
+        if result:
+            defects, time_summaries, comments = self.psp_rpc_client.load_project(project_name)
+            self.psp_defect_list.DeleteAllItems()
+            for defect in defects:
+                defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
+                self.psp_defect_list.AddItem(defect)
+            self.psptimetable.cells.clear()
+            for time_summary in time_summaries:
+                self.psptimetable.cells[str(time_summary['phase'])] = time_summary
+            for comment in comments:
+                phase, message, delta = comment['phase'], comment['message'], comment['delta']
+                self.psptimetable.comment(str(phase), message, delta)
+            self.psptimetable.UpdateValues()
+            self.psp_set_project(project_name)
+        return result
 
     def psp_set_project(self, project_name):
         "Set project_name in toolbar and config file"
