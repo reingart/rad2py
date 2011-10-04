@@ -31,7 +31,7 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
-ID_DEFECT, ID_DEL, ID_EDIT = [wx.NewId() for i in range(3)]
+ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT = [wx.NewId() for i in range(4)]
 ID_PROJECT, ID_PROJECT_LABEL = [wx.NewId() for i in range(2)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
@@ -208,8 +208,10 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.menu = wx.Menu()
         self.menu.Append(ID_EDIT, "Edit")
         self.menu.Append(ID_DEL, "Delete")
+        self.menu.Append(ID_DEL_ALL, "Delete All")
         self.Bind(wx.EVT_MENU, self.OnEditItem, id=ID_EDIT)
         self.Bind(wx.EVT_MENU, self.OnDeleteItem, id=ID_DEL)
+        self.Bind(wx.EVT_MENU, self.OnDeleteAllItems, id=ID_DEL_ALL)
         # for wxMSW
         self.Bind(wx.EVT_COMMAND_RIGHT_CLICK, self.OnRightClick)
         # for wxGTK 
@@ -281,6 +283,13 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         del self.data[key]
         self.DeleteItem(self.selected_index)
         self.data.sync()
+
+    def OnDeleteAllItems(self, evt):
+        dlg = wx.MessageDialog(self, "Delete all defects?", "PSP Defect List",
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        if dlg.ShowModal() == wx.ID_YES:
+            self.DeleteAllItems()
+        dlg.Destroy()
             
     def OnEditItem(self, evt):
         pos = long(self.GetItemData(self.selected_index))
