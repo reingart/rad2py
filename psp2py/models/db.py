@@ -83,6 +83,7 @@ crud.settings.auth = None        # =auth to enforce authorization on crud
 db.define_table("psp_project",
     Field("project_id", "id"),
     Field("name", "string"),
+    Field("description", "string"),
     Field("requeriments", "text"),
     Field("testing", "text"),
     Field("user_id", db.auth_user),
@@ -131,3 +132,24 @@ db.define_table("psp_defect",
     Field("offset", "integer"),
     Field("uuid", "string"),
     )
+
+
+def pretty_time(counter):
+    "return formatted string of a time count in seconds (days/hours/min/seg)"
+    # find time unit and convert to it
+    if counter is None:
+        return ""
+    counter = int(counter)
+    for factor, unit in ((1., 's'), (60., 'm'), (3600., 'h')):
+        if counter < (60 * factor):
+            break
+    # only print fraction if it is not an integer result
+    if counter % factor:
+        return "%0.2f %s" % (counter/factor, unit)
+    else:
+        return "%d %s" % (counter/factor, unit)
+
+db.psp_time_summary.plan.represent = pretty_time
+db.psp_time_summary.actual.represent = pretty_time
+db.psp_time_summary.interruption.represent = pretty_time
+db.psp_defect.fix_time.represent = pretty_time

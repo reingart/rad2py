@@ -165,7 +165,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
     "Defect recording log facilities"
     def __init__(self, parent, filename=""):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
+        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         ListCtrlAutoWidthMixin.__init__(self)
         CheckListCtrlMixin.__init__(self)
         #TextEditMixin.__init__(self)
@@ -212,6 +212,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_MENU, self.OnEditItem, id=ID_EDIT)
         self.Bind(wx.EVT_MENU, self.OnDeleteItem, id=ID_DEL)
         self.Bind(wx.EVT_MENU, self.OnDeleteAllItems, id=ID_DEL_ALL)
+        self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         # for wxMSW
         self.Bind(wx.EVT_COMMAND_RIGHT_CLICK, self.OnRightClick)
         # for wxGTK 
@@ -276,6 +277,16 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self.parent.psp_log_event("%s_defect" % what, uuid=key)
             item["_checked"] = flag
             self.data.sync()
+
+    def OnKeyDown(self, event):
+        key = event.GetKeyCode()
+        control = event.ControlDown()
+        #shift=event.ShiftDown()
+        alt = event.AltDown()
+        if key == wx.WXK_DELETE:
+            self.OnDeleteItem(event)
+        else:
+            event.Skip()
 
     def OnDeleteItem(self, evt):
         pos = long(self.GetItemData(self.selected_index))

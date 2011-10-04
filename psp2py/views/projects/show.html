@@ -1,0 +1,7 @@
+{{extend 'layout.html'}}
+<h1>Project: {{=project.name}}</h1>
+{{=form}}
+<h2>Time Summary</h2>
+{{=SQLTABLE(times, headers="fieldname:capitalize")}}
+<h2>Defects</h2>
+{{=SQLTABLE(defects, headers="fieldname:capitalize")}}
