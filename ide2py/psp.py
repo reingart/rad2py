@@ -706,7 +706,12 @@ class PSPMixin(object):
         
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
         no = None
-        phase = self.GetPSPPhase()
+        # if filename and line number, get injected psp phase from metadata
+        if filename and lineno:
+            metadata = self.update_metadata(filename)
+            phase, line = metadata[lineno-1]
+        else:
+            phase = "" #self.GetPSPPhase()
         item = {'number': no, 'description': description, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
             "fix_defect": "", 
