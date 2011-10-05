@@ -150,7 +150,7 @@ class RepoMixin(object):
         #self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
         for st in self.repo_icons:
             item = menu.AppendCheckItem(-1, "%s" % st, "Show %s files" % st)
-            item.Check((st not in ('ignored', 'unknown')))
+            item.Check((st not in ('ignored', )))
             self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
         self.repo_filter.SetMenu(menu)
 
