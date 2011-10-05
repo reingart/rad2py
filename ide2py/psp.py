@@ -224,6 +224,16 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.data.close()
 
     def AddItem(self, item, key=None):
+        # check for duplicates (if defect already exists, do not add again!)
+        for defect in self.data.values():
+            if (defect["description"] == item["description"] and 
+                defect["date"] == item["date"] and 
+                defect["filename"] == item["filename"] and 
+                defect["lineno"] == item["lineno"] and 
+                defect["offset"] == item["offset"]):
+                key = defect['uuid']
+                self.parent.psp_log_event("dup_defect", uuid=key, comment=str(item))
+                return
         if "_checked" not in item:
             item["_checked"] = False
         index = self.InsertStringItem(sys.maxint, str(item["number"]))
