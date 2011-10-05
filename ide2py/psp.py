@@ -692,16 +692,28 @@ class PSPMixin(object):
         close(self.psp_event_log_file)
         
     def OnDefectPSP(self, event):
+        "Manually create a new PSP defect"
         dlg = DefectDialog(None, -1, "New Defect", size=(350, 200),
                          style=wx.DEFAULT_DIALOG_STYLE, 
                          )
         dlg.CenterOnScreen()
-        dlg.SetValue({'inject_phase': self.GetPSPPhase()})
+        phase = self.GetPSPPhase()
+        filename = lineno = None
+        # seek current file metadata for inject phase
+        if self.active_child:
+            filename = self.active_child.GetFilename()
+            lineno = self.active_child.GetCurrentLine()
+            if filename and lineno:
+                metadata = self.update_metadata(filename)
+                phase, line = metadata[lineno-1]
+        dlg.SetValue({'inject_phase': phase})
         if dlg.ShowModal() == wx.ID_OK:
             item = dlg.GetValue()
             item["date"] = datetime.date.today()
             item["number"] = None
-            item["filename"] = item["lineno"] = item["offset"] = None
+            item["filename"] = filename
+            item["lineno"] = lineno
+            item["offset"] = None
             self.psp_defect_list.AddItem(item)
         
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
