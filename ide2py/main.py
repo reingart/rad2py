@@ -65,7 +65,6 @@ ID_GOTO = wx.NewId()
 
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
-ID_CHECK = wx.NewId()
 ID_EXEC = wx.NewId()
 ID_SETARGS = wx.NewId()
 ID_KILL = wx.NewId()
@@ -221,7 +220,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.toolbar.AddSeparator()               
         self.toolbar.AddSimpleTool(ID_RUN, "Run", images.GetRunningManBitmap())
         self.toolbar.SetToolDropDown(ID_RUN, True)
-        self.toolbar.AddSimpleTool(ID_CHECK, "Check", images.ok_16.GetBitmap())
 
         self.toolbar.Realize()
 
@@ -230,7 +228,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (wx.ID_OPEN, self.OnOpen),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
-            (ID_CHECK, self.OnCheck),
             (ID_RUN, self.OnRun),
             (ID_EXEC, self.OnExecute),
             (ID_SETARGS, self.OnSetArgs),
@@ -625,16 +622,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             filename = self.debugging_child.GetFilename()
             self.debugger.SetBreakpoint(filename, lineno, temporary=1)
             self.debugger.Continue()
-
-    def OnCheck(self, event):
-        # TODO: separate checks and tests, add reviews and diffs...
-        if self.active_child:
-            import checker
-            for error in checker.check(self.active_child.GetFilename()):
-                self.NotifyDefect(**error)
-            import tester
-            for error in tester.test(self.active_child.GetFilename()):
-                self.NotifyDefect(**error)
 
     def OnHelp(self, event):
         "Show help on selected text"

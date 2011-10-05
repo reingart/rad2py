@@ -30,7 +30,7 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_START, ID_PAUSE, ID_STOP = [wx.NewId() for i in range(3)]
+ID_START, ID_PAUSE, ID_STOP, ID_CHECK = [wx.NewId() for i in range(4)]
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT = [wx.NewId() for i in range(4)]
 ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(4)]
 
@@ -533,7 +533,7 @@ class PSPMixin(object):
         tb4.EnableTool(ID_STOP, False)
         
         ##tb4.AddLabel(-1, "Phase:", width=50)
-        self.psp_phase_choice = wx.Choice(tb4, -1, size=(150,-1), choices=PSP_PHASES)
+        self.psp_phase_choice = wx.Choice(tb4, -1, size=(150,-1), choices=PSP_PHASES + [""])
         if WX_VERSION > (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddControl(self.psp_phase_choice, "PSP Phase")
 
@@ -543,7 +543,9 @@ class PSPMixin(object):
 
         tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
                           short_help_string="Add a PSP defect")
-        
+        tb4.AddSimpleTool(ID_CHECK, "Check", images.ok_16.GetBitmap(),
+                          short_help_string="Check and finish phase")
+
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
 
@@ -555,6 +557,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT_LABEL)
         self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
+        self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
         
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -564,10 +567,12 @@ class PSPMixin(object):
     def SetPSPPhase(self, phase):
         if phase:
             self.psp_phase_choice.SetSelection(PSP_PHASES.index(phase))
+        else:
+            self.psp_phase_choice.SetSelection(len(PSP_PHASES))
 
     def GetPSPPhase(self):
         phase = self.psp_phase_choice.GetCurrentSelection()
-        if phase>=0:
+        if phase >= 0 and phase < len(PSP_PHASES):
             return PSP_PHASES[phase]
         else:
             return ''
@@ -749,6 +754,56 @@ class PSPMixin(object):
         # store project name in config file
         wx.GetApp().config.set('PSP', 'project_name', project_name)
         wx.GetApp().write_config()
+
+    def OnCheckPSP(self, event):
+        "Finde defects and errors, if complete, change to the next phase"
+        if self.active_child:
+            phase = self.GetPSPPhase()
+            defects = []    # static checks and failed tests
+            errors = []     # sanity checks (planning & postmortem)
+            if phase == "planning":
+                # check plan summary completeness
+                for phase, times in self.psptimetable.cells.items():
+                    if not times['plan']:
+                        errors.append("Complete %s estimate time!" % phase)
+            elif phase == "design" or phase == "code":
+                #TODO: review checklist?
+                pass
+            elif phase == "compile":
+                # run "static" chekers to find coding defects (pep8, pyflakes)
+                import checker
+                defects.extend(checker.check(self.active_child.GetFilename()))
+            elif phase == "test":
+                # run doctests (TODO unittests, run program?) to find defects
+                import tester
+                defects.extend(tester.test(self.active_child.GetFilename()))
+            elif phase == "postmortem":
+                # check that all defects are fixed
+                for defect in self.psp_defect_list.data.values():
+                    if not defect['remove_phase']:
+                        errors.append("Defect %(number)s not fixed!" % defect)
+
+            # add found defects
+            for defect in defects:
+                self.NotifyDefect(**defect)
+                errors.append("Defect found: %(description)s" % defect)
+
+            # show errors
+            if errors:
+                dlg = wx.MessageDialog(self, "\n".join(errors), 
+                       "PSP Check Phase Errors", wx.ICON_EXCLAMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
+
+            # phase completed? project completed?
+            if not defects and not errors:
+                i = PSP_PHASES.index(phase) + 1
+                if i < len(PSP_PHASES):
+                    phase = PSP_PHASES[i]
+                else:
+                    phase = ""
+                self.OnStopPSP(event)
+                self.SetPSPPhase(phase)
 
 
 if __name__ == "__main__":
