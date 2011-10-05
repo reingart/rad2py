@@ -217,6 +217,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_COMMAND_RIGHT_CLICK, self.OnRightClick)
         # for wxGTK 
         self.Bind(wx.EVT_RIGHT_UP, self.OnRightClick)
+        
+        self.selected_index = None
 
     def __del__(self):
         self.data.close()
@@ -289,11 +291,19 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             event.Skip()
 
     def OnDeleteItem(self, evt):
-        pos = long(self.GetItemData(self.selected_index))
-        key = self.key_map[pos]
-        del self.data[key]
-        self.DeleteItem(self.selected_index)
-        self.data.sync()
+        if self.selected_index is not None:
+            pos = long(self.GetItemData(self.selected_index))
+            key = self.key_map[pos]
+            del self.data[key]
+            self.DeleteItem(self.selected_index)
+            self.data.sync()
+            # refresh new selected item
+            if not self.data:
+                self.selected_index = None
+            elif self.selected_index == len(self.data):
+                self.selected_index = len(self.data) - 1
+            if self.selected_index is not None:
+                self.Select(self.selected_index)
 
     def OnDeleteAllItems(self, evt):
         dlg = wx.MessageDialog(self, "Delete all defects?", "PSP Defect List",
@@ -332,6 +342,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         for key in self.data:
             del self.data[key]
         self.data.sync()
+        self.selected_index = None
         wx.ListCtrl.DeleteAllItems(self)
        
     def OnItemSelected(self, evt):
