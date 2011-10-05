@@ -207,13 +207,11 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
 
         # make a popup-menu
         self.menu = wx.Menu()
-        self.menu.Append(ID_FIX, "Fix...")
         self.menu.Append(ID_EDIT, "Edit")
-        self.menu.Append(ID_FIXED, "Fixed")
-        self.menu.Append(ID_WONTFIX, "Wontfix")
+        self.menu.Append(ID_FIXED, "Mark Fixed")
+        self.menu.Append(ID_WONTFIX, "Mark Wontfix")
         self.menu.Append(ID_DEL, "Delete")
         self.menu.Append(ID_DEL_ALL, "Delete All")
-        self.Bind(wx.EVT_MENU, self.OnItemActivated, id=ID_FIX)
         self.Bind(wx.EVT_MENU, self.OnChangeItem, id=ID_FIXED)
         self.Bind(wx.EVT_MENU, self.OnChangeItem, id=ID_WONTFIX)
         self.Bind(wx.EVT_MENU, self.OnEditItem, id=ID_EDIT)
@@ -507,6 +505,7 @@ class PSPMixin(object):
 
         # metadata directory
         self.psp_metadata_dir = cfg.get("metadata", "medatada")
+        self.psp_metadata_cache = {}     # filename: (filestamp, metadata)
         if not os.path.exists(self.psp_metadata_dir):
             os.makedirs(self.psp_metadata_dir)
 
@@ -864,12 +863,23 @@ class PSPMixin(object):
                 self.SetPSPPhase(phase)
 
     def UpdateMetadataPSP(self):
+        if self.active_child:
+            filename = self.active_child.GetFilename()
+            if filename:
+                self.update_metadata(filename)
+        
+    def update_metadata(self, filename):
         import fileutil
         import diffutil
         
-        # update metadata
-        if self.active_child:
-            filename = self.active_child.GetFilename()
+        # check if file was modified (cache stale):
+        timestamp, metadata = self.psp_metadata_cache.get(filename, (None, None))
+        if timestamp is None or timestamp != os.stat(filename).st_mtime:
+            timestamp = os.stat(filename).st_mtime
+            metadata = None
+
+        # if not metadata valid in cached, rebuild it:
+        if metadata is None:
             print "*" * 80
             print "CURRENT_PHASE", self.current_psp_phase 
             print "-" * 80
@@ -884,7 +894,8 @@ class PSPMixin(object):
             print "filename", filename, "hash", fn_hash, metadata_fn
             if not os.path.exists(metadata_fn):
                 # create metadata
-                metadata = dict([(i, (phase, l)) for i, l in enumerate(new)])
+                metadata = dict([(i, (self.current_psp_phase, l)) 
+                                 for i, l in enumerate(new)])
                 print "CREATED METADATA:", metadata
             else:
                 with open(metadata_fn, 'rb') as pkl:
@@ -911,10 +922,14 @@ class PSPMixin(object):
             with open(metadata_fn, 'wb') as pkl:
                 pickle.dump(metadata, pkl)
     
-            msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
-            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "METADATA")
-            dlg.ShowModal()
-            dlg.Destroy()
+            if True:
+                msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
+                dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "METADATA")
+                dlg.ShowModal()
+                dlg.Destroy()
+
+            self.psp_metadata_cache[filename] = timestamp, metadata
+        return metadata
 
 
 if __name__ == "__main__":
