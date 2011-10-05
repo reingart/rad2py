@@ -244,6 +244,14 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         if "_checked" not in item:
             item["_checked"] = False
         index = self.InsertStringItem(sys.maxint, str(item["number"]))
+        # calculate max number + 1
+        if item['number'] is None:
+            if self.data:
+                numbers = [int(defect['number'] or 0) for defect in self.data.values()]
+                item['number'] = str(max(numbers) + 1)
+            else:
+                item['number'] = 1
+        # create a unique string key to store it
         if key is None:
             key = str(uuid.uuid1())
             item['uuid'] = key
@@ -273,7 +281,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         key = self.key_map[pos]
         item = self.data[key]
         event = item["filename"], item["lineno"], item["offset"]
-        self.parent.GotoFileLine(event,running=False)
+        if item["filename"]:
+            self.parent.GotoFileLine(event,running=False)
         self.selecteditemindex = evt.m_itemIndex
         self.parent.psp_log_event("activate_defect", uuid=key)
 
@@ -682,12 +691,12 @@ class PSPMixin(object):
         if dlg.ShowModal() == wx.ID_OK:
             item = dlg.GetValue()
             item["date"] = datetime.date.today()
-            item["number"] = str(len(self.psp_defect_list.data)+1)
+            item["number"] = None
             item["filename"] = item["lineno"] = item["offset"] = None
             self.psp_defect_list.AddItem(item)
         
     def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
-        no = str(len(self.psp_defect_list.data)+1)
+        no = None
         phase = self.GetPSPPhase()
         item = {'number': no, 'description': description, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
