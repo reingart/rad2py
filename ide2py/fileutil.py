@@ -64,5 +64,5 @@ def unicode_file_read(f, encoding):
         eol = wx.stc.STC_EOL_CRLF
     # rewind and read text (in the proper encoding)
     f.seek(start)
-    return f.read().decode(encoding), encoding, bom, eol, newlines
+    return f.read().decode(encoding), encoding, bom, eol, newlines or '\n'
 

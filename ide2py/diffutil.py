@@ -136,10 +136,38 @@ class FancySequenceMatcher(difflib.SequenceMatcher):
                     yield (ai1, ai2), (bj1, bj2)
 
 
+def track_lines_changes(old, new):
+    """Compare items (lines), return a list of tuples (old_linenno, new_linenno)
+
+    >>> print track_lines_changes("a b c d".split(), "a 1 b 2 d e".split())
+    [(0, 0), (None, 1), (1, 2), (None, 3), (3, 4), (None, 5)]
+    """
+    s = FancySequenceMatcher(None, old, new)
+    ret = []
+    for opcode, alo, ahi, blo, bhi in s.get_opcodes():
+        #print "%6s a[%d:%d] b[%d:%d]" % (opcode, ahi, ahi, blo, bhi), old[alo:ahi], new[blo:bhi]
+        if opcode == "insert":
+            for lno in range(blo, bhi):
+                ret.append((None, lno))
+        if opcode == "replace":
+            for lno in range(blo, bhi):
+                ret.append((None, lno))
+        if opcode == "equal":
+            old_lno = range(alo, ahi)
+            for i, lno in enumerate(range(blo, bhi)):
+                ret.append((old_lno[i], lno))
+        if opcode == "delete":
+            for i, lno in enumerate(range(alo, ahi)):
+                ret.append((lno, None))
+    return ret
+
 def _test():
     
     import doctest, diffutil
     return doctest.testmod(diffutil)
+
+
+
 
 if __name__ == "__main__":
     _test()
