@@ -30,9 +30,9 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_START, ID_PAUSE, ID_STOP, ID_CHECK = [wx.NewId() for i in range(4)]
-ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT = [wx.NewId() for i in range(4)]
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(4)]
+ID_START, ID_PAUSE, ID_STOP, ID_CHECK, \
+ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(15)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -206,9 +206,15 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
 
         # make a popup-menu
         self.menu = wx.Menu()
+        self.menu.Append(ID_FIX, "Fix...")
         self.menu.Append(ID_EDIT, "Edit")
+        self.menu.Append(ID_FIXED, "Fixed")
+        self.menu.Append(ID_WONTFIX, "Wontfix")
         self.menu.Append(ID_DEL, "Delete")
         self.menu.Append(ID_DEL_ALL, "Delete All")
+        self.Bind(wx.EVT_MENU, self.OnItemActivated, id=ID_FIX)
+        self.Bind(wx.EVT_MENU, self.OnChangeItem, id=ID_FIXED)
+        self.Bind(wx.EVT_MENU, self.OnChangeItem, id=ID_WONTFIX)
         self.Bind(wx.EVT_MENU, self.OnEditItem, id=ID_EDIT)
         self.Bind(wx.EVT_MENU, self.OnDeleteItem, id=ID_DEL)
         self.Bind(wx.EVT_MENU, self.OnDeleteAllItems, id=ID_DEL_ALL)
@@ -225,15 +231,16 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
 
     def AddItem(self, item, key=None):
         # check for duplicates (if defect already exists, do not add again!)
-        for defect in self.data.values():
-            if (defect["description"] == item["description"] and 
-                defect["date"] == item["date"] and 
-                defect["filename"] == item["filename"] and 
-                defect["lineno"] == item["lineno"] and 
-                defect["offset"] == item["offset"]):
-                key = defect['uuid']
-                self.parent.psp_log_event("dup_defect", uuid=key, comment=str(item))
-                return
+        if key is None:
+            for defect in self.data.values():
+                if (defect["description"] == item["description"] and 
+                    defect["date"] == item["date"] and 
+                    defect["filename"] == item["filename"] and 
+                    defect["lineno"] == item["lineno"] and 
+                    defect["offset"] == item["offset"]):
+                    key = defect['uuid']
+                    self.parent.psp_log_event("dup_defect", uuid=key, comment=str(item))
+                    return
         if "_checked" not in item:
             item["_checked"] = False
         index = self.InsertStringItem(sys.maxint, str(item["number"]))
@@ -270,13 +277,24 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.selecteditemindex = evt.m_itemIndex
         self.parent.psp_log_event("activate_defect", uuid=key)
 
+    def OnChangeItem(self, event):
+        "Change item status -fixed, wontfix-"
+        wontfix = event.GetId() == ID_WONTFIX
+        self.OnCheckItem(self.selected_index, True, wontfix)
+        self.ToggleItem(self.selected_index)
+
     # this is called by the base class when an item is checked/unchecked
-    def OnCheckItem(self, index, flag):
+    def OnCheckItem(self, index, flag, wontfix=False):
         pos = long(self.GetItemData(index))
         key = self.key_map[pos]
         item = self.data[key]
         title = item["number"]
         if item.get("_checked") != flag:
+            if wontfix:
+                item["fix_time"] = None
+                col_key = 'fix_time' # clean fix time (wontfix mark)
+                col_index = self.col_defs[col_key][0]
+                self.SetStringItem(index, col_index, "")
             if flag:
                 what = "checked"
                 col_key = 'remove_phase' # update phase when removed 
