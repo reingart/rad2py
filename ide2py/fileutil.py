@@ -62,7 +62,8 @@ def unicode_file_read(f, encoding):
                '\n': wx.stc.STC_EOL_LF}[newlines]
     else:
         eol = wx.stc.STC_EOL_CRLF
+        newlines = '\r\n'
     # rewind and read text (in the proper encoding)
     f.seek(start)
-    return f.read().decode(encoding), encoding, bom, eol, newlines or '\n'
+    return f.read().decode(encoding), encoding, bom, eol, newlines
 

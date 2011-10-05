@@ -14,7 +14,7 @@ import datetime
 import os, os.path
 import pickle, shelve
 import sys
-import uuid
+import hashlib, uuid
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
@@ -505,6 +505,11 @@ class PSPMixin(object):
         psp_times = cfg.get("psp_times", "psp_times.dat")
         psp_summary = cfg.get("psp_summary", "psp_summary.dat")
 
+        # metadata directory
+        self.psp_metadata_dir = cfg.get("metadata", "medatada")
+        if not os.path.exists(self.psp_metadata_dir):
+            os.makedirs(self.psp_metadata_dir)
+
         # text recording logs
         psp_event_log_filename = cfg.get("psp_event_log", "psp_event_log.txt")
         self.psp_event_log_file = open(psp_event_log_filename, "a")
@@ -607,25 +612,18 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
-        
-        self.psp_phase_choice.Bind(wx.EVT_CHOICE, self.OnPSPChangePhase)
-        self.current_psp_phase = None
-        
+                
         tb4.Realize()
         self.psp_toolbar = tb4
 
         return tb4
-
-    def OnPSPChangePhase(self, event):
-        if self.current_psp_phase:
-            self.UpdateMetadataPSP()
-        self.current_psp_phase = self.GetPSPPhase()
 
     def SetPSPPhase(self, phase):
         if phase:
             self.psp_phase_choice.SetSelection(PSP_PHASES.index(phase))
         else:
             self.psp_phase_choice.SetSelection(len(PSP_PHASES))
+        self.current_psp_phase = phase
 
     def GetPSPPhase(self):
         phase = self.psp_phase_choice.GetCurrentSelection()
@@ -639,6 +637,9 @@ class PSPMixin(object):
         phase = self.GetPSPPhase()
         wx.GetApp().config.set('PSP', 'current_phase', phase)
         wx.GetApp().write_config()
+        if self.current_psp_phase:
+            self.UpdateMetadataPSP()
+        self.current_psp_phase = self.GetPSPPhase()
 
     def OnStartPSP(self, event):
         self.timer.Start(1000)
@@ -869,20 +870,24 @@ class PSPMixin(object):
         # update metadata
         if self.active_child:
             filename = self.active_child.GetFilename()
-            old_phase = self.current_psp_phase
-            new_phase = self.GetPSPPhase()
+            print "*" * 80
+            print "CURRENT_PHASE", self.current_psp_phase 
+            print "-" * 80
             # read current text file and split lines
             with open(filename, "r") as f:
                 text, encoding, bom, eol, newlines = fileutil.unicode_file_read(f, "utf8")
             # prepare new text lines
             new = text.split(newlines)
             # check to see if there is old metadata
-            if not os.path.exists("%s.dat" % filename):
+            fn_hash = hashlib.sha224(filename).hexdigest()
+            metadata_fn = os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash)
+            print "filename", filename, "hash", fn_hash, metadata_fn
+            if not os.path.exists(metadata_fn):
                 # create metadata
-                metadata = dict([(i, (new_phase, l)) for i, l in enumerate(new)])
+                metadata = dict([(i, (phase, l)) for i, l in enumerate(new)])
                 print "CREATED METADATA:", metadata
             else:
-                with open("%s.dat" % filename, 'rb') as pkl:
+                with open(metadata_fn, 'rb') as pkl:
                     old_metadata = pickle.load(pkl)
                 print "OLD METADATA:", old_metadata
                 # get old text lines
@@ -893,7 +898,8 @@ class PSPMixin(object):
                 for old_lno, new_lno in changes:
                     if new_lno is not None and old_lno is None:
                         # new or replaced, change metadata
-                        new_metadata[new_lno] = new_phase, new[new_lno]
+                        new_metadata[new_lno] = self.current_psp_phase , new[new_lno]
+                        print "new", self.current_psp_phase , new[new_lno]
                     elif new_lno is not None and old_lno is not None:
                         # equal, maintain metadata
                         new_metadata[new_lno] = old_metadata[old_lno][0], new[new_lno]
@@ -902,10 +908,13 @@ class PSPMixin(object):
                         pass 
                 metadata = new_metadata
             print "NEW METADATA:", metadata
-            pkl = open("%s.dat" % filename, 'wb')
-            pickle.dump(metadata, pkl)
-            pkl.close()
-
+            with open(metadata_fn, 'wb') as pkl:
+                pickle.dump(metadata, pkl)
+    
+            msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
+            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "METADATA")
+            dlg.ShowModal()
+            dlg.Destroy()
 
 
 if __name__ == "__main__":
