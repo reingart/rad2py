@@ -51,6 +51,7 @@ def unicode_file_read(f, encoding):
 
     # detect line endings ['CRLF', 'CR', 'LF'][self.eol]
     # (not always there is a file.newlines -using universal nl support-)
+    f.seek(start)
     line = f.readline()
     if line[-2:-1] in ['\n', '\r']:
         newlines = line[-2:]
