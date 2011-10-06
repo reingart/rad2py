@@ -682,7 +682,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             filename, lineno, function_name, text = tb[-1]
             # do not add exceptions raised by the IDE
             if not filename.startswith(INSTALL_DIR):
-                print "ADDING DEFECT!"
                 self.NotifyDefect(summary=title, type="60", filename=filename, 
                                   lineno=lineno, offset=1)
 

@@ -905,9 +905,6 @@ class PSPMixin(object):
 
         # if not metadata valid in cached, rebuild it:
         if metadata is None:
-            print "*" * 80
-            print "CURRENT_PHASE", self.current_psp_phase 
-            print "-" * 80
             # read current text file and split lines
             with open(filename, "r") as f:
                 text, encoding, bom, eol, newlines = fileutil.unicode_file_read(f, "utf8")
@@ -916,16 +913,13 @@ class PSPMixin(object):
             # check to see if there is old metadata
             fn_hash = hashlib.sha224(filename).hexdigest()
             metadata_fn = os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash)
-            print "filename", filename, "hash", fn_hash, metadata_fn
             if not os.path.exists(metadata_fn):
                 # create metadata
                 metadata = dict([(i, (self.current_psp_phase, l)) 
                                  for i, l in enumerate(new)])
-                print "CREATED METADATA:", metadata
             else:
                 with open(metadata_fn, 'rb') as pkl:
                     old_metadata = pickle.load(pkl)
-                print "OLD METADATA:", old_metadata
                 # get old text lines
                 old = [l for (phase, l) in old_metadata.values()]
                 # compare new and old lines
@@ -935,7 +929,6 @@ class PSPMixin(object):
                     if new_lno is not None and old_lno is None:
                         # new or replaced, change metadata
                         new_metadata[new_lno] = self.current_psp_phase , new[new_lno]
-                        print "new", self.current_psp_phase , new[new_lno]
                     elif new_lno is not None and old_lno is not None:
                         # equal, maintain metadata
                         new_metadata[new_lno] = old_metadata[old_lno][0], new[new_lno]
@@ -943,7 +936,6 @@ class PSPMixin(object):
                         # deleted, do not copy to new metadata
                         pass 
                 metadata = new_metadata
-            print "NEW METADATA:", metadata
             with open(metadata_fn, 'wb') as pkl:
                 pickle.dump(metadata, pkl)
     
