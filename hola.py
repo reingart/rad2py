@@ -29,6 +29,6 @@ def main(h="CHAU!"):
 
 #asdf = hola
 if __name__=="__main__":
-    main(h=1)
+    main(j=1)
     
 # dafasdfs

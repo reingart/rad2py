@@ -680,7 +680,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         tb = traceback.extract_tb(trace)
         if tb:
             filename, lineno, function_name, text = tb[-1]
-            self.NotifyDefect(summary=title, type="60", filename=filename, lineno=lineno, offset=1)
+            # do not add exceptions raised by the IDE
+            if not filename.startswith(INSTALL_DIR):
+                print "ADDING DEFECT!"
+                self.NotifyDefect(summary=title, type="60", filename=filename, 
+                                  lineno=lineno, offset=1)
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
@@ -811,6 +815,14 @@ class MainApp(wx.App):
 
     def write_config(self):
         self.config.write(open(CONFIG_FILE, "w"))
+
+
+# search actual installation directory
+if not hasattr(sys, "frozen"): 
+    basepath = __file__
+else:
+    basepath = sys.executable
+INSTALL_DIR = os.path.dirname(os.path.abspath(basepath))
 
 
 if __name__ == '__main__':
