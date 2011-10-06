@@ -174,7 +174,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.parent = parent
         self.col_defs = {
             "number": (0, wx.LIST_FORMAT_RIGHT, 50),
-            "description": (1, wx.LIST_FORMAT_LEFT, wx.LIST_AUTOSIZE),
+            "summary": (1, wx.LIST_FORMAT_LEFT, wx.LIST_AUTOSIZE),
+            "description": (1, wx.LIST_FORMAT_LEFT, 0),
             "date": (2, wx.LIST_FORMAT_CENTER, 80),
             "type": (3, wx.LIST_FORMAT_LEFT, 50),
             "inject_phase": (4, wx.LIST_FORMAT_LEFT, 75),
@@ -232,7 +233,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         # check for duplicates (if defect already exists, do not add again!)
         if key is None:
             for defect in self.data.values():
-                if (defect["description"] == item["description"] and 
+                if (defect["summary"] == item["summary"] and 
                     defect["date"] == item["date"] and 
                     defect["filename"] == item["filename"] and 
                     defect["lineno"] == item["lineno"] and 
@@ -416,6 +417,11 @@ class DefectDialog(wx.Dialog):
 
         grid1 = wx.FlexGridSizer( 0, 2, 5, 5 )
 
+        label = wx.StaticText(self, -1, "Summary:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.summary = wx.TextCtrl(self, -1, "", size=(200, -1), )
+        grid1.Add(self.summary, 1, wx.EXPAND, 5)
+
         label = wx.StaticText(self, -1, "Description:")
         grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
         self.description = wx.TextCtrl(self, -1, "", size=(200, 100), 
@@ -470,6 +476,7 @@ class DefectDialog(wx.Dialog):
 
     def SetValue(self, item):
         self.label.SetLabel(str(item.get("date", "")))
+        self.summary.SetValue(item.get("summary", ""))
         self.description.SetValue(item.get("description", ""))
         if 'type' in item:
             self.defect_type.SetSelection(self.types.index(int(item['type'])))
@@ -482,7 +489,8 @@ class DefectDialog(wx.Dialog):
         self.fix_defect.SetValue(item.get("fix_defect", "") or '')
         
     def GetValue(self):
-        item = {"description": self.description.GetValue(), 
+        item = {"summary": self.summary.GetValue(), 
+                "description": self.description.GetValue(), 
                 "type": self.types[self.defect_type.GetCurrentSelection()], 
                 "inject_phase": self.phases[self.inject_phase.GetCurrentSelection()],
                 "remove_phase": self.phases[self.remove_phase.GetCurrentSelection()], 
@@ -716,7 +724,7 @@ class PSPMixin(object):
             item["offset"] = None
             self.psp_defect_list.AddItem(item)
         
-    def NotifyDefect(self, description="", type="20", filename=None, lineno=0, offset=0):
+    def NotifyDefect(self, summary="", type="20", filename=None, lineno=0, offset=0, description=""):
         no = None
         # if filename and line number, get injected psp phase from metadata
         if filename and lineno:
@@ -724,7 +732,7 @@ class PSPMixin(object):
             phase, line = metadata[lineno-1]
         else:
             phase = "" #self.GetPSPPhase()
-        item = {'number': no, 'description': description, "date": datetime.date.today(), 
+        item = {'number': no, 'summary': summary, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
             "fix_defect": "", 
             "filename": filename, "lineno": lineno, "offset": offset}
@@ -860,7 +868,7 @@ class PSPMixin(object):
             # add found defects
             for defect in defects:
                 self.NotifyDefect(**defect)
-                errors.append("Defect found: %(description)s" % defect)
+                errors.append("Defect found: %(summary)s" % defect)
 
             # show errors
             if errors:

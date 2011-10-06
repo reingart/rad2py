@@ -39,7 +39,7 @@ def doctestfile(filename, module_relative=True, name=None, package=None,
             text = "doctest for %s failed, want %s got %s" % (
                 example.source.strip(), example.want.split()[0], got)
             lineno = example.lineno
-            error = dict(description=text, type=60, 
+            error = dict(sumamry=text, type=60, 
                          filename=filename, lineno=lineno+1, offset=1)
             defects.append(error)
             
@@ -47,7 +47,7 @@ def doctestfile(filename, module_relative=True, name=None, package=None,
             text = "doctest for %s failed, exception %s" % (
                 example.source.strip(), repr(exc_info[1]))
             lineno = example.lineno
-            error = dict(description=text, type=80, 
+            error = dict(sumamry=text, type=80, 
                          filename=filename, lineno=lineno+1, offset=1)
             defects.append(error)
 

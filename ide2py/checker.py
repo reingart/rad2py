@@ -39,7 +39,7 @@ class PEP8(pep8.Checker):
 
     def report_error(self, line_number, offset, text, check):
         filename = self.filename
-        error = dict(description=text, type=30, 
+        error = dict(summary=text, type=30, 
                      filename=filename, lineno=line_number, offset=offset+1)
         self.errors.append(error)
         
@@ -62,7 +62,7 @@ class PyFlakes(object):
             filename = msg.filename
             text = msg.message % msg.message_args
             lineno = msg.lineno
-            error = dict(description=text, type=40, 
+            error = dict(summary=text, type=40, 
                          filename=filename, lineno=lineno, offset=1)
             yield error
 

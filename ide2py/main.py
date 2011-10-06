@@ -680,7 +680,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         tb = traceback.extract_tb(trace)
         if tb:
             filename, lineno, function_name, text = tb[-1]
-            self.NotifyDefect(description=title, type="60", filename=filename, lineno=lineno, offset=1)
+            self.NotifyDefect(summary=title, type="60", filename=filename, lineno=lineno, offset=1)
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:

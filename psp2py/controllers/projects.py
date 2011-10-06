@@ -21,7 +21,7 @@ def show():
         db.psp_time_summary.interruption)
     defects = db(db.psp_defect.project_id==project_id).select(
         db.psp_defect.number,
-        db.psp_defect.description,
+        db.psp_defect.summary,
         db.psp_defect.type,
         db.psp_defect.inject_phase,
         db.psp_defect.remove_phase,
