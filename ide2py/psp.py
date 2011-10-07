@@ -734,7 +734,7 @@ class PSPMixin(object):
             phase = "" #self.GetPSPPhase()
         item = {'number': no, 'summary': summary, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
-            "fix_defect": "", 
+            "fix_defect": "", "description": description,
             "filename": filename, "lineno": lineno, "offset": offset}
 
         self.psp_defect_list.AddItem(item)

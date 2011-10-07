@@ -683,7 +683,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             # do not add exceptions raised by the IDE
             if not filename.startswith(INSTALL_DIR):
                 self.NotifyDefect(summary=title, type="60", filename=filename, 
-                                  lineno=lineno, offset=1)
+                                  description="", lineno=lineno, offset=1)
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:

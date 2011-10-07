@@ -313,7 +313,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             offset = e.offset or 0  # sometimes these are None
             lineno = e.lineno or 0
             wx.MessageBox('You have a syntax error on line' + ' ' + str(lineno) + ', ' + 'column' + ' ' + str(offset) + '.', 'Syntax Error')
-            self.parent.NotifyDefect(description=str(e), type="20", filename=self.filename, lineno=lineno, offset=offset)
+            # line with a caret indicating the approximate error position:
+            desc = e.text + " " * offset + "^"
+            self.parent.NotifyDefect(summary=str(e), description=desc, type="20", filename=self.filename, lineno=lineno, offset=offset)
             return None      
 
     def DoGoto(self, evt):
