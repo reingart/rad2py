@@ -680,8 +680,15 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         tb = traceback.extract_tb(trace)
         if tb:
             filename, lineno, function_name, text = tb[-1]
-            # do not add exceptions raised by the IDE
-            if not filename.startswith(INSTALL_DIR):
+            if len(tb)>2:
+                # some exceptions raises on wxpython or python 
+                # (check also filename at call stack - 1)
+                filename0, lineno0, function_name0, text0 = tb[-2]
+            else:
+                filename0 = ""
+            # do not add exceptions raised by the IDE (indirectely too)
+            if not filename.startswith(INSTALL_DIR) and \
+               not filename0.startswith(INSTALL_DIR):
                 self.NotifyDefect(summary=title, type="60", filename=filename, 
                                   description="", lineno=lineno, offset=1)
 
