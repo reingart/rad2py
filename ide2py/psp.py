@@ -815,6 +815,7 @@ class PSPMixin(object):
         if result:
             defects, time_summaries, comments = self.psp_rpc_client.load_project(project_name)
             self.psp_defect_list.DeleteAllItems()
+            defects.sort(key=lambda defect: int(defect['number']))
             for defect in defects:
                 defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
                 self.psp_defect_list.AddItem(defect)
