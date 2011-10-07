@@ -839,7 +839,7 @@ class PSPMixin(object):
         wx.GetApp().write_config()
 
     def OnCheckPSP(self, event):
-        "Finde defects and errors, if complete, change to the next phase"
+        "Find defects and errors, if complete, change to the next phase"
         if self.active_child:
             phase = self.GetPSPPhase()
             defects = []    # static checks and failed tests
@@ -887,6 +887,13 @@ class PSPMixin(object):
                     phase = ""
                 self.OnStopPSP(event)
                 self.SetPSPPhase(phase)
+        else:
+            dlg = wx.MessageDialog(self, "No active file, cannot check it.\n"
+                    "Change PSP phase manually if desired.", 
+                    "PSP Check Phase Errors", wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+
 
     def UpdateMetadataPSP(self):
         if self.active_child:
