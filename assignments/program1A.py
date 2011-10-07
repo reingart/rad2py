@@ -1,7 +1,8 @@
 ﻿#!/usr/bin/env python
 # coding:utf-8
 
-"PSP Program 1A - Standard Deviation"
+"""PSP Program 1A - Standard Deviation
+"""
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
@@ -35,7 +36,8 @@ def stddev(values):
     """
     x_avg = mean(values)
     n = len(values)
-    return math.sqrt(sum([(x_i - x_avg)**2 for x_i in values]) / float(n - 1))
+    return math.sqrt(sum([(x_i - x_avg)**2 
+                          for x_i in values]) / float(n - 1))
 
 
 if __name__ == "__main__":

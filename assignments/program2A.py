@@ -64,7 +64,7 @@ def logical_to_physical_count(filename):
                     ident -= 1
                 elif toknum == token.STRING and prev_toknum in (token.INDENT,
                     token.NEWLINE, NL, None):
-                    # Docstring detected, flag it
+                    # Docstring detected, replace by a single line
                     buf += "'docstring - 1 SLOC'"
                 elif toknum == COMMENT:
                     # comment, do nothing
@@ -89,7 +89,7 @@ def logical_to_physical_count(filename):
     count = 0
     with open(filename + ".phy")  as f:
         for line in f:
-            # fail if it is not a comment
+            # fail if it is a comment
             assert not line.strip().startswith("#")
             # fail if it is blank
             assert len(line.strip()) > 0
