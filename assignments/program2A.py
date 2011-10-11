@@ -75,8 +75,9 @@ def logical_to_physical_count(filename):
                         buf = ""
                         last_col = 0
                 elif toknum == NL:
-                    # ignore internal new lines
-                    pass
+                    # ignore internal new lines (add space to preserve syntax)
+                    if buf:
+                        buf += " "
                 elif tokval:
                     # logical line (docstrig previously printed):
                     if last_col < scol:
@@ -110,6 +111,6 @@ if __name__ == "__main__":
     loc2, comments2 = count_logical_lines("program2A.py")
     phy_loc2 = logical_to_physical_count("program2A.py")
     print loc2, phy_loc2, comments2
-    assert loc2 == 72
+    assert loc2 == 73
     assert comments2 == 18
     assert phy_loc2 == loc2
