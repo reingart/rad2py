@@ -92,7 +92,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         sys.excepthook  = self.ExceptHook
         
         self.children = []
-        self.active_child = None        # current editing file
         self.debugging_child = None     # current debugged file
         self.debugging = False
         self.lastprogargs = ""
@@ -114,7 +113,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         file_menu.Append(wx.ID_NEW, "&New\tCtrl-N")
         file_menu.Append(wx.ID_OPEN, "&Open File\tCtrl-O")
         file_menu.Append(wx.ID_SAVE, "&Save\tCtrl-S")
-        file_menu.Append(wx.ID_SAVEAS, "Save &As")        
+        file_menu.Append(wx.ID_SAVEAS, "Save &As")
+        file_menu.Append(wx.ID_CLOSE, "&Close\tCtrl-w")
         file_menu.AppendSeparator()
         
         # and a file history
@@ -229,6 +229,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (wx.ID_OPEN, self.OnOpen),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
+            (wx.ID_CLOSE, self.OnCloseChild),
             (ID_RUN, self.OnRun),
             (ID_EXEC, self.OnExecute),
             (ID_SETARGS, self.OnSetArgs),
@@ -334,6 +335,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # web2py initialization (on own thread to enable debugger)
         Web2pyMixin.__init__(self)
 
+    @property
+    def active_child(self):
+        return self.GetActiveChild()
+
     def Cleanup(self, *args):
         if 'repo' in ADDONS:
             self.RepoMixinCleanup()
@@ -346,7 +351,18 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             del self.filehistory
             #self.recent_files_submenu.Destroy() # warning: SEGV!
 
+    def OnCloseChild(self, event):
+        "Close a child window"
+        if self.active_child:
+            self.active_child.Close()     
+
     def OnClose(self, event):
+        # Close all child windows:
+        while self.active_child:
+            if not self.active_child.Close():
+                event.Veto()
+                return 
+        
         # Save current perspective layout. WARNING: all panes must have a name! 
         if hasattr(self, "_mgr"):
             perspective = self._mgr.SavePerspective()
@@ -354,7 +370,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self._mgr.UnInit()
             del self._mgr
         self.Destroy()
-
 
     def OnExit(self, event):
         self.Close()
@@ -405,8 +420,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             # This returns a Python list of files that were selected.
             filename = dlg.GetPaths()[0]        
             self.DoOpen(filename)
-            # add it to the history
-            self.filehistory.AddFileToHistory(filename)
+            # add it to the history (if it is available)
+            if hasattr(self, "filehistory"):
+                self.filehistory.AddFileToHistory(filename)
 
         dlg.Destroy()
 
@@ -715,12 +731,14 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         wx.CallAfter(self.Layout)
 
         self.parent = parent
-        self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)   # window focused
-        self.Bind(wx.EVT_ACTIVATE, self.OnFocus)   # window focused
-        self.OnFocus(None) # emulate initial focus
- 
-    def OnFocus(self, event):
-        self.parent.active_child = self
+
+    def OnCloseWindow(self, event):
+        ctrl = event.GetEventObject()  
+        result = self.editor.OnClose(event)
+        if result is not None:
+            self.editor.Destroy()  # fix to re-paint correctly
+            self.parent.children.remove(self)
+            aui.AuiMDIChildFrame.OnCloseWindow(self, event)
 
     def OnSave(self, event):
         self.editor.OnSave(event)

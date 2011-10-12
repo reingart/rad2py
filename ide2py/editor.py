@@ -90,7 +90,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.parent = parent
         self.debugger = debugger
         self.filename = filename
-        self.modified = False
+        self.modified = None
         self.calltip = 0
         self.namespace = wx.GetApp().main_frame.web2py_namespace()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
@@ -181,9 +181,10 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(wx.EVT_MENU, self.OnSave, id = wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, self.OnSaveAs, id = wx.ID_SAVEAS)
 
+        self.Bind(stc.EVT_STC_SAVEPOINTREACHED, self.OnSavePoint)
         self.Bind(stc.EVT_STC_UPDATEUI, self.OnUpdateUI)
         self.Bind(stc.EVT_STC_MARGINCLICK, self.OnMarginClick)
-        self.Bind(wx.stc.EVT_STC_CHANGE, self.OnChange)
+        self.Bind(stc.EVT_STC_CHANGE, self.OnChange)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)       
@@ -269,36 +270,75 @@ class EditorCtrl(stc.StyledTextCtrl):
         f.write(self.GetText().encode(self.encoding))
         f.close()
         self.parent.NotifyRepo(self.filename, action="saved", status="")
+        # prevent undo going further than this
+        self.EmptyUndoBuffer()
+        self.SetSavePoint()
 
     def OnOpen(self, event=None):
         if self.filename:
             self.LoadFile(self.filename)
-            self.modified = False
             self.filetimestamp = os.stat(self.filename).st_mtime
-            self.SetTitle()
+            # call to SetTile setting modified=False (fix LoadFile -> OnChange)
+            wx.CallAfter(self.SetTitle, False)
+            # prevent undo going further than this (cleaning the document)
+            self.EmptyUndoBuffer()
+            self.SetSavePoint()
 
-    def SetTitle(self):
+    def GetTitle(self):
         if self.filename:
             title = os.path.basename(self.filename)
         else:
             title = "New"
         if self.modified:
-            title += " *" 
-        self.parent.SetTitle(title)
+            title += " *"
+        return title
+        
+    def SetTitle(self, modified=None):
+        if modified is not None:
+            self.modified = modified
+        self.parent.SetTitle(self.GetTitle())
 
     def OnChange(self, event=None):
+        "Received EVT_STC_CHANGE, text has been modified -update title-"
         if not self.modified:
             self.modified = True
             self.SetTitle()
+            
+    def OnSavePoint(self, event):
+        "Received EVT_STC_SAVEPOINTREACHED, original text -update title-"
+        self.modified = False
+        self.SetTitle()
 
     def OnFocus(self, event=None):
         # check for data changes
         if self.filename and self.filetimestamp != None:
           if self.filetimestamp != os.stat(self.filename).st_mtime:
             self.filetimestamp = os.stat(self.filename).st_mtime
-            if wx.MessageBox('The content of this file has changed on disk.  You might be changing it in another editor.  Would you like to synchronize the text here with the file on disk?', 'Content Changed', style=wx.YES_NO) == wx.YES:
+            if wx.MessageBox('The content of the %s file has changed on disk.  '
+                             'You might be changing it in another editor.  '
+                             'Would you like to synchronize the text here with '
+                             'the file on disk?' % self.filename, 
+                             'Content Changed: %s' % self.GetTitle(),
+                             style=wx.YES_NO) == wx.YES:
               self.OnOpen()
         event.Skip()
+
+    def OnClose(self, event=None):
+        "Test if editor can be closed, return None if cancelled, True if saved"
+        if self.modified:
+            result = wx.MessageBox('File "%s" has changed. '
+                             'Do you want to save the changes?' % self.filename, 
+                             'Content Changed: %s' % self.GetTitle(), 
+                             style=wx.YES_NO | wx.CANCEL)
+            if result == wx.YES:
+                self.OnSave()
+                return True
+            elif result == wx.CANCEL:
+                if event:
+                    event.Veto()
+                else:
+                    return None
+        return False
 
     def GetCodeObject(self):
         '''Retrieves the code object created from this script'''
