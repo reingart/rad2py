@@ -844,8 +844,13 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def DoFind(self, evt=None, title="Find", style=0):
         if not self.finddlg:
+            # store find data (reference to prevent SEGV)
             self.finddata = wx.FindReplaceData()
             self.finddata.SetFlags(wx.FR_DOWN)
+            # use selected text as initial search string
+            if self.GetSelectedText():
+                self.finddata.SetFindString(self.GetSelectedText())
+                self.finddata.SetReplaceString(self.GetSelectedText())
             self.finddlg = wx.FindReplaceDialog(self, self.finddata, title,
                 style)
             self.finddlg.style = style
