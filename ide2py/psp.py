@@ -678,7 +678,7 @@ class PSPMixin(object):
         self.timer.Stop()
         self.psp_log_event("stop")
         if self.psp_interruption: 
-            self.OnPause(event)
+            self.OnPausePSP(event)
             self.psp_toolbar.ToggleTool(ID_PAUSE, False)
         self.psp_toolbar.EnableTool(ID_START, True)
         self.psp_toolbar.EnableTool(ID_PAUSE, False)
