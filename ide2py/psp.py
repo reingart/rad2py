@@ -866,10 +866,13 @@ class PSPMixin(object):
                     if not defect['remove_phase']:
                         errors.append("Defect %(number)s not fixed!" % defect)
 
-            # add found defects
+            # add found defects (highlight them in the editor window)
+            line_numbers = set()
             for defect in defects:
                 self.NotifyDefect(**defect)
                 errors.append("Defect found: %(summary)s" % defect)
+                line_numbers.add(defect['lineno'])
+            self.active_child.HighlightLines(line_numbers)
 
             # show errors
             if errors:

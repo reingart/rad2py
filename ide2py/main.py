@@ -811,6 +811,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
             self.SetFocus()
             self.editor.GotoLineOffset(lineno, offset)
 
+    def HighlightLines(self, line_numbers, style=0):
+        self.editor.HighlightLines(line_numbers)
+
     def NotifyDefect(self, *args, **kwargs):
         self.parent.NotifyDefect(*args, **kwargs)
     

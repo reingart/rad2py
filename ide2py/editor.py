@@ -230,12 +230,12 @@ class EditorCtrl(stc.StyledTextCtrl):
     def SetStyles(self, lang='python', cfg_styles={}):
         self.StyleClearAll()
 
-        #INDICATOR STYLES FOR ERRORS
+        # INDICATOR STYLE FOR ERRORS/DEFECTS: STC_INDIC0_MASK
         self.IndicatorSetStyle(0, stc.STC_INDIC_SQUIGGLE)
         self.IndicatorSetForeground(0, wx.RED)
 
-        # INDICATOR STYLES FOR SELECTION (FIND/REPLACE)
-        self.IndicatorSetStyle(1, stc.STC_INDIC_BOX) #ROUNDBOX
+        # INDICATOR STYLE FOR SELECTION (FIND/REPLACE): STC_INDIC1_MASK
+        self.IndicatorSetStyle(1, stc.STC_INDIC_ROUNDBOX) #ROUNDBOX
         self.IndicatorSetForeground(1, wx.Colour(0xFF, 0xA5, 0x00))
         
         # read configuration
@@ -354,6 +354,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             # line with a caret indicating the approximate error position:
             desc = e.text + " " * offset + "^"
             self.parent.NotifyDefect(summary=str(e), description=desc, type="20", filename=self.filename, lineno=lineno, offset=offset)
+            self.HighlightLines([lineno])
             return None      
 
     def DoGoto(self, evt):
@@ -917,8 +918,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             start += len(replacestring)
         
     def HighlightText(self, findstring, mode):
+        "Find text and applies indicator style (ORANGE BOX) to all occurrences"
         start, end = 0, self.GetLength()
-        style = wx.stc.STC_INDIC1_MASK
+        style = stc.STC_INDIC1_MASK
         lenght= len(findstring)
         # clear all highlighted previous found text
         self.StartStyling(start, style)
@@ -928,6 +930,24 @@ class EditorCtrl(stc.StyledTextCtrl):
             start = int(self.FindText(start, end, findstring, mode))
             if start == -1:
                 break
+            self.StartStyling(start, style)
+            self.SetStyling(lenght, style)
+            start += lenght
+        # dummy style to draw last found text (wx bug?)
+        self.StartStyling(end, style)
+        self.SetStyling(0, style)
+
+    def HighlightLines(self, lines):
+        "Applies indicator style (RED SQUIGGLE default) to the lines listed"
+        start, end = 0, self.GetLength()
+        style = stc.STC_INDIC0_MASK
+        # clear all highlighted previous found text
+        self.StartStyling(start, style)
+        self.SetStyling(end, 0)
+        # highlight found text:
+        for lineno in lines:
+            start = lineno>1 and (self.GetLineEndPosition(lineno-2) + 1) or 0
+            lenght = self.GetLineEndPosition(lineno-1) - start
             self.StartStyling(start, style)
             self.SetStyling(lenght, style)
             start += lenght
