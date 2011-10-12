@@ -182,6 +182,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(wx.EVT_MENU, self.OnSaveAs, id = wx.ID_SAVEAS)
 
         self.Bind(stc.EVT_STC_SAVEPOINTREACHED, self.OnSavePoint)
+        self.Bind(stc.EVT_STC_SAVEPOINTLEFT, self.OnSavePoint)
         self.Bind(stc.EVT_STC_UPDATEUI, self.OnUpdateUI)
         self.Bind(stc.EVT_STC_MARGINCLICK, self.OnMarginClick)
         self.Bind(stc.EVT_STC_CHANGE, self.OnChange)
@@ -300,14 +301,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def OnChange(self, event=None):
         "Received EVT_STC_CHANGE, text has been modified -update title-"
-        if not self.modified:
-            self.modified = True
-            self.SetTitle()
             
     def OnSavePoint(self, event):
-        "Received EVT_STC_SAVEPOINTREACHED, original text -update title-"
-        self.modified = False
-        self.SetTitle()
+        "Received EVT_STC_SAVEPOINTREACHED/LEFT, update title"
+        self.modified = event.EventType in stc.EVT_STC_SAVEPOINTLEFT.evtType
+        self.SetTitle() 
 
     def OnFocus(self, event=None):
         # check for data changes

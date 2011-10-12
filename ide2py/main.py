@@ -297,7 +297,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
         self.Bind(wx.EVT_SIZE, self.OnSize)
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.Bind(wx.EVT_CLOSE, self.OnCloseAll)
 
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
@@ -334,6 +334,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # web2py initialization (on own thread to enable debugger)
         Web2pyMixin.__init__(self)
+        
+        # restore previuous open files
+        wx.CallAfter(self.DoOpenFiles)
 
     @property
     def active_child(self):
@@ -356,17 +359,28 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.active_child:
             self.active_child.Close()     
 
-    def OnClose(self, event):
-        # Close all child windows:
+    def OnCloseAll(self, event):
+        # get global config instance
+        config = wx.GetApp().config
+        
+        # Close all child windows (remember opened):
+        open_files = []
         while self.active_child:
+            open_files.append(self.active_child.GetFilename())
             if not self.active_child.Close():
                 event.Veto()
                 return 
+        # clean old config file values and store new filenames:
+        if config.has_section('FILES'):
+            config.remove_section('FILES')
+        config.add_section('FILES')
+        for i, filename in enumerate(open_files):
+            config.set('FILES', "file_%02d" % i, filename)
         
         # Save current perspective layout. WARNING: all panes must have a name! 
         if hasattr(self, "_mgr"):
             perspective = self._mgr.SavePerspective()
-            wx.GetApp().config.set('AUI', 'perspective', perspective)
+            config.set('AUI', 'perspective', perspective)
             self._mgr.UnInit()
             del self._mgr
         self.Destroy()
@@ -445,6 +459,21 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             child.Activate()
             child.SetFocus()
         return child
+
+    def DoOpenFiles(self):
+        "Open previous session files"
+        
+        # read configuration file 
+        config = wx.GetApp().config
+        open_files = config.items("FILES")
+        open_files.sort()
+        # open previous session files
+        for option_name, filename in open_files:
+            if os.path.exists(filename):
+                self.DoOpen(filename)
+        # activate last current file (first in the list):
+        if open_files:
+            self.DoOpen(open_files[0][1])
 
     def OnSave(self, event):
         if self.active_child:
