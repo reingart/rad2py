@@ -23,6 +23,7 @@ import wx.lib.agw.aui as aui
 import images
 import simplejsonrpc
 
+
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
 PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build', 
@@ -31,9 +32,9 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_START, ID_PAUSE, ID_STOP, ID_CHECK, \
+ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(15)]
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(17)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -549,6 +550,8 @@ class PSPMixin(object):
         self.Bind(wx.EVT_CHOICE, self.OnPSPPhaseChoice, self.psp_phase_choice)
         self.SetPSPPhase(cfg.get("current_phase"))
 
+        self.CreatePSPMenu()
+
 
     def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
@@ -559,6 +562,24 @@ class PSPMixin(object):
     def CreatePSPDefectRecordingLog(self, filename):
         list = DefectListCtrl(self, filename)
         return list
+
+    def CreatePSPMenu(self):
+        # create the menu items
+        psp_menu = self.menu['psp'] = wx.Menu()
+        psp_menu.Append(ID_PHASE, "Change PSP Phase")
+        psp_menu.Append(ID_PROJECT, "Change Project")
+        psp_menu.Append(ID_UP, "Upload metrics")
+        psp_menu.Append(ID_DOWN, "Download metrics")
+        psp_menu.AppendSeparator()
+        psp_menu.Append(ID_START, "Start stopwatch")
+        psp_menu.Append(ID_PAUSE, "Pause stopwatch\tPause")
+        psp_menu.Append(ID_STOP, "Stop stopwatch")
+        psp_menu.AppendSeparator()
+        psp_menu.Append(ID_DEFECT, "Add Defect\tCtrl-D")
+        psp_menu.Append(ID_CHECK, "Check Completion\tCtrl-F5")
+        psp_menu.Append(ID_METADATA, "Show Metadata")
+        self.menubar.Insert(self.menubar.FindMenu("&Help")-1, psp_menu, "&PSP")
+
         
     def CreatePSPToolbar(self):
         # old version of wx, dont use text text
@@ -610,6 +631,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
 
+        self.Bind(wx.EVT_MENU, self.OnPhasePSP, id=ID_PHASE)
         self.Bind(wx.EVT_MENU, self.OnStartPSP, id=ID_START)
         self.Bind(wx.EVT_MENU, self.OnPausePSP, id=ID_PAUSE)
         self.Bind(wx.EVT_MENU, self.OnStopPSP, id=ID_STOP)
@@ -619,6 +641,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
+        self.Bind(wx.EVT_MENU, self.OnMetadataPSP, id=ID_METADATA)
                 
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -647,6 +670,14 @@ class PSPMixin(object):
         if self.current_psp_phase:
             self.UpdateMetadataPSP()
         self.current_psp_phase = self.GetPSPPhase()
+
+    def OnPhasePSP(self, event):
+        "Event to change the current PSP phase"
+        dlg = wx.SingleChoiceDialog(self, 'Select next phase', 'PSP Phase',
+                                    PSP_PHASES, wx.CHOICEDLG_STYLE)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.SetPSPPhase(dlg.GetStringSelection())
+        dlg.Destroy()
 
     def OnStartPSP(self, event):
         self.timer.Start(1000)
@@ -897,14 +928,17 @@ class PSPMixin(object):
             dlg.ShowModal()
             dlg.Destroy()
 
+    def OnMetadataPSP(self, event):
+        "Event to update and show metadata"
+        self.UpdateMetadataPSP(show=True)
 
-    def UpdateMetadataPSP(self):
+    def UpdateMetadataPSP(self, show=False):
         if self.active_child:
             filename = self.active_child.GetFilename()
             if filename:
-                self.update_metadata(filename)
+                self.update_metadata(filename, show)
         
-    def update_metadata(self, filename):
+    def update_metadata(self, filename, show=False):
         import fileutil
         import diffutil
         
@@ -950,13 +984,14 @@ class PSPMixin(object):
             with open(metadata_fn, 'wb') as pkl:
                 pickle.dump(metadata, pkl)
     
-            if True:
-                msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
-                dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "METADATA")
-                dlg.ShowModal()
-                dlg.Destroy()
-
             self.psp_metadata_cache[filename] = timestamp, metadata
+
+        if show:
+            msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
+            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "PSP METADATA")
+            dlg.ShowModal()
+            dlg.Destroy()
+
         return metadata
 
 

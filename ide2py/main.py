@@ -147,7 +147,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         run_menu.Append(ID_RUN, "Run in &Interpreter\tShift-F5")
         run_menu.Append(ID_DEBUG, "Run in &Debugger\tF5")
         run_menu.AppendSeparator()
-        run_menu.Append(ID_EXEC, "&Execute as an External Process\tCtrl-F5")
+        run_menu.Append(ID_EXEC, "&Execute as an External Process\Shift-Ctrl-F5")
         run_menu.Append(ID_KILL, "&Kill external process\tCtrl-K")
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
