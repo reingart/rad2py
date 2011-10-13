@@ -204,7 +204,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.key_map = {}  # pos -> key
         
         self.data = shelve.open(filename, writeback=True)
-        for key, item in self.data.items():
+        for key, item in sorted(self.data.items()):
             self.AddItem(item, key)
 
         # make a popup-menu
