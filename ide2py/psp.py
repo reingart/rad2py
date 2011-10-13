@@ -182,11 +182,11 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             "inject_phase": (4, wx.LIST_FORMAT_LEFT, 75),
             "remove_phase": (5, wx.LIST_FORMAT_LEFT, 75),
             "fix_time": (6, wx.LIST_FORMAT_RIGHT, 75),
-            "fix_defect": (7, wx.LIST_FORMAT_LEFT, 50),
-            "filename": (8, wx.LIST_FORMAT_LEFT, 100),
+            "fix_defect": (7, wx.LIST_FORMAT_LEFT, 25),
+            "filename": (8, wx.LIST_FORMAT_LEFT, 50),
             "lineno": (9, wx.LIST_FORMAT_RIGHT, 50),
-            "offset": (10, wx.LIST_FORMAT_RIGHT, 50),
-            "uuid": (11, wx.LIST_FORMAT_RIGHT, 50),
+            "offset": (10, wx.LIST_FORMAT_RIGHT, 0),
+            "uuid": (11, wx.LIST_FORMAT_RIGHT, 0),
             }
         for col_key, col_def in sorted(self.col_defs.items(), key=lambda k: k[1][0]):
             col_name = col_key.replace("_", " ").capitalize()
