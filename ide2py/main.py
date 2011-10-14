@@ -465,15 +465,16 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         # read configuration file 
         config = wx.GetApp().config
-        open_files = config.items("FILES")
-        open_files.sort()
-        # open previous session files
-        for option_name, filename in open_files:
-            if os.path.exists(filename):
-                self.DoOpen(filename)
-        # activate last current file (first in the list):
-        if open_files:
-            self.DoOpen(open_files[0][1])
+        if config.has_section('FILES'):
+            open_files = config.items("FILES") 
+            open_files.sort()
+            # open previous session files
+            for option_name, filename in open_files:
+                if os.path.exists(filename):
+                    self.DoOpen(filename)
+            # activate last current file (first in the list):
+            if open_files:
+                self.DoOpen(open_files[0][1])
 
     def OnSave(self, event):
         if self.active_child:
