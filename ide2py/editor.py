@@ -90,6 +90,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.parent = parent
         self.debugger = debugger
         self.filename = filename
+        self.filetimestamp = None
         self.modified = None
         self.calltip = 0
         self.namespace = wx.GetApp().main_frame.web2py_namespace()
@@ -245,45 +246,67 @@ class EditorCtrl(stc.StyledTextCtrl):
     def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"
         # open the file with universal line-endings support
-        f = open(filename, "Ur")
+        f = None
+        try:
+            f = open(filename, "Ur")
 
-        # analyze encoding and line ending, get text properly decoded
-        text, encoding, bom, eol, nl = fileutil.unicode_file_read(f, encoding)
-        
-        # store internal values for future reference
-        self.encoding = encoding 
-        self.bom = bom
-        self.eol = eol
-        
-        # set line endings mode
-        self.SetEOLMode(self.eol)
+            # analyze encoding and line ending, get text properly decoded
+            text, encoding, bom, eol, nl = fileutil.unicode_file_read(f, encoding)
             
-        # load text (unicode!)
-        self.SetText(text)
-        f.close()
-
-
+            # store internal values for future reference
+            self.encoding = encoding 
+            self.bom = bom
+            self.eol = eol
+            
+            # set line endings mode
+            self.SetEOLMode(self.eol)
+                
+            # load text (unicode!)
+            self.SetText(text)
+            return True
+        except Exception, e:
+            dlg = wx.MessageDialog(self, unicode(e), "Unable to Load File",
+                       wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+            return False
+        finally:
+            if f:
+                f.close()
+            
     def SaveFile(self, filename, encoding=None):
-        f = open(filename, "wb")
-        if self.bom:
-            # preserve Byte-Order-Mark
-            f.write(self.bom)
-        f.write(self.GetText().encode(self.encoding))
-        f.close()
-        self.parent.NotifyRepo(self.filename, action="saved", status="")
-        # prevent undo going further than this
-        self.EmptyUndoBuffer()
-        self.SetSavePoint()
+        f = None
+        try:
+            f = open(filename, "wb")
+            if self.bom:
+                # preserve Byte-Order-Mark
+                f.write(self.bom)
+            f.write(self.GetText().encode(self.encoding))
+            f.close()
+            self.parent.NotifyRepo(self.filename, action="saved", status="")
+            # prevent undo going further than this
+            self.EmptyUndoBuffer()
+            self.SetSavePoint()
+        except Exception, e:
+            dlg = wx.MessageDialog(self, unicode(e), "Unable to Save File",
+                       wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+        finally:
+            if f:
+                f.close()
 
     def OnOpen(self, event=None):
-        if self.filename:
-            self.LoadFile(self.filename)
+        if self.filename and self.LoadFile(self.filename):
             self.filetimestamp = os.stat(self.filename).st_mtime
             # call to SetTile setting modified=False (fix LoadFile -> OnChange)
             wx.CallAfter(self.SetTitle, False)
             # prevent undo going further than this (cleaning the document)
             self.EmptyUndoBuffer()
             self.SetSavePoint()
+        else:
+            # file not loaded correctly, empty its name (assume new)
+            self.filename = None
 
     def GetTitle(self):
         if self.filename:
