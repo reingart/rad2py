@@ -39,9 +39,9 @@ tab_width = 4
 
 [PSP]
 phases = Planning, Design, Code, Compile, Test, Review, Postmortem
-data = /home/reingart/tesis/psp-data.dat
-metadata = /home/reingart/tesis/metadata
-checklist = /home/reingart/tesis/psp-checklist.dat
+data = psp-data.dat
+metadata = metadata
+checklist = psp-checklist.dat
 server_url = http://localhost:8000/psp2py/services/call/jsonrpc
 
 [MAIN]
