@@ -19,6 +19,7 @@ def show():
         db.psp_time_summary.plan,
         db.psp_time_summary.actual,
         db.psp_time_summary.interruption)
+    times = times.sort(lambda x: PSP_PHASES.index(x.phase))
     defects = db(db.psp_defect.project_id==project_id).select(
         db.psp_defect.number,
         db.psp_defect.summary,
@@ -27,6 +28,7 @@ def show():
         db.psp_defect.remove_phase,
         db.psp_defect.fix_time,
         db.psp_defect.fix_defect,
+        orderby=db.psp_defect.number,
     )
     form = crud.read(db.psp_project, project_id)
     return dict(project=project, form=form, times=times, defects=defects)
