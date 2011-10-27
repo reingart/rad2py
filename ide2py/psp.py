@@ -32,9 +32,9 @@ PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build',
 
 PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
-ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_PHASE, \
+ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_DIFF, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(17)]
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(18)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -542,7 +542,7 @@ class PSPMixin(object):
         self.psp_interruption = None
 
         # web2py json rpc client
-        self.psp_rpc_client = simplejsonrpc.JSONRPCClient(cfg.get("server_url"))
+        self.psp_rpc_client = simplejsonrpc.ServiceProxy(cfg.get("server_url"))
         self.psp_project_name = cfg.get("project_name")
         if self.psp_project_name:
             self.psp_set_project(self.psp_project_name)
@@ -578,6 +578,7 @@ class PSPMixin(object):
         psp_menu.Append(ID_DEFECT, "Add Defect\tCtrl-D")
         psp_menu.Append(ID_CHECK, "Check Completion\tCtrl-F5")
         psp_menu.Append(ID_METADATA, "Show Metadata")
+        psp_menu.Append(ID_DIFF, "Diff && Count LOC")
         self.menubar.Insert(self.menubar.FindMenu("&Help")-1, psp_menu, "&PSP")
 
         
@@ -642,6 +643,7 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
         self.Bind(wx.EVT_MENU, self.OnMetadataPSP, id=ID_METADATA)
+        self.Bind(wx.EVT_MENU, self.OnDiffPSP, id=ID_DIFF)
                 
         tb4.Realize()
         self.psp_toolbar = tb4
@@ -932,6 +934,48 @@ class PSPMixin(object):
         "Event to update and show metadata"
         self.UpdateMetadataPSP(show=True)
 
+    def OnDiffPSP(self, event):
+        "Event to calc diff and update metadata"
+        # this is a temporary and auxiliar function just to rebuild metadata
+        if self.active_child:
+            import fileutil
+            import locutil
+
+            filename = self.active_child.GetFilename()
+            if filename:
+                with open(filename, "r") as f:
+                    new_text, encoding, bom, eol, new_newlines = fileutil.unicode_file_read(f, "utf8")
+        
+            dlg = wx.TextEntryDialog(self, 'Compare with:', 
+                'PSP DIFF', filename)
+            if dlg.ShowModal() == wx.ID_OK:
+                old_filename = dlg.GetValue()
+                with open(old_filename, "r") as f:
+                    old_text, encoding, bom, eol, old_newlines = fileutil.unicode_file_read(f, "utf8")
+            else:
+                old_filename = ''
+                old_text = u''
+                old_newlines = '\n'
+            dlg.Destroy()
+
+        # re-encode unicode to same encoding
+        #old_text = old_text.encode("utf8")
+        #new_text = new_text.encode("utf8")
+        
+        # render the diff
+        from wxpydiff import PyDiff
+        PyDiff(None, 'wxPyDiff (PSP)', old_filename, filename, old_text, new_text)
+
+        # compare old and new lines:
+        old_lines = old_text.split(old_newlines)
+        new_lines = new_text.split(new_newlines)
+        
+        changes = locutil.analize_line_changes(old_lines, new_lines)
+        objects, locs = locutil.count_logical_lines_per_object(filename, changes=changes)
+        print objects
+        print locs
+        #self.UpdateMetadataPSP(show=True)
+        
     def UpdateMetadataPSP(self, show=False):
         if self.active_child:
             filename = self.active_child.GetFilename()
