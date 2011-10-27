@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env python
 # coding:utf-8
 
-"""PSP Program 1A - Linear Regression Parameter
+"""PSP Program 4A - Linear Regression Parameter
 """
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
