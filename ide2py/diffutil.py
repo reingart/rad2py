@@ -136,11 +136,15 @@ class FancySequenceMatcher(difflib.SequenceMatcher):
                     yield (ai1, ai2), (bj1, bj2)
 
 
-def track_lines_changes(old, new):
+def track_lines_changes(old, new, modified_equals=False):
     """Compare items (lines), return a list of tuples (old_linenno, new_linenno)
+    modified_equals controls whether replace are treated like insert or equal
+    (in that case, to detect modifications, related lines should be compared)
 
     >>> print track_lines_changes("a b c d".split(), "a 1 b 2 d e".split())
     [(0, 0), (None, 1), (1, 2), (None, 3), (3, 4), (None, 5)]
+    >>> print track_lines_changes("a b c d".split(), "a 1 b 2 d e".split(), modified_equals=True)
+    [(0, 0), (None, 1), (1, 2), (2, 3), (3, 4), (None, 5)]
     """
     s = FancySequenceMatcher(None, old, new)
     ret = []
@@ -149,10 +153,10 @@ def track_lines_changes(old, new):
         if opcode == "insert":
             for lno in range(blo, bhi):
                 ret.append((None, lno))
-        if opcode == "replace":
+        if opcode == "replace" and not modified_equals:
             for lno in range(blo, bhi):
                 ret.append((None, lno))
-        if opcode == "equal":
+        if opcode == "equal" or (opcode == "replace" and modified_equals):
             old_lno = range(alo, ahi)
             for i, lno in enumerate(range(blo, bhi)):
                 ret.append((old_lno[i], lno))
