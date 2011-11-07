@@ -90,6 +90,8 @@ db.define_table("psp_project",
     #Field("instructor_id", db.auth_user),
     Field("started", "date"),
     Field("completed", "date"),
+    ##Field("planned_loc", "integer", comment="Total new & changed (estimated program size)"),
+    ##Field("actual_loc", "integer", comment="Total new & changed (measured program size)"),
     )
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
