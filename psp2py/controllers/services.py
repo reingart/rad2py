@@ -65,10 +65,8 @@ def update_project(project_name, actual_loc, reuse_library_entries):
 
     # clean and store reuse library entries:
     db(db.psp_reuse_library.project_id==project.project_id).delete()
-    for entry in psp_reuse_library_entries:
+    for entry in reuse_library_entries:
         entry['project_id'] = project.project_id
         db.psp_reuse_library.insert(**entry)
 
     return True
-
-

@@ -810,10 +810,10 @@ class PSPMixin(object):
         self.psp_load_project(self.psp_project_name)
 
     def psp_save_project(self):
-        "Send metrics to remote server"
+        "Send metrics to remote server (times and defects)"
         # convert to plain dictionaries to be searialized and sent to web2py DAL
         # remove GUI implementation details, match psp2py database model
-        dlg = wx.MessageDialog(self, "Send Metrics from remote site?",
+        dlg = wx.MessageDialog(self, "Send Metrics to psp2py support app?",
                                "PSP Project Change", 
                                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         result = dlg.ShowModal() == wx.ID_YES
@@ -836,11 +836,42 @@ class PSPMixin(object):
                 time_summaries.append(time_summary)
             self.psp_rpc_client.save_project(self.psp_project_name, defects, time_summaries, comments)
         return result
-        
+
+    def psp_update_project(self, locs, objects):
+        "Update metrics to remote server (only size now)"
+        # convert to plain dictionaries to be searialized and sent to web2py DAL
+        # remove GUI implementation details, match psp2py database model
+        # this function is supposed to be called on postmortem phase (diff)
+        dlg = wx.MessageDialog(self, "Update metrics into psp2py support app?",
+                               "PSP Project Update", 
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        result = dlg.ShowModal() == wx.ID_YES
+        dlg.Destroy()
+        if result and self.psp_project_name:
+            # data received:
+            # objects = [[7, 'Test', '__init__', 1, 'filename.py'], 
+            # locs = {'new': 0, 'total': 6, 'modified': 1, 'comments': 1})
+            #TODO: split new+modifed+reused loc count
+            actual_loc = locs.get('new', 0) + locs.get('modified', 0)
+            reuse_library_entries = []
+            for obj in objects:
+                entry = {
+                    "filename": obj[4],
+                    "class_name": obj[1],
+                    "function_name": obj[2],
+                    "lineno": obj[0],
+                    "loc": obj[3],
+                    }
+                reuse_library_entries.append(entry)
+            self.psp_rpc_client.update_project(self.psp_project_name, 
+                                               actual_loc,
+                                               reuse_library_entries)
+        return result
+
     def psp_load_project(self, project_name):
-        "Receive metrics from remote server"
+        "Receive metrics from remote server (times and defects)"
         # fetch and deserialize web2py rows to GUI data structures
-        dlg = wx.MessageDialog(self, "Receive Metrics from remote site?", 
+        dlg = wx.MessageDialog(self, "Receive Metrics from psp2py support app?", 
                                "PSP Project Change", 
                                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         result = dlg.ShowModal() == wx.ID_YES
@@ -971,10 +1002,14 @@ class PSPMixin(object):
         new_lines = new_text.split(new_newlines)
         
         changes = locutil.analize_line_changes(old_lines, new_lines)
-        objects, locs = locutil.count_logical_lines_per_object(filename, changes=changes)
-        print objects
-        print locs
-        #self.UpdateMetadataPSP(show=True)
+        objects, locs = locutil.count_logical_lines_per_object(filename, 
+                                                               changes=changes)
+        # add filename to each object (TODO: check several files)
+        for obj in objects:
+            obj.append(filename)
+
+        # send metrics to remote server
+        self.psp_update_project(locs, objects)
         
     def UpdateMetadataPSP(self, show=False):
         if self.active_child:
