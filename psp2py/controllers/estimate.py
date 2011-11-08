@@ -57,7 +57,7 @@ def get_projects_metrics():
     rows = db(db.psp_project.actual_loc!=None).select(db.psp_project.actual_loc, orderby=db.psp_project.project_id)
     actual_loc = [row.actual_loc for row in rows]
     rows = db(db.psp_project.project_id==db.psp_time_summary.project_id).select(db.psp_time_summary.actual.sum().with_alias("total"), groupby=db.psp_project.project_id, orderby=db.psp_project.project_id)
-    hours = [row.total for row in rows]
+    hours = [row.total/60.0/60.0 for row in rows]
     return actual_loc, hours
     
 def correlation():
@@ -105,7 +105,33 @@ def time():
         size_k = form.vars.size
         time_t = b0 + b1*size_k
         
-        return {'size_k': size_k, 'time_t': time_t, 'pretty_time': pretty_time(time_t)}
+        return {'size_k': size_k, 'time_t': time_t}
         
     else:
         return {'form': form}
+
+
+def linear_regression():
+    "draw a linear regression chart"
+    import pylab
+    import matplotlib
+    # clear graph
+    matplotlib.pyplot.clf()
+    matplotlib.use('Agg') 
+    actual_loc, hours = get_projects_metrics()
+    x = pylab.array(actual_loc)
+    y = pylab.array(hours)
+    #nse = 0.3 * pylab.randn(len(x))
+    #y = 2 + 3 * x + nse
+    # the best fit line from polyfit ; you can do arbitrary order
+    # polynomials but here we take advantage of a line being a first order 
+    # polynomial
+    m, b = pylab.polyfit( x , y , 1 )
+    # plot the data with blue circles and the best fit with a thick
+    # solid black line
+    pylab.plot(x, y, 'bo ', x, m * x+b , '-k' , linewidth=2)
+    pylab.ylabel('Time (Hs)')
+    pylab.xlabel('LOC')
+    pylab.grid(True)
+    pylab.savefig(response.body) 
+    return response.body.getvalue()
