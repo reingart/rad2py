@@ -20,7 +20,16 @@ def correlation():
     # - when r2 < 0.5 : not reliable for planning purposes
     actual_loc, hours = get_projects_metrics()
     r = calc_correlation(actual_loc, hours)
-    return {'loc': actual_loc, 'hours': hours, 'r2': r**2}
+    r2 = r**2
+    if 0.9 <= r2:
+        corr = 'high (predictive)'
+    elif 0.7 <= r2 < 0.9:
+        corr = 'strong (planning)'
+    elif 0.5 <= r2 < 0.7:
+        corr = 'adequate (use with care)'
+    elif r2 < 0.5:
+        corr = 'weak (not reliable)'
+    return {'loc': actual_loc, 'hours': hours, 'r2': r**2, 'correlation': corr}
     
 def significance():
     "Check the significance of a correlation"
