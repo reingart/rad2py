@@ -25,11 +25,11 @@ def find_functions_and_classes(modulename, path):
     """Parse the file and return [('lineno', 'class name', 'function')]
     
     >>> with open("test1.py", "w") as f:
-    ...  f.write("def hola():\n pass\n#\ndef chau(): pass\n")
-    ...  f.write("class Test:\n def __init__():\n\n  pass\n")
+    ...     f.write(chr(10).join(["def hola():", " pass", "#", "def chau():", " pass", ""]))
+    ...     f.write(chr(10).join(["class Test:"," def __init__():","","  pass"]))
     >>> results = find_functions_and_classes("test1", ".")
     >>> results
-    [[1, None, 'hola', 0], [3, None, 'chau', 0], [5, 'Test', '__init__', 0]]
+    [[1, None, 'hola', 0], [4, None, 'chau', 0], [7, 'Test', '__init__', 0]]
     
     """
     # Assumptions: there is only one function/class per line (syntax)
@@ -46,7 +46,7 @@ def find_functions_and_classes(modulename, path):
         elif isinstance(obj, pyclbr.Class) and obj.module == modulename:
             # it is a class, look for the methods:
             for method, lineno in obj.methods.items():
-                result.append([lineno, method, obj.name, 0])
+                result.append([lineno, obj.name, method, 0])
     # sort using lineno:
     result.sort(key=lambda x: x[LINENO])
     return result
@@ -68,13 +68,16 @@ def count_logical_lines_per_object(filename, changes=None):
        line count per object (using find_functions_and_classes)
        changes is a dict of {lineno: 'new' or 'modified'}
        also returns new_lines and modified_lines count (logical lines)
-    
-    >>> with open("test1.py", "w") as f:
-    ...  f.write("def hola():\n pass\n#\ndef chau(): pass\n")
-    ...  f.write("class Test:\n def __init__():\n\n  pass\n")
-    >>> results = count_logical_lines_per_object("test1.py")
+
+    >>> with open("test2.py", "w") as f:
+    ...  f.write(chr(10).join(["def hola():"," pass","#","def chau(): pass",""]))
+    ...  f.write(chr(10).join(["class Test:"," def __init__():","","  pass",""]))
+    >>> changes = analize_line_changes("test1.py", "test2.py")
+    >>> changes 
+    {5: 'modified'}
+    >>> results = count_logical_lines_per_object("test1.py", changes)
     >>> results
-    ([[1, None, 'hola', 1], [3, None, 'chau', 2], [5, 'Test', '__init__', 2]], 6, 1)
+    ([[1, None, 'hola', 2], [4, None, 'chau', 2], [7, 'Test', '__init__', 1]], {'new': 0, 'total': 6, 'modified': 1, 'comments': 1})
     """
     modulename = os.path.splitext(os.path.basename(filename))[0]
     path = os.path.dirname(filename)
@@ -142,24 +145,16 @@ def analize_line_changes(old_lines, new_lines):
         else:
             # deleted, ignore
             pass 
-    print "changes", ret
     return ret
 
+def _test():
+    
+    import doctest, locutil
+    return doctest.testmod(locutil)
+
+
+
 if __name__ == "__main__":
-    # tests:
-    res = find_functions_and_classes("program1A", ".")
-    print res
-    assert res == [[14, None, 'mean', 0], [27, None, 'stddev', 0]]
-    res = find_functions_and_classes("program2A", ".")
-    print res
-    assert res == [[16, None, 'count_logical_lines', 0], \
-                   [40, None, 'logical_to_physical_count', 0]]
-    res = count_logical_lines_per_object("program1A.py")
-    print res
-    assert res == ([[14, None, 'mean', 3], [27, None, 'stddev', 5]], 21, 5)
-    res = count_logical_lines_per_object("program2A.py")
-    print res
-    assert res == ([[16, None, 'count_logical_lines', 12], 
-                    [40, None, 'logical_to_physical_count', 41]], 73, 18)
+    _test()
 
 
