@@ -90,8 +90,8 @@ db.define_table("psp_project",
     #Field("instructor_id", db.auth_user),
     Field("started", "date"),
     Field("completed", "date"),
-    ##Field("planned_loc", "integer", comment="Total new & changed (estimated program size)"),
-    ##Field("actual_loc", "integer", comment="Total new & changed (measured program size)"),
+    Field("planned_loc", "integer", comment="Total new & changed (estimated program size)"),
+    Field("actual_loc", "integer", comment="Total new & changed (measured program size)"),
     )
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
@@ -156,3 +156,14 @@ db.psp_time_summary.plan.represent = pretty_time
 db.psp_time_summary.actual.represent = pretty_time
 db.psp_time_summary.interruption.represent = pretty_time
 db.psp_defect.fix_time.represent = pretty_time
+
+
+db.define_table("psp_reuse_library",
+    Field("id", "id"),
+    Field("project_id", db.psp_project),
+    Field("filename", "string"),
+    Field("class", "string"),
+    Field("function", "string"),
+    Field("lineno", "integer"),
+    Field("loc", "integer"),
+    )

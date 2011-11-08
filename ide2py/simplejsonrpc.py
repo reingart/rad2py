@@ -99,6 +99,8 @@ class JSONRPCClient(object):
         return response.get('result')
 
 
+ServiceProxy = JSONRPCClient
+
 if __name__ == "__main__":
     # basic tests:
     client = JSONRPCClient(

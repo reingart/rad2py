@@ -53,15 +53,22 @@ def load_project(project_name):
     comments = db(db.psp_comment.project_id==project.project_id).select()
     return defects, time_summaries, comments
 
-
+    
 @service.jsonrpc
-def add(a,b):
-    return a+b
+def update_project(project_name, actual_loc, reuse_library_entries): 
+    "Update counted LOC and reuse library entries (postmortem)"
 
-def test():
-    from gluon.contrib.simplejsonrpc import JSONRPCClient
-    client = JSONRPCClient(
-                location="http://localhost:8000/psp2py/services/call/jsonrpc",
-                exceptions=True, trace=True,
-                )
-    return {'result': client.add(1, 2)}
+    project = db(db.psp_project.name==project_name).select()[0]
+
+    # update total loc counted:
+    db(db.psp_project.name==project_name).update(actual_loc=actual_loc)
+
+    # clean and store reuse library entries:
+    db(db.psp_reuse_library.project_id==project.project_id).delete()
+    for entry in psp_reuse_library_entries:
+        entry['project_id'] = project.project_id
+        db.psp_reuse_library.insert(**entry)
+
+    return True
+
+
