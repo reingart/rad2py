@@ -85,6 +85,23 @@ def significance():
     return {'loc': actual_loc, 'hours': hours, 'n': n, 'r2': r2, 't': t}
 
 
+def get_time_todate():    
+    "Calculate accumulated time per phase to date"    
+    q = db.psp_project.project_id==db.psp_time_summary.project_id    
+    rows = db(q).select(
+            db.psp_time_summary.actual.sum().with_alias("subtotal"),
+            db.psp_time_summary.phase,
+            groupby=db.psp_time_summary.phase)
+    total = float(sum([row.subtotal for row in rows], 0))
+    todate = sorted([(row.psp_time_summary.phase, row.subtotal, row.subtotal/total) for row in rows],
+                    key=lambda x: PSP_PHASES.index(x[0]))
+    return todate
+
+def time_in_phase():
+    todate = get_time_todate()
+    return {'todate': todate}
+
+
 def time():
     "Estimate Time and Prediction Interval"
     # use historical data of actual object size (LOC) and time to calculate
