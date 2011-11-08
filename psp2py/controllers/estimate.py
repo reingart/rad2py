@@ -3,20 +3,6 @@
 
 from statistics import calc_correlation, calc_significance, calc_linear_regression
    
-def test_correlation():
-    # test table [HUMPHREY95] p.514
-    x_values = [186, 699, 132, 272, 291, 331, 199, 1890, 788, 1601]
-    y_values = [15.0, 69.9, 6.5, 22.4, 28.4, 65.9, 19.4,198.7, 38.8, 138.2]
-
-    r = calc_correlation(x_values, y_values)
-    return {'r2': r**2}
-
-def test_linear_regression():
-    x_values = 10.0, 8.0, 13.0, 9.0, 11.0, 14.0, 6.0, 4.0, 12.0, 7.0, 5.0
-    y_values = 8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68
-    b0, b1 = calc_linear_regression(x_values, y_values)
-    return {'b0': b0, 'b1': b1, 'ok': round(b0,2)==3.0 and round(b1,2)==0.5}
-
 def get_projects_metrics():
     "Query size and time metrics series summarized by project"
     rows = db(db.psp_project.actual_loc!=None).select(db.psp_project.actual_loc, orderby=db.psp_project.project_id)
