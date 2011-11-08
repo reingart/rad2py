@@ -158,6 +158,9 @@ db.psp_time_summary.actual.represent = pretty_time
 db.psp_time_summary.interruption.represent = pretty_time
 db.psp_defect.fix_time.represent = pretty_time
 
+# function/class type classification for easier reuse and estimation:
+PSP_CATEGORIES = ["model", "controller", "view", "module"]
+PSP_SIZES = ["very small", "small", "medium", "large", "very large"]
 
 db.define_table("psp_reuse_library",
     Field("id", "id"),
@@ -165,6 +168,9 @@ db.define_table("psp_reuse_library",
     Field("filename", "string"),
     Field("class_name", "string"),
     Field("function_name", "string"),
+    Field("category", "string", 
+          requires=IS_IN_SET(PSP_CATEGORIES),
+          default="module"),
     Field("lineno", "integer"),
     Field("loc", "integer"),
     )

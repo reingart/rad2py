@@ -51,6 +51,13 @@ def calc_linear_regression(x_values, y_values):
     return (b0, b1)
 
 
+def calc_standard_deviation(values):
+    "Calculate the standard deviation of a list of number values"
+    x_avg = mean(values)
+    n = len(values)
+    sd = math.sqrt(sum([(x_i - x_avg)**2 
+                          for x_i in values]) / float(n - 1))
+    return sd, x_avg                      
 
 def draw_linear_regression(x, y, body):
     "Plot a linear regression chart"
@@ -71,6 +78,29 @@ def draw_linear_regression(x, y, body):
     pylab.plot(x, y, 'bo ', x, m * x+b , '-k' , linewidth=2)
     pylab.ylabel('Time (Hs)')
     pylab.xlabel('LOC')
+    pylab.grid(True)
+    pylab.savefig(body) 
+    return body.getvalue()
+    
+def draw_normal_histogram(x, bins, y_label='', x_label='', body=""):
+    "Plot a histogram chart"
+    # x are matplotlib pylab arrays, body is a StringIO
+    import pylab
+    import matplotlib
+    # clear graph
+    matplotlib.pyplot.clf()
+    matplotlib.use('Agg') 
+    n, bins1, patches = pylab.hist(x, bins, histtype='bar', facecolor='green', alpha=0.75)
+    #pylab.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
+    pylab.ylabel(y_label)
+    pylab.xlabel(x_label)
+    # add a line showing the expected distribution
+    mu = pylab.mean(x)
+    sigma = pylab.std(x)
+    y = pylab.normpdf(bins, mu, sigma)
+    l = pylab.plot(bins, y, 'k--', linewidth=1.5)
+
+    
     pylab.grid(True)
     pylab.savefig(body) 
     return body.getvalue()

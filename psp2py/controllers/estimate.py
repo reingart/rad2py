@@ -127,6 +127,7 @@ def update_plan():
 
 
 def linear_regression():
+    "Draw the linear regression chart for actual loc and dev times"
     # this need matplotlib!
     import pylab
     actual_loc, hours = get_projects_metrics()
