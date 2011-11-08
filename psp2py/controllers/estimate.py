@@ -1,13 +1,14 @@
 # coding: utf8
 # try something like
 
-from statistics import calc_correlation, calc_significance, calc_linear_regression
+from statistics import calc_correlation, calc_significance, calc_linear_regression, draw_linear_regression
    
 def get_projects_metrics():
     "Query size and time metrics series summarized by project"
-    rows = db(db.psp_project.actual_loc!=None).select(db.psp_project.actual_loc, orderby=db.psp_project.project_id)
+    q = db.psp_project.completed!=None     # only account finished ones!
+    rows = db(q & (db.psp_project.actual_loc!=None)).select(db.psp_project.actual_loc, orderby=db.psp_project.project_id)
     actual_loc = [row.actual_loc for row in rows]
-    rows = db(db.psp_project.project_id==db.psp_time_summary.project_id).select(db.psp_time_summary.actual.sum().with_alias("total"), groupby=db.psp_project.project_id, orderby=db.psp_project.project_id)
+    rows = db(q & (db.psp_project.project_id==db.psp_time_summary.project_id)).select(db.psp_time_summary.actual.sum().with_alias("total"), groupby=db.psp_project.project_id, orderby=db.psp_project.project_id)
     hours = [row.total/60.0/60.0 for row in rows]
     return actual_loc, hours
 
@@ -43,13 +44,14 @@ def significance():
 
 def get_time_todate():    
     "Calculate accumulated time per phase to date"    
-    q = db.psp_project.project_id==db.psp_time_summary.project_id    
+    q = db.psp_project.project_id==db.psp_time_summary.project_id
+    q &= db.psp_project.completed!=None     # only account finished ones!
     rows = db(q).select(
             db.psp_time_summary.actual.sum().with_alias("subtotal"),
             db.psp_time_summary.phase,
             groupby=db.psp_time_summary.phase)
-    total = float(sum([row.subtotal for row in rows], 0))
-    todate = sorted([(row.psp_time_summary.phase, row.subtotal, row.subtotal/total) for row in rows],
+    total = float(sum([row.subtotal or 0 for row in rows], 0))
+    todate = sorted([(row.psp_time_summary.phase, row.subtotal or 0, (row.subtotal or 0)/total*100.0) for row in rows],
                     key=lambda x: PSP_PHASES.index(x[0]))
     return todate
 
@@ -58,14 +60,17 @@ def time_in_phase():
     return {'todate': todate}
 
 
-def time():
-    "Estimate Time and Prediction Interval"
+def time_prediction_interval():
+    "Estimate Time and Prediction Interval (UPI, LPI)"
     # use historical data of actual object size (LOC) and time to calculate
     # development time based on planned LOC [HUMPHREY95] pp.153-155
     #TODO: calculate Upper and Lower Prediction Interval
 
     form = SQLFORM.factory(
             Field("size", "integer", comment="Planned size (estimated LOC)"),
+            Field("project_id", db.psp_project, 
+                  requires=IS_IN_DB(db, db.psp_project.project_id, "%(name)s"),
+                  comment="Project to update plan"),
             )
     
     if form.accepts(request.vars, session):
@@ -78,33 +83,53 @@ def time():
         size_k = form.vars.size
         time_t = b0 + b1*size_k
         
-        return {'size_k': size_k, 'time_t': time_t}
+        redirect(URL("update_plan", 
+                     args=form.vars.project_id,
+                     vars={'size_k': size_k, 'time_t': time_t, })
+                     )
         
-    else:
-        return {'form': form}
+    return {'form': form}
+
+
+def update_plan():
+    "Get resource estimates (size and time) and update project plan summary"
+    project_id = request.args[0]
+    # get resources previously calculated
+    estimated_loc = int(request.vars.size_k)
+    estimated_time = float(request.vars.time_t)
+    # summarize actual times in each pahse [(phase, to_date, to_date_%)]
+    time_summary = get_time_todate()
+    # subdivide time for each phase [HUMPHREY95] p.52
+    # (according actual distribution of develpoment time)
+    times = {}
+    for phase, to_date, percentage in time_summary:
+        times[phase] = estimated_time * percentage / 100.0
+        
+    for phase, plan in times.items():
+        # convert plan time from hours to seconds
+        plan = int(plan * 60 * 60)
+        q = db.psp_time_summary.project_id==project_id
+        q &= db.psp_time_summary.phase==phase
+        # update current record
+        cnt = db(q).update(plan=plan)
+        if not cnt:
+            # insert record if not exists
+            db.psp_time_summary.insert(project_id=project_id, 
+                                       phase=phase, 
+                                       plan=plan, 
+                                       actual=0, 
+                                       interruption=0,
+                                       )
+    # update planned loc:
+    db(db.psp_project.project_id==project_id).update(planned_loc=estimated_loc)
+    # show project summary
+    redirect(URL(c='projects', f='show', args=("psp_project", project_id)))
 
 
 def linear_regression():
-    "draw a linear regression chart"
+    # this need matplotlib!
     import pylab
-    import matplotlib
-    # clear graph
-    matplotlib.pyplot.clf()
-    matplotlib.use('Agg') 
     actual_loc, hours = get_projects_metrics()
     x = pylab.array(actual_loc)
     y = pylab.array(hours)
-    #nse = 0.3 * pylab.randn(len(x))
-    #y = 2 + 3 * x + nse
-    # the best fit line from polyfit ; you can do arbitrary order
-    # polynomials but here we take advantage of a line being a first order 
-    # polynomial
-    m, b = pylab.polyfit( x , y , 1 )
-    # plot the data with blue circles and the best fit with a thick
-    # solid black line
-    pylab.plot(x, y, 'bo ', x, m * x+b , '-k' , linewidth=2)
-    pylab.ylabel('Time (Hs)')
-    pylab.xlabel('LOC')
-    pylab.grid(True)
-    pylab.savefig(response.body) 
-    return response.body.getvalue()
+    return draw_linear_regression(x, y, response.body)

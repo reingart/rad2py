@@ -92,6 +92,7 @@ db.define_table("psp_project",
     Field("completed", "date"),
     Field("planned_loc", "integer", comment="Total new & changed (estimated program size)"),
     Field("actual_loc", "integer", comment="Total new & changed (measured program size)"),
+    format="%(name)s",
     )
 
 PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]

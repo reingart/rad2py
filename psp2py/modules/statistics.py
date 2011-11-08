@@ -49,3 +49,28 @@ def calc_linear_regression(x_values, y_values):
     b0 = y_avg - b1 * x_avg
 
     return (b0, b1)
+
+
+
+def draw_linear_regression(x, y, body):
+    "Plot a linear regression chart"
+    # x and y are matplotlib pylab arrays, body is a StringIO
+    import pylab
+    import matplotlib
+    # clear graph
+    matplotlib.pyplot.clf()
+    matplotlib.use('Agg') 
+    #nse = 0.3 * pylab.randn(len(x))
+    #y = 2 + 3 * x + nse
+    # the best fit line from polyfit ; you can do arbitrary order
+    # polynomials but here we take advantage of a line being a first order 
+    # polynomial
+    m, b = pylab.polyfit( x , y , 1 )
+    # plot the data with blue circles and the best fit with a thick
+    # solid black line
+    pylab.plot(x, y, 'bo ', x, m * x+b , '-k' , linewidth=2)
+    pylab.ylabel('Time (Hs)')
+    pylab.xlabel('LOC')
+    pylab.grid(True)
+    pylab.savefig(body) 
+    return body.getvalue()
