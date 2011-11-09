@@ -64,7 +64,7 @@ def index():
     if request.vars.finish:
         # done, redirect to 
         projected_loc = sum([obj['loc'] for obj in session.objects.values()])
-        redirect(URL(c="estimate", f="time_prediction_interval", vars={'planned_loc': projected_loc}))
+        redirect(URL(c="estimate", f="index", vars={'planned_loc': projected_loc}))
         
     if session.midpoints is None or request.vars.reset:
         # reset initial data
