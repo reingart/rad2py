@@ -12,7 +12,7 @@ from math import e, pi, sqrt
 
 def compute_integral(f, x_low, x_high, w, n):
     "Compute the numerical approximation of a definite integral"
-    # composite simpson rule
+    # composite simpson rule (w and n are the subintervals width and quantity)
     term1 = f(x_low)
     term2 = 0
     for j in xrange(1, n, 2):
@@ -27,7 +27,9 @@ def compute_integral(f, x_low, x_high, w, n):
 
 
 def simpson_rule_integrate(f, x_low, x_high, error=0.00001):
+    "Integrate complex funtins within finite limits"
     # 1. identify the upper and lower limits of the numerical integration
+    # correct integration range for symmetrical normalized functions:
     if x_high < 0 and x_low == float("-infinity"):
         x_high = abs(x_high)
         x_low = 0
@@ -35,6 +37,10 @@ def simpson_rule_integrate(f, x_low, x_high, error=0.00001):
     elif x_low == float("-infinity"):
         x_low = 0
         p = 0.5
+    elif x_low > 0 and x_high == float("infinity"):
+        x_high = x_low
+        x_low = 0
+        p = -0.5
     else:
         p = 0
     # 2. select an initial number N and old result
@@ -79,7 +85,7 @@ def simpson_rule_tests():
     inf = float("infinity")
 
     # normal distribution
-    f_normal_dist = lambda u: (1 / (2 * pi) ** (0.5)) * e ** ((- u ** 2) / 2)
+    f_normal_dist = lambda u: (1 / (2 * pi) ** (0.5)) * e ** ((- u ** 2) / 2.0)
     p = simpson_rule_integrate(f_normal_dist, - inf, -1.1)
     assert round(p, 4) == 0.1357
     p = simpson_rule_integrate(f_normal_dist, - inf, 2.5)
@@ -105,6 +111,9 @@ def simpson_rule_tests():
     f_t_dist = lambda u: k * (1 + (u ** 2) / float(n)) ** (- (n +1) / 2.0)
     p = simpson_rule_integrate(f_t_dist, - inf, 3.747)
     assert round(p, 4) == 0.99
+
+    p = simpson_rule_integrate(f_t_dist, 2.132, inf)
+    assert round(p, 4) == 0.05
 
 
 if __name__ == "__main__":
