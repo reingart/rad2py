@@ -33,6 +33,37 @@ def categorize():
 
     return {'locs': locs.values(), "midpoints": midpoints}
 
+
+def library():
+    form = SQLFORM.factory(
+        Field("project_id", db.psp_project, 
+              requires=IS_EMPTY_OR(IS_IN_DB(db, db.psp_project,'%(name)s'))),
+        db.psp_reuse_library.function_name,
+        db.psp_reuse_library.category,
+        )
+    # make the base query
+    q = db.psp_reuse_library.id>0
+    if form.accepts(request.vars, session, keepvalues=True):
+        if form.vars.project_id:
+            q &= db.psp_reuse_library.project_id == form.vars.project_id
+        if form.vars.function_name:
+            q &= db.psp_reuse_library.function_name.contains(form.vars.function_name)
+        if form.vars.category:
+            q &= db.psp_reuse_library.category == form.vars.category
+            
+    objs = db(q).select(
+        db.psp_reuse_library.id,
+        db.psp_reuse_library.project_id,
+        db.psp_reuse_library.function_name,
+        db.psp_reuse_library.class_name,
+        db.psp_reuse_library.category,
+        db.psp_reuse_library.loc)
+    
+    table = SQLTABLE(objs, headers='labels',)
+                
+    return {'form': form, 'table': table}
+
+
 def normal_distribution():
     "Draw the histogram of log-normal object size range"
     # this needs matplotlib!

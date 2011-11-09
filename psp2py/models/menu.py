@@ -28,6 +28,7 @@ response.menu = [
     ]),
     (T('PROBE'), False, URL('probe','index'), [
         (T('Categorize'), False, URL('probe','categorize'), []),
+        (T('Reuse Library'), False, URL('probe','library'), []),
         (T('Size Log-Normal Distribution'), False, URL('probe','normal_distribution.png'), []),
     ]),
     (T('Estimate'), False, URL('estimate','index'), [
