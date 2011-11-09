@@ -67,7 +67,9 @@ def time_prediction_interval():
     #TODO: calculate Upper and Lower Prediction Interval
 
     form = SQLFORM.factory(
-            Field("size", "integer", comment="Planned size (estimated LOC)"),
+            Field("size", "integer", 
+                  default=request.vars.planned_loc,
+                  comment="Planned size (estimated LOC)"),
             Field("project_id", db.psp_project, 
                   requires=IS_IN_DB(db, db.psp_project.project_id, "%(name)s"),
                   comment="Project to update plan"),
