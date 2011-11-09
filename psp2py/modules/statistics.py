@@ -66,7 +66,7 @@ def calc_student_t_probability(x, n):
     return p
 
 
-def draw_linear_regression(x, y, body):
+def draw_linear_regression(x, y, x_label, y_label, body):
     "Plot a linear regression chart"
     # x and y are matplotlib pylab arrays, body is a StringIO
     import pylab
@@ -83,8 +83,8 @@ def draw_linear_regression(x, y, body):
     # plot the data with blue circles and the best fit with a thick
     # solid black line
     pylab.plot(x, y, 'bo ', x, m * x+b , '-k' , linewidth=2)
-    pylab.ylabel('Time (Hs)')
-    pylab.xlabel('LOC')
+    pylab.ylabel(y_label)
+    pylab.xlabel(x_label)
     pylab.grid(True)
     pylab.savefig(body) 
     return body.getvalue()

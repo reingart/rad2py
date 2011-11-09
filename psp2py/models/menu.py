@@ -28,12 +28,12 @@ response.menu = [
     ]),
     (T('PROBE'), False, URL('probe','index'), [
         (T('Categorize'), False, URL('probe','categorize'), []),
-        (T('Normal Distribution'), False, URL('probe','normal_distribution.png'), []),
+        (T('Size Log-Normal Distribution'), False, URL('probe','normal_distribution.png'), []),
     ]),
     (T('Estimate'), False, URL('estimate','index'), [
         (T('Correlation'), False, URL('estimate','correlation'), []),
-        (T('Linear Regression'), False, URL('estimate','linear_regression.png'), []),
         (T('Significance'), False, URL('estimate','significance'), []),
         (T('Time in phase'), False, URL('estimate','time_in_phase'), []),
+        (T('Size vs Time Linear Regression'), False, URL('estimate','linear_regression.png'), []),
     ]),
     ]

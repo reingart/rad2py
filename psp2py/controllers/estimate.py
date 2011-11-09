@@ -136,4 +136,4 @@ def linear_regression():
     actual_loc, hours = get_projects_metrics()
     x = pylab.array(actual_loc)
     y = pylab.array(hours)
-    return draw_linear_regression(x, y, response.body)
+    return draw_linear_regression(x, y, "Size (LOC)", "Time (hs)", response.body)
