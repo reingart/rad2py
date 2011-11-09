@@ -60,7 +60,7 @@ def time_in_phase():
     return {'todate': todate}
 
 
-def time_prediction_interval():
+def index():
     "Estimate Time and Prediction Interval (UPI, LPI)"
     # use historical data of actual object size (LOC) and time to calculate
     # development time based on planned LOC [HUMPHREY95] pp.153-155

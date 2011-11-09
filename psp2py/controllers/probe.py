@@ -42,7 +42,7 @@ def normal_distribution():
     std_dev, avg = calc_standard_deviation(locs)
     x = [(loc - avg)/std_dev for loc in locs]
     bins = pylab.arange(-4,4,0.5)
-    return draw_normal_histogram(x, bins, 'objects', 'std_dev from the mean', response.body)
+    return draw_normal_histogram(x, bins, 'object frequency (reuse lib)', 'std_dev from the mean (log-nomal obj size)', response.body)
 
 def get_loc_per_relative_size():
     loc = session.midpoints.get(request.vars.relative_size, "0")
