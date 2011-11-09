@@ -281,8 +281,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         pos = long(self.GetItemData(evt.m_itemIndex))
         key = self.key_map[pos]
         item = self.data[key]
-        event = item["filename"], item["lineno"], item["offset"]
-        if item["filename"]:
+        event = item["filename"], item["lineno"], item["offset"] or 0
+        if item["filename"] and item["lineno"]:
             self.parent.GotoFileLine(event,running=False)
         self.selecteditemindex = evt.m_itemIndex
         self.parent.psp_log_event("activate_defect", uuid=key)
