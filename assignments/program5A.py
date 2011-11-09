@@ -21,7 +21,7 @@ def compute_integral(f, x_low, x_high, w, n):
     for j in xrange(2, n, 2):
         term3 += f(x_low + j * w)
     term4 = f(x_high)
-    y = w / 3 * (term1 + 4 * term2 + 2 * term3 + term4)
+    y = w / 3.0 * (term1 + 4 * term2 + 2 * term3 + term4)
 
     return y
 
@@ -35,6 +35,8 @@ def simpson_rule_integrate(f, x_low, x_high, error=0.00001):
     elif x_low == float("-infinity"):
         x_low = 0
         p = 0.5
+    else:
+        p = 0
     # 2. select an initial number N and old result
     n = 20
     old_y = 0
@@ -45,7 +47,7 @@ def simpson_rule_integrate(f, x_low, x_high, error=0.00001):
         y = compute_integral(f, x_low, x_high, w, n)
         # 5. compare with the old result if error is permisible
         if abs(y - old_y) <= error:
-            if p > 0:
+            if p >= 0:
                 return p + y
             else:
                 return - p - y
@@ -89,7 +91,7 @@ def simpson_rule_tests():
     n = 9   # degrees of freedom
     assert round(gamma(n, 2), 4) == 11.6317
     k = gamma(n + 1, 2) / (sqrt(n*pi) * gamma(n, 2))
-    f_t_dist = lambda u: k * (1 + (u ** 2) / float(n)) ** (- (n +1) / 2)
+    f_t_dist = lambda u: k * (1 + (u ** 2) / float(n)) ** (- (n +1) / 2.0)
     # WARNING: the Table A17 on [HUMPHREY95] pp.524 seems to be wrong...
     assert round(f_t_dist(0), 4) == 0.3880
     #assert round(f_t_dist(1), 4) == 0.3874
@@ -97,6 +99,12 @@ def simpson_rule_tests():
     #assert round(f_t_dist(20), 4) == 0.2065
     p = simpson_rule_integrate(f_t_dist, - inf, 1.1)
     assert round(p, 4) == 0.8501
+
+    n = 4   # degrees of freedom
+    k = gamma(n + 1, 2) / (sqrt(n*pi) * gamma(n, 2))
+    f_t_dist = lambda u: k * (1 + (u ** 2) / float(n)) ** (- (n +1) / 2.0)
+    p = simpson_rule_integrate(f_t_dist, - inf, 3.747)
+    assert round(p, 4) == 0.99
 
 
 if __name__ == "__main__":

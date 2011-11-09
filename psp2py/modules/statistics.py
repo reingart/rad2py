@@ -2,7 +2,7 @@
 # coding: utf8
 
 import math
-
+from integration import f_student_t_distribution, simpson_rule_integrate
 
 def mean(values):
     "Calculate the average of the numbers given"
@@ -58,6 +58,13 @@ def calc_standard_deviation(values):
     sd = math.sqrt(sum([(x_i - x_avg)**2 
                           for x_i in values]) / float(n - 1))
     return sd, x_avg                      
+
+def calc_student_t_probability(x, n):
+    "Integrate t distribution from -infinity to x with n degrees of freedom"
+    inf = float("infinity")
+    p = simpson_rule_integrate(f_student_t_distribution(n), -inf, x)
+    return p
+
 
 def draw_linear_regression(x, y, body):
     "Plot a linear regression chart"

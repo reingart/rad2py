@@ -1,7 +1,7 @@
 # coding: utf8
 # try something like
 
-from statistics import calc_correlation, calc_significance, calc_linear_regression, draw_linear_regression
+from statistics import calc_correlation, calc_significance, calc_linear_regression, draw_linear_regression, calc_student_t_probability
    
 def get_projects_metrics():
     "Query size and time metrics series summarized by project"
@@ -39,7 +39,8 @@ def significance():
     # if 1-p<=0.05 data is considered good [HUMPHREY95] p.70 
     actual_loc, hours = get_projects_metrics()
     t, r2, n = calc_significance(actual_loc, hours)
-    return {'loc': actual_loc, 'hours': hours, 'n': n, 'r2': r2, 't': t}
+    p = calc_student_t_probability(t, n-1)
+    return {'loc': actual_loc, 'hours': hours, 'n': n, 'r2': r2, 't': t, 'p': p, 's': 1-p}
 
 
 def get_time_todate():    
