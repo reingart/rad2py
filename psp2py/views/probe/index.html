@@ -1,0 +1,33 @@
+{{extend 'layout.html'}}
+<h1>PROxy Based Estimation</h1>
+
+<h2>{{=T("Identify objects")}}</h2>
+{{=form}}
+
+<p/>
+
+<center>
+<h3>{{=T("Objects")}}</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>based on</th>
+            <th>Relative size</th>
+            <th>Planned LOC</th>
+        </tr>
+    </thead>
+    <tbody>
+    {{for obj in sorted(objects.values(), key=lambda x: x['name']):}}
+        <tr>
+            <td>{{=obj['name']}}</td>
+            <td>{{=obj['category']}}</td>
+            <td>{{=obj['function_name']}}</td>
+            <td>{{=obj['relative_size']}}</td>
+            <td style="text-align: right">{{=obj['loc']}}</td>
+        </tr>
+    {{pass}}
+    </tbody>
+</table>
+</center>

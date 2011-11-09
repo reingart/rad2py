@@ -1,0 +1,22 @@
+{{extend 'layout.html'}}
+<h1>Time to date summary</h1>
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Phase</th>
+            <th>Time To Date</th>
+            <th>%</th>
+        </tr>
+    </thead>
+    <tbody>
+    {{for t in times:}}
+        <tr>
+            <td>{{=t[0]}}</td>
+            <td style="text-align: right">{{=pretty_time(t[1])}}</td>
+            <td style="text-align: right">{{="%02.d %%" % t[2]}}</td>
+        </tr>
+    {{pass}}
+    </tbody>
+</table>

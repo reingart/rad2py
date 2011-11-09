@@ -56,8 +56,8 @@ def get_time_todate():
     return todate
 
 def time_in_phase():
-    todate = get_time_todate()
-    return {'todate': todate}
+    times = get_time_todate()
+    return {'times': times}
 
 
 def index():

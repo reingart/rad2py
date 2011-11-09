@@ -2,28 +2,28 @@
 <html lang="{{=T.accepted_language or 'en'}}" class="no-js"><!-- no-js need it for modernzr -->
   <head>
     
-    <meta charset="utf-8" />	  	
+    <meta charset="utf-8" />        
     <!-- www.phpied.com/conditional-comments-block-downloads/ -->
     <!--[if IE]><![endif]-->    
     <!-- Always force latest IE rendering engine 
-	 (even in intranet) & Chrome Frame 
-	 Remove this if you use the .htaccess -->
+     (even in intranet) & Chrome Frame 
+     Remove this if you use the .htaccess -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     
     <title>{{=response.title or request.application}}</title>
     
     <!-- http://dev.w3.org/html5/markup/meta.name.html -->
-    <meta name="application-name" content="{{=request.application}}" />	
+    <meta name="application-name" content="{{=request.application}}" /> 
     
     <!-- Speaking of Google, don't forget to set your site up: 
-	 http://google.com/webmasters -->
+     http://google.com/webmasters -->
     <meta name="google-site-verification" content="" />
     
     <!--  Mobile Viewport Fix
-	  j.mp/mobileviewport & davidbcalhoun.com/2010/viewport-metatag 
-	  device-width: Occupy full width of the screen in its current orientation
-	  initial-scale = 1.0 retains dimensions instead of zooming out if page height > device height
-	  maximum-scale = 1.0 retains dimensions instead of zooming in if page width < device width
+      j.mp/mobileviewport & davidbcalhoun.com/2010/viewport-metatag 
+      device-width: Occupy full width of the screen in its current orientation
+      initial-scale = 1.0 retains dimensions instead of zooming out if page height > device height
+      maximum-scale = 1.0 retains dimensions instead of zooming in if page width < device width
       -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     
@@ -61,7 +61,7 @@
     }}
   </head>
   
-  <!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->	
+  <!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->  
   <!--[if lt IE 7 ]> <body class="ie6"> <![endif]-->
   <!--[if IE 7 ]>    <body class="ie7"> <![endif]-->
   <!--[if IE 8 ]>    <body class="ie8"> <![endif]-->
@@ -70,90 +70,90 @@
     
     <div class="flash">{{=response.flash or ''}}</div> <!-- notification div -->
     
-    <div id="container">	      		      	
+    <div id="container">                        
       
-      <div id="wrapper">		
-	
-	<div id="header"> <!-- header and login nav -->
-	  {{block header}} <!-- this is default header -->
-	  {{try:}}{{=auth.navbar(action=URL('default','user'))}}{{except:pass}}		          
-	  <h1><span id="appname">{{=request.application.capitalize()}}</span>App</h1>
-	  <div style="clear: both;"></div><!-- Clear the divs -->
-	  {{end}}				  					  
-	</div><!-- header  -->
-	
-	<div id="statusbar"><!-- statusbar is menu zone -->
-	  {{block statusbar}} <!-- this is default statusbar -->
-	  {{#------ superfish menu ------}}
-	  {{=MENU(response.menu,_class='sf-menu')}}
-	  <script type="text/javascript">
-	    jQuery(document).ready(function(){
-	    jQuery('ul.sf-menu').superfish();});
-	  </script>
-	  <div style="clear: both;"></div><!-- Clear the divs -->	
-	  {{end}}				
-	</div><!-- statusbar -->
-	
-	<div id="page"> <!-- Here my central body -->	  
+      <div id="wrapper">        
+    
+    <div id="header"> <!-- header and login nav -->
+      {{block header}} <!-- this is default header -->
+      {{try:}}{{=auth.navbar(action=URL('default','user'))}}{{except:pass}}               
+      <h1><span id="appname">{{=request.application.capitalize()}}</span>App</h1>
+      <div style="clear: both;"></div><!-- Clear the divs -->
+      {{end}}                                     
+    </div><!-- header  -->
+    
+    <div id="statusbar"><!-- statusbar is menu zone -->
+      {{block statusbar}} <!-- this is default statusbar -->
+      {{#------ superfish menu ------}}
+      {{=MENU(response.menu,_class='sf-menu')}}
+      <script type="text/javascript">
+        jQuery(document).ready(function(){
+        jQuery('ul.sf-menu').superfish();});
+      </script>
+      <div style="clear: both;"></div><!-- Clear the divs -->   
+      {{end}}               
+    </div><!-- statusbar -->
+    
+    <div id="page"> <!-- Here my central body -->     
 
-	  {{if left_sidebar_enabled:}}
+      {{if left_sidebar_enabled:}}
           <div id="left_sidebar" {{=XML(left_sidebar_style)}} >
             <div style="padding: 4px;">
-	      {{block left_sidebar}}Content Left Sidebar{{end}}		  
+          {{block left_sidebar}}Content Left Sidebar{{end}}       
             </div>
           </div><!-- left_sidebar -->
-	  {{pass}}
+      {{pass}}
 
-	  <!-- content -->
-	  <div id="content" {{=XML(style_content)}} >
-	    {{include}}	
-	  </div>
-	  <!-- content -->
+      <!-- content -->
+      <div id="content" {{=XML(style_content)}} >
+        {{include}} 
+      </div>
+      <!-- content -->
 
-	  {{if right_sidebar_enabled:}}
+      {{if right_sidebar_enabled:}}
           <div id="right_sidebar" {{=XML(right_sidebar_style)}} >
             <div style="padding: 4px;">
               {{block right_sidebar}}Content Right Sidebar{{end}}
             </div>
-	  </div><!-- right_sidebar -->
+      </div><!-- right_sidebar -->
           {{pass}}
 
 
-	  <div style="clear: both;"></div><!-- Clear the divs -->
-	  
-	</div><!-- page -->							
-	
-	<div id="footer">
-	  {{block footer}} <!-- this is default footer -->
-	  <a href="http://www.web2py.com/" style="float: left; padding-right: 6px;">
-	    <img src="{{=URL('static','images/poweredby.png')}}"/>
-	  </a>
-	  {{=T('Copyright')}} &#169; 2010				
-	  <div style="clear: both;"></div><!-- Clear the divs -->
-	  {{end}}
+      <div style="clear: both;"></div><!-- Clear the divs -->
+      
+    </div><!-- page -->                         
+    
+    <div id="footer">
+      {{block footer}} <!-- this is default footer -->
+      <a href="http://www.web2py.com/" style="float: left; padding-right: 6px;">
+        <img src="{{=URL('static','images/poweredby.png')}}"/>
+      </a>
+      {{=T('Copyright')}} &#169; 2011 Mariano Reingart               
+      <div style="clear: both;"></div><!-- Clear the divs -->
+      {{end}}
 
-	</div><!-- footer -->			
+    </div><!-- footer -->           
       </div><!-- wrapper -->
-    </div><!-- container -->		
+    </div><!-- container -->        
     
     <!--[if lt IE 7 ]>
-	<script src="{{=URL('static','js/dd_belatedpng.js')}}"></script>
-	<script> DD_belatedPNG.fix('img, .png_bg'); //fix any <img> or .png_bg background-images </script>
-	<![endif]-->
+    <script src="{{=URL('static','js/dd_belatedpng.js')}}"></script>
+    <script> DD_belatedPNG.fix('img, .png_bg'); //fix any <img> or .png_bg background-images </script>
+    <![endif]-->
     
     <!-- asynchronous google analytics: mathiasbynens.be/notes/async-analytics-snippet 
-	 change the UA-XXXXX-X to be your site's ID -->
+     change the UA-XXXXX-X to be your site's ID -->
     <!--   
-	   <script>
-	     var _gaq = [['_setAccount', 'UA-XXXXX-X'], ['_trackPageview']];
-	     (function(d, t) {
-	     var g = d.createElement(t),
-	     s = d.getElementsByTagName(t)[0];
-	     g.async = true;
-	     g.src = '//www.google-analytics.com/ga.js';
-	     s.parentNode.insertBefore(g, s);
-	     })(document, 'script');
-	   </script>
-	   -->    
+       <script>
+         var _gaq = [['_setAccount', 'UA-XXXXX-X'], ['_trackPageview']];
+         (function(d, t) {
+         var g = d.createElement(t),
+         s = d.getElementsByTagName(t)[0];
+         g.async = true;
+         g.src = '//www.google-analytics.com/ga.js';
+         s.parentNode.insertBefore(g, s);
+         })(document, 'script');
+       </script>
+       -->    
   </body>
 </html>

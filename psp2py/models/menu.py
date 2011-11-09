@@ -27,6 +27,7 @@ response.menu = [
         (T('Create'), False, URL('projects','create'), []),
     ]),
     (T('PROBE'), False, URL('probe','index'), [
+        (T('Categorize'), False, URL('probe','categorize'), []),
         (T('Normal Distribution'), False, URL('probe','normal_distribution.png'), []),
     ]),
     (T('Estimate'), False, URL('estimate','index'), [

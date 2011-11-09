@@ -1,6 +1,9 @@
 {{extend 'layout.html'}}
 <h1>Project: {{=project.name}}</h1>
 {{=form}}
+{{=FORM(
+    INPUT(_type="submit", _value=T("Edit")),
+    _action=URL('projects', 'edit', args=('psp_project', project.project_id)), )}}
 <h2>Time Summary</h2>
 {{=SQLTABLE(times, headers="fieldname:capitalize")}}
 <h2>Defects</h2>
