@@ -4,7 +4,8 @@
 
 import math
 
-from statistics import calc_standard_deviation, draw_normal_histogram
+from statistics import calc_standard_deviation
+from draws import draw_normal_histogram
 
 
 def categorize():

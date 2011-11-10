@@ -1,7 +1,9 @@
 # coding: utf8
 # try something like
 
-from statistics import calc_correlation, calc_significance, calc_linear_regression, draw_linear_regression, calc_student_t_probability
+from statistics import calc_correlation, calc_significance, calc_linear_regression, calc_student_t_probability
+from draws import draw_linear_regression
+
    
 def get_projects_metrics():
     "Query size and time metrics series summarized by project"
