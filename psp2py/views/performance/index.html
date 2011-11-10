@@ -1,0 +1,61 @@
+{{extend 'layout.html'}}
+<h1>Performance measures</h1>
+
+<table>
+<tr>
+    <td>
+        <h2>Productivity</h2>
+        <ul>
+            <li><b>LOC per hour:</b> {{="%0.2f" % loc_per_hour}}</li>
+            <li><b>Total LOC:</b> {{=total_loc}}</li>
+            <li><b>Total Time:</b> {{="%0.2f" % (total_time / 60. /60.) }} hours</li>
+            <li><b>Defect count:</b> {{=total_defect_count}}</li>
+            <li><b>Fix Time:</b> {{=pretty_time(total_fix_time)}}</li>
+            <li><b>Average Fix Time:</b> {{=pretty_time(average_fix_time)}}</li>
+        </ul>
+    </td>
+    <td>
+        <h2>Defect Removal Efficiency</h2>
+        <ul>
+            <li><b>Process Yield:</b> {{=process_yield}} % (removal before compile)</li>
+            <li><b>Defects per hour:</b> {{="%0.2f" % total_defects_injected_per_hour}} (injected/removed)</li>
+            <li><b>Test Defects:</b> {{="%0.2f" % test_defects_per_kloc}} removed per KLOC</li>
+            <li><b>Total Defects:</b> {{="%0.2f" % total_defects_per_kloc}} removed per KLOC</li>
+        </ul>
+    </td>
+    <td>
+        <h2>Cost of Quality (COQ)</h2>
+        <ul>
+            <li><b>Appraisal:</b> {{="%0.2f" % appraisal}} % (total review time)</li>
+            <li><b>Failure:</b> {{="%0.2f" % failure}} % (total compile + test time)</li>
+            <li><b>COQ:</b> {{="%0.2f" % (appraisal + failure)}} % (appraisal + failure)</li>
+            <li><b>COQ A/FR:</b> {{="%0.2f" % (appraisal_failure_ratio)}} (appraisal / failure)</li>
+        </ul>
+    </td>
+</tr>
+</table>
+
+<h2>Summary</h2>
+<table>
+    <tr>
+        <th>Phase</th>
+        <th>Time To Date</th>
+        <th>Time To Date %</th>
+        <th>Yield</th>
+        <th>Defects removed</th>
+        <th>Defects per hour</th>
+        <th>Defect Removal Leverage (DLR)</th>
+    </tr>
+    
+    {{for phase in PSP_PHASES:}}
+    <tr>
+        <td>{{=phase}}</td>
+        <td style="text-align: right;">{{=pretty_time(times_per_phase.get(phase))}}</td>
+        <td style="text-align: right;">{{='%.2f' % (times_per_phase.get(phase, 0) / total_time * 100.)}} %</td>
+        <td style="text-align: right;">{{=yields_per_phase.get(phase) or ''}} %</td>
+        <td style="text-align: right;">{{='%d' % (defects_removed_per_phase.get(phase) or 0)}}</td>
+        <td style="text-align: right;">{{='%.2f' % (defects_per_hour_per_phase.get(phase) or 0)}}</td>
+        <td style="text-align: right;">{{='%.2f' % (defect_removal_leverage.get(phase) or 0)}}</td>
+    </tr>
+    {{pass}}
+</table>

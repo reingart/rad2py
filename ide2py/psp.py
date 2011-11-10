@@ -24,7 +24,7 @@ import images
 import simplejsonrpc
 
 
-PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
+PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
 PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build', 
     40: 'Assignment', 50: 'Interface',  60: 'Checking', 70: 'Data', 

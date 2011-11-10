@@ -101,7 +101,7 @@ db.define_table("psp_project",
     format="%(name)s",
     )
 
-PSP_PHASES = ["planning", "design", "code", "compile", "test", "postmortem"]
+PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption"]
 
 db.define_table("psp_time_summary",
@@ -163,9 +163,9 @@ db.psp_time_summary.plan.represent = pretty_time
 db.psp_time_summary.actual.represent = pretty_time
 db.psp_time_summary.interruption.represent = pretty_time
 db.psp_defect.fix_time.represent = pretty_time
-db.psp_project.planned_time.represent = lambda x: "%0.2f hs" % x
-db.psp_project.time_upi.represent = lambda x: "%0.2f hs" % x
-db.psp_project.time_lpi.represent = lambda x: "%0.2f hs" % x
+db.psp_project.planned_time.represent = lambda x: x and ("%0.2f hs" % x) or ''
+db.psp_project.time_upi.represent = lambda x: x and ("%0.2f hs" % x) or ''
+db.psp_project.time_lpi.represent = lambda x: x and ("%0.2f hs" % x) or ''
 
 # function/class type classification for easier reuse and estimation:
 PSP_CATEGORIES = ["module", "model", "controller", "view"]
