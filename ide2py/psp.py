@@ -523,6 +523,8 @@ class PSPMixin(object):
         # text recording logs
         psp_event_log_filename = cfg.get("psp_event_log", "psp_event_log.txt")
         self.psp_event_log_file = open(psp_event_log_filename, "a")
+
+        self._current_psp_phase = None
        
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
@@ -652,6 +654,17 @@ class PSPMixin(object):
 
         return tb4
 
+    def set_current_psp_phase(self, phase):
+        if self._current_psp_phase:
+            print "Updating metadata", self._current_psp_phase, "->", phase
+            self.UpdateMetadataPSP()
+        self._current_psp_phase = phase
+        
+    def get_current_psp_phase(self):
+        return self._current_psp_phase
+
+    current_psp_phase = property(get_current_psp_phase, set_current_psp_phase)
+
     def SetPSPPhase(self, phase):
         if phase:
             self.psp_phase_choice.SetSelection(PSP_PHASES.index(phase))
@@ -671,8 +684,6 @@ class PSPMixin(object):
         phase = self.GetPSPPhase()
         wx.GetApp().config.set('PSP', 'current_phase', phase)
         wx.GetApp().write_config()
-        if self.current_psp_phase:
-            self.UpdateMetadataPSP()
         self.current_psp_phase = self.GetPSPPhase()
 
     def OnPhasePSP(self, event):
