@@ -10,7 +10,7 @@ __license__ = "GPL 3.0"
 
 from math import sqrt, pi
 
-# reuse previos programs
+# reuse previous programs
 from program1A import mean
 from program5A import simpson_rule_integrate, gamma
 
@@ -42,7 +42,7 @@ def double_sided_student_t_value(p, n):
 
 
 def variance(x_values, y_values, b0, b1):
-    "Calculate the mean square deviation of the linear regerssion line"
+    "Calculate the mean square deviation of the linear regeression line"
     # take the variance from the regression line instead of the data average
     sum_aux = sum([(y - b0 - b1 * x) ** 2 for x, y in zip(x_values, y_values)])
     n = float(len(x_values))
