@@ -92,6 +92,12 @@ db.define_table("psp_project",
     Field("completed", "date"),
     Field("planned_loc", "integer", comment="Total new & changed (estimated program size)"),
     Field("actual_loc", "integer", comment="Total new & changed (measured program size)"),
+    Field("planned_time", "double", 
+        comment=T("Original projected development time")),
+    Field("time_lpi", "double", label=T("Time LPI"),
+        comment="Total Time Lower Prediction Interval"),
+    Field("time_upi", "double", label=T("Time UPI"),
+        comment="Total Time Upper Prediction Interval"),
     format="%(name)s",
     )
 
@@ -157,6 +163,9 @@ db.psp_time_summary.plan.represent = pretty_time
 db.psp_time_summary.actual.represent = pretty_time
 db.psp_time_summary.interruption.represent = pretty_time
 db.psp_defect.fix_time.represent = pretty_time
+db.psp_project.planned_time.represent = lambda x: "%0.2f hs" % x
+db.psp_project.time_upi.represent = lambda x: "%0.2f hs" % x
+db.psp_project.time_lpi.represent = lambda x: "%0.2f hs" % x
 
 # function/class type classification for easier reuse and estimation:
 PSP_CATEGORIES = ["module", "model", "controller", "view"]

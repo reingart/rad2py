@@ -1,7 +1,7 @@
 # coding: utf8
 # try something like
 
-from statistics import calc_correlation, calc_significance, calc_linear_regression, calc_student_t_probability
+from statistics import calc_correlation, calc_significance, calc_linear_regression, calc_student_t_probability, calc_prediction_interval
 from draws import draw_linear_regression
 
    
@@ -73,6 +73,9 @@ def index():
             Field("size", "integer", 
                   default=request.vars.planned_loc,
                   comment="Planned size (estimated LOC)"),
+            Field("prediction_interval", "integer", 
+                  default="70", requires=IS_INT_IN_RANGE(0, 100),
+                  comment="Percentage (for LPI, UPI)"),
             Field("project_id", db.psp_project, 
                   requires=IS_IN_DB(db, db.psp_project.project_id, "%(name)s"),
                   comment="Project to update plan"),
@@ -87,10 +90,12 @@ def index():
         # get LOC planned size and calculate development time
         size_k = form.vars.size
         time_t = b0 + b1*size_k
+        alpha = form.vars.prediction_interval/100.0
         
         redirect(URL("update_plan", 
                      args=form.vars.project_id,
-                     vars={'size_k': size_k, 'time_t': time_t, })
+                     vars={'size_k': size_k, 'time_t': time_t, 
+                           'alpha': alpha })
                      )
         
     return {'form': form}
@@ -102,6 +107,7 @@ def update_plan():
     # get resources previously calculated
     estimated_loc = int(request.vars.size_k)
     estimated_time = float(request.vars.time_t)
+    alpha = float(request.vars.alpha)
     # summarize actual times in each pahse [(phase, to_date, to_date_%)]
     time_summary = get_time_todate()
     # subdivide time for each phase [HUMPHREY95] p.52
@@ -125,8 +131,18 @@ def update_plan():
                                        actual=0, 
                                        interruption=0,
                                        )
-    # update planned loc:
-    db(db.psp_project.project_id==project_id).update(planned_loc=estimated_loc)
+
+    # calculate regression parameters and prediction interval for historical LOC and tiem data:
+    actual_loc, hours = get_projects_metrics()
+    b0, b1, p_range, upi, lpi, t = calc_prediction_interval(actual_loc, hours, estimated_loc, estimated_time, alpha)
+
+    # update planned loc and time prediction interval:
+    db(db.psp_project.project_id==project_id).update(
+            planned_loc=estimated_loc,
+            planned_time=estimated_time,
+            time_lpi=lpi,
+            time_upi=upi,
+            )
     # show project summary
     redirect(URL(c='projects', f='show', args=("psp_project", project_id)))
 
