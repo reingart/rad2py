@@ -1,5 +1,5 @@
 {{extend 'layout.html'}}
-<h1>Performance measures</h1>
+<h1>Performance Report</h1>
 
 <table>
 <tr>
@@ -35,16 +35,16 @@
 </tr>
 </table>
 
-<h2>Summary</h2>
+<h2>Detail per phase</h2>
 <table>
     <tr>
         <th>Phase</th>
-        <th>Time To Date</th>
-        <th>Time To Date %</th>
+        <th>Time<br/>To Date</th>
+        <th>Time<br/>To Date %</th>
         <th>Yield</th>
-        <th>Defects removed</th>
-        <th>Defects per hour</th>
-        <th>Defect Removal Leverage (DLR)</th>
+        <th>Defects<br/>removed</th>
+        <th>Defects<br/>per hour</th>
+        <th>Defect Removal<br/>Leverage (DRL)</th>
     </tr>
     
     {{for phase in PSP_PHASES:}}
