@@ -41,4 +41,5 @@ response.menu = [
         (T('Projects'), False, URL('reports','projects'), []),
         (T('Defects'), False, URL('reports','defects'), []),
     ]),
+    (T('Wiki'), False, URL('wiki','index'), []),
     ]

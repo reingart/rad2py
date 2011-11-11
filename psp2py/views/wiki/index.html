@@ -1,0 +1,11 @@
+{{extend 'layout.html'}}
+<h1>Wiki Page Index</h1>
+<ul>
+{{for row in rows:}}
+<li>{{=A(row.title, _href=URL("view", args=row.page.split("/")))}}</li>
+{{pass}}
+</ul>
+
+{{=FORM(
+    INPUT(_type="submit", _value=T("New Page")),
+    _action=URL('wiki', 'edit'))}}

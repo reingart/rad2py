@@ -34,7 +34,8 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_DIFF, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN = [wx.NewId() for i in range(18)]
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN, ID_WIKI \
+    = [wx.NewId() for i in range(19)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -503,6 +504,8 @@ class DefectDialog(wx.Dialog):
         return item
 
 
+
+
 class PSPMixin(object):
     "ide2py extension for integrated PSP support"
     
@@ -547,6 +550,7 @@ class PSPMixin(object):
 
         # web2py json rpc client
         self.psp_rpc_client = simplejsonrpc.ServiceProxy(cfg.get("server_url"))
+        self.psp_wiki_url = cfg.get("wiki_url")
         self.psp_project_name = cfg.get("project_name")
         if self.psp_project_name:
             self.psp_set_project(self.psp_project_name)
@@ -632,6 +636,9 @@ class PSPMixin(object):
                           short_help_string="Add a PSP defect")
         tb4.AddSimpleTool(ID_CHECK, "Check", images.ok_16.GetBitmap(),
                           short_help_string="Check and finish phase")
+        tb4.AddSimpleTool(ID_WIKI, "Help", images.gnome_help.GetBitmap(),
+                          short_help_string="PSP Wiki")
+
 
         self.Bind(wx.EVT_TIMER, self.TimerHandler)
         self.timer = wx.Timer(self)
@@ -648,7 +655,8 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
         self.Bind(wx.EVT_MENU, self.OnMetadataPSP, id=ID_METADATA)
         self.Bind(wx.EVT_MENU, self.OnDiffPSP, id=ID_DIFF)
-                
+        self.Bind(wx.EVT_MENU, self.OnWikiPSP, id=ID_WIKI)
+        
         tb4.Realize()
         self.psp_toolbar = tb4
 
@@ -1085,6 +1093,19 @@ class PSPMixin(object):
             dlg.Destroy()
 
         return metadata
+
+
+    def OnWikiPSP(self, event):
+        # create the HTML "browser" window:
+        ctrl = wx.html.HtmlWindow(self, -1, wx.DefaultPosition, wx.Size(400, 300))
+        if "gtk2" in wx.PlatformInfo:
+            ctrl.SetStandardFonts()
+        ctrl.LoadPage(self.psp_wiki_url)
+        self._mgr.AddPane(ctrl, aui.AuiPaneInfo().
+                          Caption("PSP Wiki").
+                          Float().
+                          FloatingSize(wx.Size(300, 200)).MinimizeButton(True))
+        self._mgr.Update()
 
 
 if __name__ == "__main__":
