@@ -170,7 +170,7 @@ def defects():
         defect_count_per_type[int(row.defect_type)] += int(row.quantity)
         defect_fix_time_per_type[int(row.defect_type)] += float(row.subtotal_fix_time)
         total_fix_time += row.subtotal_fix_time
-    defect_count = sum(defect_fix_time_per_type.values())
+    defect_count = sum(defect_count_per_type.values())
     
     return {
         'total_fix_time': total_fix_time,
