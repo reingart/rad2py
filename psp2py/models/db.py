@@ -121,8 +121,8 @@ db.define_table("psp_comment",
     Field("delta", "integer"),
     )
 
-PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build', 
-    40: 'Assignment', 50: 'Interface',  60: 'Checking', 70: 'Data', 
+PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Coding standard', 
+    40: 'Assignment/Names', 50: 'Interface',  60: 'Checking', 70: 'Data', 
     80: 'Function', 90: 'System', 100: 'Enviroment'}
     
 db.define_table("psp_defect",

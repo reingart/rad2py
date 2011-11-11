@@ -1,0 +1,41 @@
+{{extend 'layout.html'}}
+<h1>Projects Summary Report</h1>
+
+<table>
+    <tr>
+        <th>Project</th>
+        <th>Description</th>
+        <!-- th>Started<br/>Completed</th -->
+        <th>Plan.<br/>Time</th>
+        <th><a title="Lower Prediction Interval">LPI</a><br/>Time</th>
+        <th><a title="Upper Prediction Interval">UPI</a><br/>Time</th>
+        <th>Actual<br/>Time</th>
+        <th>Int.<br/>Time</th>
+        <th><a title="Cost Performance Index">CPI</a></th>
+        <th>Plan.<br/>LOC</th>
+        <th>Actual<br/>LOC</th>
+        <th>Defects</th>
+        <th>Fix Time</th>
+    </tr>
+    
+    {{for project in projects:}}
+    <tr>
+        <td>{{=project.psp_project.name}}</td>
+        <td>{{=project.psp_project.description}}</td>
+        <!-- td style="text-align: center;">{{=project.psp_project.started or ''}}<br/>{{=project.psp_project.completed or ''}}</td -->
+        <td style="text-align: right;">{{=pretty_time(project.sum_plan)}}</td>
+        <!-- td style="text-align: right;">{{='%.2f' % (project.sum_plan / planned_time * 100.)}} %</td -->
+        <td style="text-align: right;">{{="%.2f" % (project.psp_project.time_lpi or 0)}} h</td>
+        <td style="text-align: right;">{{="%.2f" % (project.psp_project.time_upi or 0)}} h</td>
+        <td style="text-align: right;">{{=pretty_time(project.sum_actual)}}</td>
+        <!-- td style="text-align: right;">{{='%.2f' % (project.sum_actual / total_time * 100.)}} %</td -->
+        <td style="text-align: right;">{{=pretty_time(project.sum_interruption)}}</td>
+        <td style="text-align: right;">{{=project.sum_actual and ('%.2f' % (project.sum_plan / float(project.sum_actual) )) or '' }}</td>
+
+        <td style="text-align: right;">{{=project.psp_project.planned_loc or ''}}</td>
+        <td style="text-align: right;">{{=project.psp_project.actual_loc or ''}}</td>
+        <td style="text-align: right;">{{=defects_per_project.get(project.psp_project.project_id, '')}}</td>
+        <td style="text-align: right;">{{=pretty_time(fix_time_per_project.get(project.psp_project.project_id, 0))}}</td>
+    </tr>
+    {{pass}}
+</table>

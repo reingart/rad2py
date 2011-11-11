@@ -6,7 +6,7 @@ def index():
 
     # Gather metrics:
     
-    # Get total LOCs
+    # Get total LOCs and Times
     
     q = db.psp_project.completed!=None     # only account finished ones!
 
@@ -148,4 +148,75 @@ def index():
         'failure': failure,
         'cost_of_quality': cost_of_quality,
         'appraisal_failure_ratio': appraisal_failure_ratio,
+    }
+
+
+def defects():
+    "Defect Type Standard"
+   
+    # get defects per type
+    q = db.psp_project.completed!=None     # only account finished ones!
+    q &= db.psp_project.project_id==db.psp_defect.project_id
+    q &= db.psp_defect.remove_phase != ''     # ignore won't fix defects
+    rows = db(q).select(
+            db.psp_defect.id.count().with_alias("quantity"),
+            db.psp_defect.fix_time.sum().with_alias("subtotal_fix_time"),
+            db.psp_defect.type.with_alias("defect_type"),
+            groupby=(db.psp_defect.type,))
+    total_fix_time = 0
+    defect_count_per_type = dict([(t, 0) for t in PSP_DEFECT_TYPES])
+    defect_fix_time_per_type = dict([(t, 0) for t in PSP_DEFECT_TYPES])
+    for row in rows:
+        defect_count_per_type[int(row.defect_type)] += int(row.quantity)
+        defect_fix_time_per_type[int(row.defect_type)] += float(row.subtotal_fix_time)
+        total_fix_time += row.subtotal_fix_time
+    defect_count = sum(defect_fix_time_per_type.values())
+    
+    return {
+        'total_fix_time': total_fix_time,
+        'defect_count': defect_count,
+        'defect_count_per_type': defect_count_per_type,
+        'defect_fix_time_per_type': defect_fix_time_per_type,
+    }
+
+
+def projects():
+
+    q = db.psp_project.project_id==db.psp_time_summary.project_id
+    rows = db(q).select(
+            db.psp_time_summary.actual.sum().with_alias("sum_actual"),
+            db.psp_time_summary.plan.sum().with_alias("sum_plan"),
+            db.psp_time_summary.plan.sum().with_alias("sum_interruption"),
+            db.psp_project.ALL,
+            groupby=db.psp_project.ALL)
+    total_time = float(sum([row.sum_actual or 0 for row in rows], 0))
+    planned_time = float(sum([row.sum_plan or 0 for row in rows], 0))
+    interruption_time = float(sum([row.sum_interruption or 0 for row in rows], 0))
+
+    projects = rows
+
+    # get defects per project
+    q = db.psp_project.project_id==db.psp_defect.project_id
+    q &= db.psp_defect.remove_phase != ''     # ignore won't fix defects
+    rows = db(q).select(
+            db.psp_defect.id.count().with_alias("quantity"),
+            db.psp_defect.fix_time.sum().with_alias("subtotal_fix_time"),
+            db.psp_defect.project_id.with_alias("project_id"),
+            groupby=(db.psp_defect.project_id,))
+    total_fix_time = 0
+    defects_per_project = {}
+    fix_time_per_project = {}
+    for row in rows:
+        defects_per_project[row.project_id] = defects_per_project.get(row.project_id, 0) + int(row.quantity)
+        fix_time_per_project[row.project_id] = fix_time_per_project.get(row.project_id, 0) + float(row.subtotal_fix_time)
+        total_fix_time += row.subtotal_fix_time
+    defect_count = sum(defects_per_project.values())
+
+
+    return {
+        'projects': projects,
+        'total_time': total_time,
+        'planned_time': planned_time,
+        'defects_per_project': defects_per_project,
+        'fix_time_per_project': fix_time_per_project,
     }

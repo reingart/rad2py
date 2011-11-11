@@ -1,5 +1,5 @@
 {{extend 'layout.html'}}
-<h1>Performance Report</h1>
+<h1>General Report</h1>
 
 <table>
 <tr>
@@ -15,7 +15,7 @@
         </ul>
     </td>
     <td>
-        <h2>Defect Removal</h2>
+        <h2>Defect Removal Efficiency</h2>
         <ul>
             <li><b>Process Yield:</b> {{=process_yield}} % (removal before compile)</li>
             <li><b>Defects per hour:</b> {{="%0.2f" % total_defects_injected_per_hour}} (injected/removed)</li>
@@ -38,7 +38,7 @@
 </tr>
 </table>
 
-<h2>Detail per phase</h2>
+<h2>Report per phase</h2>
 <table>
     <tr>
         <th>Phase</th>

@@ -37,5 +37,8 @@ response.menu = [
         (T('Time in phase'), False, URL('estimate','time_in_phase'), []),
         (T('Size vs Time Linear Regression'), False, URL('estimate','linear_regression.png'), []),
     ]),
-    (T('Performance'), False, URL('performance','index'), []),
+    (T('Reports'), False, URL('reports','index'), [
+        (T('Projects'), False, URL('reports','projects'), []),
+        (T('Defects'), False, URL('reports','defects'), []),
+    ]),
     ]
