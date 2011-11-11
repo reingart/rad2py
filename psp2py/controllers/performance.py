@@ -17,11 +17,28 @@ def index():
     # Get times per phase
     q &= db.psp_project.project_id==db.psp_time_summary.project_id
     rows = db(q).select(
-            db.psp_time_summary.actual.sum().with_alias("subtotal"),
+            db.psp_time_summary.actual.sum().with_alias("sum_actual"),
+            db.psp_time_summary.plan.sum().with_alias("sum_plan"),
+            db.psp_time_summary.plan.sum().with_alias("sum_interruption"),
             db.psp_time_summary.phase,
             groupby=db.psp_time_summary.phase)
-    total_time = float(sum([row.subtotal or 0 for row in rows], 0))
-    times_per_phase = dict([(row.psp_time_summary.phase, row.subtotal or 0) for row in rows])
+    total_time = float(sum([row.sum_actual or 0 for row in rows], 0))
+    times_per_phase = dict([(row.psp_time_summary.phase, row.sum_actual or 0) for row in rows])
+    planned_time_per_phase = dict([(row.psp_time_summary.phase, row.sum_plan or 0) for row in rows])
+    planned_time = float(sum([row.sum_plan or 0 for row in rows], 0))
+    if total_time:
+        cost_performance_index = planned_time / total_time
+    else:
+        cost_performance_index = 0
+    interruption_time = float(sum([row.sum_interruption or 0 for row in rows], 0))
+
+    # Get interruption time
+    q &= db.psp_project.planned_time!=None
+    rows = db(q).select(
+            db.psp_time_summary.actual.sum().with_alias("subtotal"),
+            )
+    actual_time = float(sum([row.subtotal or 0 for row in rows], 0))
+
     
     # get defects per phase
     q = db.psp_project.completed!=None     # only account finished ones!
@@ -108,6 +125,10 @@ def index():
     return {
         'total_loc': total_loc, 
         'total_time': total_time, 
+        'planned_time': planned_time, 
+        'planned_time_per_phase': planned_time_per_phase,
+        'interruption_time': interruption_time, 
+        'cost_performance_index': cost_performance_index,
         'loc_per_hour': loc_per_hour,
         'total_defect_count': total_defect_count,
         'total_fix_time': total_fix_time,
@@ -117,6 +138,7 @@ def index():
         'process_yield': process_yield,
         'total_defects_removed_per_hour': total_defects_removed_per_hour,
         'total_defects_injected_per_hour': total_defects_injected_per_hour,
+        'defects_injected_per_phase': defects_injected_per_phase,
         'defects_removed_per_phase': defects_removed_per_phase, 
         'defects_per_hour_per_phase': defects_per_hour_per_phase,
         'defect_removal_leverage': defect_removal_leverage,
