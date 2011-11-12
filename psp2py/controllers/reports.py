@@ -172,12 +172,131 @@ def defects():
         total_fix_time += row.subtotal_fix_time
     defect_count = sum(defect_count_per_type.values())
     
+    PSP_DEFECT_DESC = {
+        10: 'Errors in docstrings and comments',
+        20: 'SyntaxError (spelling, punctuation, format) and IndentationError (block delimitation)',
+        30: 'PEP8 format warnings and errors (long lines, missing spaces, etc.)',
+        40: 'NameError (undefined), unused variables, IndexError/KeyError (range/limits LookupError) and UnboundLocalError (scope)',
+        50: 'TypeError, AttributeError: wrong parameters and methods',
+        60: 'AssertionError (failed assert) and doctests',
+        70: 'ValueError (wrong data) and ArithmeticError (overflow, zero-division, floating-point)',
+        80: 'RuntimeError and logic errors',
+        90: 'SystemError and Libraries or package unexpected errors',
+        100: 'EnvironmentError: Operating system and build/third party unexpected errors',
+        }
+
+    
     return {
         'total_fix_time': total_fix_time,
         'defect_count': defect_count,
         'defect_count_per_type': defect_count_per_type,
         'defect_fix_time_per_type': defect_fix_time_per_type,
+        'PSP_DEFECT_DESC': PSP_DEFECT_DESC,
     }
+
+
+def pareto_distribution():
+    "Pareto distribution barchart of Defects Types"
+    from draws import draw_barchart
+
+    # get defects per type by remove_phase
+    q = db.psp_project.completed!=None     # only account finished ones!
+    q &= db.psp_project.project_id==db.psp_defect.project_id
+    q &= db.psp_defect.remove_phase != ''     # ignore won't fix defects
+    rows = db(q).select(
+            db.psp_defect.id.count().with_alias("quantity"),
+            db.psp_defect.type.with_alias("defect_type"),
+            db.psp_defect.remove_phase.with_alias("remove_phase"),
+            groupby=(db.psp_defect.type, db.psp_defect.remove_phase))
+    # dict: (defect_type: [missed, found]
+    defect_count_per_type = dict([(t, [0, 0]) for t in PSP_DEFECT_TYPES])
+    defect_count = 0
+    for row in rows:
+        # detect if the defect was found in review (before compile)
+        if PSP_PHASES.index("compile") <= PSP_PHASES.index(row.remove_phase):
+            defect_count_per_type[int(row.defect_type)][0] += int(row.quantity)
+        else:
+            defect_count_per_type[int(row.defect_type)][1] += int(row.quantity)
+        defect_count += int(row.quantity)
+
+    bars = []
+
+    for defect_type, (missed, found) in defect_count_per_type.items():
+        bars.append((defect_type, missed / float(defect_count) * 100., found / float(defect_count) * 100.))
+    
+    # sort types by percentage of defect descendent order:
+    bars.sort(key=lambda x: x[1]+x[2], reverse=True)
+    
+    x_tick_labels = [bar[0] for bar in bars]
+    x_heights_missed = [bar[1] for bar in bars]
+    x_heights_found = [bar[2] for bar in bars]
+    
+    title = "Defects missed in Code Review"
+    y_label = "Percentage of Defects"
+    x_label = "Defect Type Category"
+    
+    values = [("Missed", 0.35, 'r', x_heights_missed),
+              ("Found", 0.35, 'y', x_heights_found),]
+    
+    text = '\n'.join(["%s: %s" % (k, v) for k,v in sorted(PSP_DEFECT_TYPES.items())])
+    
+    if request.extension == "html":
+        return {"values": values, "title": title, "y_label": y_label, "x_tick_labels": x_tick_labels}  
+    else:
+        return draw_barchart(values, title, y_label, x_label, x_tick_labels,
+                             text=text,
+                             autolabel=False, 
+                             body=request.body)
+
+
+def average_fix_time():
+    "Average fix time barchart of Defects Types per Phase"
+    from draws import draw_barchart, get_colours
+
+    # get defects per type by remove_phase
+    q = db.psp_project.completed!=None     # only account finished ones!
+    q &= db.psp_project.project_id==db.psp_defect.project_id
+    q &= db.psp_defect.remove_phase != ''     # ignore won't fix defects
+    rows = db(q).select(
+            db.psp_defect.id.count().with_alias("quantity"),
+            db.psp_defect.type.with_alias("defect_type"),
+            db.psp_defect.fix_time.sum().with_alias("subtotal_fix_time"),
+            db.psp_defect.remove_phase.with_alias("remove_phase"),
+            groupby=(db.psp_defect.type, db.psp_defect.remove_phase))
+    # dict: (defect_type: [missed, found]
+    fixtime_per_phase_per_type = dict([(t, dict([(p, 0) for p in PSP_PHASES])) for t in PSP_DEFECT_TYPES])
+    defect_count_per_type = dict([(t, 0) for t in PSP_DEFECT_TYPES])
+    for row in rows:
+        # detect if the defect was found in review (before compile)
+        fixtime_per_phase_per_type[int(row.defect_type)][row.remove_phase] += int(row.subtotal_fix_time)
+        defect_count_per_type[int(row.defect_type)] += int(row.quantity)
+    bars = []
+
+    colours = get_colours(len(PSP_DEFECT_TYPES))
+    values = []
+    for defect_type, colour in zip(sorted(PSP_DEFECT_TYPES), colours):
+        heights = []
+        for phase in PSP_PHASES:
+            if defect_count_per_type[defect_type]:
+                avg = fixtime_per_phase_per_type[defect_type][phase]/float(defect_count_per_type[defect_type])/60.
+            else:
+                avg = 0
+            heights.append(avg)
+        values.append((PSP_DEFECT_TYPES[defect_type], 0.09, colour, heights))
+         
+    x_tick_labels = [p for p in PSP_PHASES]
+    
+    title = "Average Fix Time"
+    y_label = "Average Fix Time (minutes)"
+    x_label = "Phase"
+    
+    if request.extension == "html":
+        return {"values": values, "title": title, "y_label": y_label, "x_tick_labels": x_tick_labels}  
+    else:
+        return draw_barchart(values, title, y_label, x_label, x_tick_labels,
+                             stacked=False,
+                             autolabel=False, 
+                             body=request.body)
 
 
 def projects():

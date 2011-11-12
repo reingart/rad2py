@@ -1,5 +1,16 @@
 # coding: utf8
 
+PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
+PSP_TIMES = ["plan", "actual", "interruption"]
+
+PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Syntax', 30: 'Coding standard', 
+    40: 'Assignment', 50: 'Interface',  60: 'Checking', 70: 'Data', 
+    80: 'Function', 90: 'System', 100: 'Enviroment'}
+
+# function/class type classification for easier reuse and estimation:
+PSP_CATEGORIES = ["module", "model", "controller", "view"]
+PSP_SIZES = ["very small", "small", "medium", "large", "very large"]
+
 # Personal Software Process tables:
 
 db.define_table("psp_project",
@@ -23,8 +34,6 @@ db.define_table("psp_project",
     format="%(name)s",
     )
 
-PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
-PSP_TIMES = ["plan", "actual", "interruption"]
 
 db.define_table("psp_time_summary",
     Field("id", "id"),
@@ -42,10 +51,6 @@ db.define_table("psp_comment",
     Field("message", "text"),
     Field("delta", "integer"),
     )
-
-PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Coding standard', 
-    40: 'Assignment/Names', 50: 'Interface',  60: 'Checking', 70: 'Data', 
-    80: 'Function', 90: 'System', 100: 'Enviroment'}
     
 db.define_table("psp_defect",
     Field("id", "id"),
@@ -89,9 +94,6 @@ db.psp_project.planned_time.represent = lambda x: x and ("%0.2f hs" % x) or ''
 db.psp_project.time_upi.represent = lambda x: x and ("%0.2f hs" % x) or ''
 db.psp_project.time_lpi.represent = lambda x: x and ("%0.2f hs" % x) or ''
 
-# function/class type classification for easier reuse and estimation:
-PSP_CATEGORIES = ["module", "model", "controller", "view"]
-PSP_SIZES = ["very small", "small", "medium", "large", "very large"]
 
 db.define_table("psp_reuse_library",
     Field("id", "id"),

@@ -39,7 +39,10 @@ response.menu = [
     ]),
     (T('Reports'), False, URL('reports','index'), [
         (T('Projects'), False, URL('reports','projects'), []),
-        (T('Defects'), False, URL('reports','defects'), []),
+        (T('Defects'), False, URL('reports','defects'), [
+            (T('Pareto Distribution'), False, URL('reports','pareto_distribution.png'), []),
+            (T('Average Fix Times'), False, URL('reports','average_fix_time.png'), []),            
+        ]),
     ]),
     (T('Wiki'), False, URL('wiki','index'), []),
     ]
