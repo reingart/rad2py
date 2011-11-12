@@ -113,7 +113,7 @@ def index():
         ), TD(
             LABEL("based on", _for="function_name"),
         ), TD(
-            SELECT([OPTION(obj['function_name']) for obj in session.objs], 
+            SELECT([OPTION(obj['function_name']) for obj in [{'function_name': ''}] + session.objs], 
                    _name="function_name", 
                    _onclick="ajax('%s', ['function_name'], ':eval');" % URL('get_loc_from_reuse_library')),
         )),
