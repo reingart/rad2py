@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-def draw_linear_regression(x, y, x_label, y_label, body):
+def draw_linear_regression(x, y, x_label, y_label, title, body):
     "Plot a linear regression chart"
     # x and y are matplotlib pylab arrays, body is a StringIO
     import pylab
@@ -20,11 +20,12 @@ def draw_linear_regression(x, y, x_label, y_label, body):
     pylab.ylabel(y_label)
     pylab.xlabel(x_label)
     pylab.grid(True)
+    pylab.title(title)
     pylab.savefig(body) 
     return body.getvalue()
 
 
-def draw_normal_histogram(x, bins, y_label='', x_label='', body=""):
+def draw_normal_histogram(x, bins, y_label='', x_label='', title="", body=""):
     "Plot a histogram chart"
     # x are matplotlib pylab arrays, body is a StringIO
     import pylab
@@ -42,6 +43,7 @@ def draw_normal_histogram(x, bins, y_label='', x_label='', body=""):
     y = pylab.normpdf(bins, mu, sigma)
     l = pylab.plot(bins, y, 'k--', linewidth=1.5)
 
+    pylab.title(title)
     
     pylab.grid(True)
     pylab.savefig(body) 
