@@ -57,7 +57,7 @@ def calc_standard_deviation(values):
     x_avg = mean(values)
     n = len(values)
     sd = math.sqrt(sum([(x_i - x_avg)**2 
-                          for x_i in values]) / float(n - 1))
+                          for x_i in values]) / float(n))
     return sd, x_avg                      
 
 def calc_student_t_probability(x, n):

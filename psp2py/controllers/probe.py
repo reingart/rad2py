@@ -24,15 +24,37 @@ def categorize():
     std_dev, avg_ln = calc_standard_deviation(locs.values())
     # PSP_SIZES = ["very small", "small", "medium", "large", "very large"]
     midpoints = {}
+    midpoints_ln = {}
+    midpoints_q = {}
+    categorization = {}
+    differences = {}
     for size, factor in zip(PSP_SIZES, [-2, -1, 0, +1, +2]):
         # 4. Calculate the logarithms of the size range midpoints:
         size_ln = avg_ln + factor * std_dev
         # 4. Take the antilogarithms to get range midpoints in LOC
+        midpoints_ln[size] = size_ln
         midpoints[size] = math.e**(size_ln)
+        # Calculate object size distribution 
+        q = 0
+        for name, loc in locs.items():
+            if size_ln - std_dev <= loc < size_ln + std_dev:
+                dif = abs(loc - size_ln)
+                if name not in categorization or differences[name] > dif:
+                    categorization[name] = size
+                    differences[name] = dif
+                    q += 1
 
-    # Calculate object size distribution (
-
-    return {'locs': locs.values(), "midpoints": midpoints}
+    for size in PSP_SIZES:
+        midpoints_q[size] = sum([1 for n in locs if categorization[n] == size], 0) 
+    
+    return {'locs': locs, 'objs': objs, 
+            "midpoints": midpoints,
+            "midpoints_ln": midpoints_ln,
+            "midpoints_q": midpoints_q,
+            "categorization": categorization, 
+            "std_dev": std_dev, 
+            "avg_ln": avg_ln, 
+            'log': math.log, }
 
 
 def library():
@@ -68,13 +90,20 @@ def library():
 def normal_distribution():
     "Draw the histogram of log-normal object size range"
     # this needs matplotlib!
+    # this should be done also on the PROBE estimation
     import pylab
     ret = categorize()
+    avg = ret['avg_ln']
+    std_dev = ret['std_dev']
     locs = ret['locs']
-    std_dev, avg = calc_standard_deviation(locs)
-    x = [(loc - avg)/std_dev for loc in locs]
-    bins = pylab.arange(-4,4,0.5)
-    return draw_normal_histogram(x, bins, 'object frequency (reuse lib)', 'std_dev from the mean', "Log-nomal object size histogram", response.body)
+    categorization = ret['categorization']
+    sizes = dict(zip(PSP_SIZES, [-2, -1, 0, +1, +2]))
+    x = [sizes[categorization[n]] for n in locs]
+    bins = pylab.arange(-4, 5, 1)
+    if request.extension == "html":
+        return {'x': x}
+    else:
+        return draw_normal_histogram(x, bins, 'object frequency (reuse lib)', 'std_dev from the mean', "Log-nomal object size histogram", response.body)
 
 def get_loc_per_relative_size():
     loc = session.midpoints.get(request.vars.relative_size, "0")
