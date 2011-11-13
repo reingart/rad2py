@@ -1,0 +1,23 @@
+{{extend 'layout.html'}}
+<h1>Significance Test</h1>
+<table>
+    <tr>
+    <th>Time (hours)</th>
+    <th>Size (SLOC)</th>
+    </tr>
+    {{for h, l in zip(hours, loc):}}
+        <tr>
+            <td style="text-align: center">{{="%0.2f" % h}}</td>
+            <td style="text-align: center">{{=l}}</td>
+        </tr>
+    {{pass}}
+</table>
+
+<h3>Significance:</h3>
+<ul>
+    <li><b>r2</b> = {{=r2}} (correlation coefficient)</li>
+    <li><b>t</b> = {{=t}} (student-t value)</li>
+    <li><b>p</b> = {{=p}} (student-t probability)</li>
+    <li><b>s</b> = {{=p}} (1-p)</li>
+    <li><b>Significance: {{=significance}}</b></li>
+</ul>

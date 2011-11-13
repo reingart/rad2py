@@ -42,7 +42,20 @@ def significance():
     actual_loc, hours = get_projects_metrics()
     t, r2, n = calc_significance(actual_loc, hours)
     p = calc_student_t_probability(t, n-1)
-    return {'loc': actual_loc, 'hours': hours, 'n': n, 'r2': r2, 't': t, 'p': p, 's': 1-p}
+    
+    s = 1 - p
+    if s<0.005:
+        significance = "very high"
+    elif s<0.01:
+        significance = "high"
+    elif s<0.05:
+        significance = "good"
+    elif s<0.2:
+        significance = "adequate"
+    else:
+        significance = "poor"
+            
+    return {'loc': actual_loc, 'hours': hours, 'n': n, 'r2': r2, 't': t, 'p': p, 's': s, "significance": significance}
 
 
 def get_time_todate():    
