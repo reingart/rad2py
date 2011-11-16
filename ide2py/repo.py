@@ -14,8 +14,11 @@ import os
 import sys
 import wx
 import wx.lib.agw.aui as aui
+import tempfile
+from urlparse import urlparse
 
 from repo_hg import MercurialRepo
+from repo_w2p import Web2pyRepo
 import fileutil
 
 # Define notification event for repository refresh
@@ -41,13 +44,19 @@ class RepoMixin(object):
         path = cfg.get("path", "")
         self.username = cfg.get("username", "")
 
+        # keep track of remote opened files
+        self.remote_files_map = {}
+
         # search "open file" menu item to insert "open repository" one
         for pos, it in enumerate(self.menu['file'].GetMenuItems()):
             if it.GetId() == wx.ID_OPEN:
                 break
         self.ID_OPEN_REPO = wx.NewId()
+        self.ID_OPEN_WEB_REPO = wx.NewId()
         self.menu['file'].Insert(pos+1, self.ID_OPEN_REPO, "Open Repo\tCtrl-Shift-O")
         self.Bind(wx.EVT_MENU, self.OnOpenRepo, id=self.ID_OPEN_REPO)
+        self.menu['file'].Insert(pos+2, self.ID_OPEN_WEB_REPO, "Open Web Repo\tCtrl-Shift-Alt-O")
+        self.Bind(wx.EVT_MENU, self.OnOpenWebRepo, id=self.ID_OPEN_WEB_REPO)
 
         # search "recent files" menu item to insert "recent repos" one
         for pos, it in enumerate(self.menu['file'].GetMenuItems()):
@@ -64,7 +73,7 @@ class RepoMixin(object):
         self.repo = None #MercurialRepo(path, self.username)
         repo_panel = self.CreateRepoTreeCtrl()
         self._mgr.AddPane(repo_panel, aui.AuiPaneInfo().
-                          Name("repo").Caption("Mercurial Repository").
+                          Name("repo").Caption("Repository").
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
@@ -191,9 +200,24 @@ class RepoMixin(object):
             self.repo_filehistory.AddFileToHistory(path)
         dlg.Destroy()
 
+    def OnOpenWebRepo(self, event):
+        dlg = wx.TextEntryDialog(self, 
+                'Enter the URL of the web2py admin:', 
+                'Open a webwpy "Repository"', 
+                'http://admin:a@localhost:8000/admin/webservices/call/jsonrpc')
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetValue()
+            self.DoOpenRepo(path)
+            self.repo_filehistory.AddFileToHistory(path)
+        dlg.Destroy()
+
+
     def DoOpenRepo(self, path):
         self.path = path
-        self.repo = MercurialRepo(path, self.username)
+        if path.startswith("http://") or path.startswith("https://"):
+            self.repo = Web2pyRepo(path, self.username)
+        else:
+            self.repo = MercurialRepo(path, self.username)
         self.PopulateRepoTree(path)
 
     def OnRepoFileHistory(self, evt):
@@ -264,9 +288,25 @@ class RepoMixin(object):
 
     def OnRepoLeftDClick(self, event):
         filename = self.get_selected_filename(event)
-        if filename:
-            self.DoOpen(filename)
+        self.DoRepoOpenFile(filename)
         event.Skip()
+
+    def DoRepoOpenFile(self, filename):
+        if filename.startswith("http://") or filename.startswith("https://"):
+            # remote repo, create a local temp file:
+            f = tempfile.NamedTemporaryFile(delete=False)
+            tmpfilename = f.name
+            # fetch the file text and save to the temp file
+            f.write(self.repo.cat(filename))
+            f.close()
+            # map the remote name to the local name:
+            self.remote_files_map[tmpfilename] = filename
+            # extract basename and open the window
+            o = urlparse(filename)
+            basename = os.path.basename(o.path)
+            self.DoOpen(tmpfilename, basename)
+        elif filename:
+            self.DoOpen(filename)
 
     def OnRepoEvent(self, event=None):
         if event:
@@ -274,6 +314,16 @@ class RepoMixin(object):
             print "OnRepoEvent", filename, action
             self.RefreshRepo([filename])
 
+            # check if it is a remote (temp) file :
+            if filename in self.remote_files_map:
+                # read the temporary file
+                f = open(filename, "rb")
+                data = f.read()
+                f.close()
+                # send to the remote server
+                print "WRITING", self.remote_files_map[filename]
+                self.repo.put(self.remote_files_map[filename], data)
+            
     def OnRepoContextMenu(self, event):
         self.PopupMenu(self.repo_menu)
         #menu.Destroy()

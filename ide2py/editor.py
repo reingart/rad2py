@@ -63,7 +63,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=0, filename=None, debugger=None, cfg={},
-                 lang="python", cfg_styles={}):
+                 lang="python", title="", cfg_styles={}):
         global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
 
         stc.StyledTextCtrl.__init__(self, parent, ID, pos, size, style)
@@ -90,6 +90,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.parent = parent
         self.debugger = debugger
         self.filename = filename
+        self.title = title
         self.filetimestamp = None
         self.modified = None
         self.calltip = 0
@@ -309,7 +310,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.filename = None
 
     def GetTitle(self):
-        if self.filename:
+        if self.title:
+            title = self.title
+        elif self.filename:
             title = os.path.basename(self.filename)
         else:
             title = "New"

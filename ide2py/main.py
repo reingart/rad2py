@@ -448,10 +448,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # add it back to the history so it will be moved up the list
         self.filehistory.AddFileToHistory(filepath)
 
-    def DoOpen(self, filename):
+    def DoOpen(self, filename, title=""):
         found = [child for child in self.children if child.GetFilename()==filename]
         if not found:
-            child = AUIChildFrame(self, filename)
+            child = AUIChildFrame(self, filename, title)
             child.Show()
             self.children.append(child)
         else:
@@ -745,7 +745,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
 class AUIChildFrame(aui.AuiMDIChildFrame):
 
-    def __init__(self, parent, filename):
+    def __init__(self, parent, filename, title=""):
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
         app = wx.GetApp()
@@ -753,6 +753,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.editor = EditorCtrl(self,-1, filename=filename,    
                                  debugger=parent.debugger,
                                  lang="python", 
+                                 title=title,
                                  cfg=app.get_config("EDITOR"),
                                  cfg_styles=app.get_config("STC.PY"))
         sizer = wx.BoxSizer()
