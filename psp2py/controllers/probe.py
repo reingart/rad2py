@@ -15,7 +15,7 @@ def categorize():
     
     # 0. Fetch objects (functions or classes) in the reuse library:    
     objs = db(db.psp_reuse_library.id>0).select()
-    objs = dict([(obj.function_name, dict(obj)) for obj in objs])
+    objs = dict([(obj.function_name, dict(obj)) for obj in objs if obj['loc']])
     # 1. Calculate the natural logarithm of LOC per function
     locs = {}
     for name, obj in objs.items():
@@ -45,7 +45,7 @@ def categorize():
                     q += 1
 
     for size in PSP_SIZES:
-        midpoints_q[size] = sum([1 for n in locs if categorization[n] == size], 0) 
+        midpoints_q[size] = sum([1 for n in locs if categorization.get(n) == size], 0) 
     
     return {'locs': locs, 'objs': objs, 
             "midpoints": midpoints,
@@ -98,7 +98,7 @@ def normal_distribution():
     locs = ret['locs']
     categorization = ret['categorization']
     sizes = dict(zip(PSP_SIZES, [-2, -1, 0, +1, +2]))
-    x = [sizes[categorization[n]] for n in locs]
+    x = [sizes[categorization[n]] for n in locs if n in categorization]
     bins = pylab.arange(-4, 5, 1)
     if request.extension == "html":
         return {'x': x}
@@ -113,10 +113,11 @@ def get_loc_from_reuse_library():
     for obj in session.objs:
         if obj['function_name']==request.vars.function_name:
             loc = obj['loc']
+            size = session.categorization.get(request.vars.function_name, "unknown")
             break
     else:
         loc = "0"
-    return """alert("LOC for %s = %s"); jQuery('#ajax_loc')[0].value=%s;""" % (request.vars.function_name, int(loc), repr(int(loc)))
+    return """alert("LOC for %s = %s (%s)"); jQuery('#ajax_loc')[0].value=%s; jQuery('#ajax_size')[0].value=%s; """ % (request.vars.function_name, int(loc), size, repr(int(loc)), repr(size))
 
 
 def index():
@@ -131,8 +132,9 @@ def index():
         # reset initial data
         ret = categorize()
         session.midpoints = ret['midpoints']
+        session.categorization = ret['categorization']
         session.objects = {}
-        session.objs = db(db.psp_reuse_library.id>0).select()
+        session.objs = db(db.psp_reuse_library.id>0).select().as_list()
     
     form = FORM(TABLE(
         TR(TD(
@@ -142,7 +144,7 @@ def index():
         ), TD(
             LABEL("based on", _for="function_name"),
         ), TD(
-            SELECT([OPTION(obj['function_name']) for obj in [{'function_name': ''}] + session.objs], 
+            SELECT([OPTION(obj['function_name']) for obj in [{'function_name': ''}] + sorted(session.objs, key=lambda k: k['function_name'])], 
                    _name="function_name", 
                    _onclick="ajax('%s', ['function_name'], ':eval');" % URL('get_loc_from_reuse_library')),
         )),
@@ -150,7 +152,7 @@ def index():
             LABEL("Relative size", _for="relative_size"),
         ), TD(
             SELECT([OPTION(siz) for siz in PSP_SIZES], 
-                   _name="relative_size", 
+                   _name="relative_size", _id="ajax_size",
                    _onclick="ajax('%s', ['relative_size'], ':eval');" % URL('get_loc_per_relative_size')),
         ), TD(
             LABEL("Category", _for="category"),

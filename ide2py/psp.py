@@ -868,7 +868,7 @@ class PSPMixin(object):
                                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         result = dlg.ShowModal() == wx.ID_YES
         dlg.Destroy()
-        if result and self.psp_project_name:
+        if result:
             # data received:
             # objects = [[7, 'Test', '__init__', 1, 'filename.py'], 
             # locs = {'new': 0, 'total': 6, 'modified': 1, 'comments': 1})

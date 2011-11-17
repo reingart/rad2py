@@ -58,15 +58,17 @@ def load_project(project_name):
 def update_project(project_name, actual_loc, reuse_library_entries): 
     "Update counted LOC and reuse library entries (postmortem)"
 
-    project = db(db.psp_project.name==project_name).select()[0]
+    project = db(db.psp_project.name==project_name).select().first()
 
     # update total loc counted:
-    db(db.psp_project.name==project_name).update(actual_loc=actual_loc)
+    if project:
+        db(db.psp_project.name==project_name).update(actual_loc=actual_loc)
 
     # clean and store reuse library entries:
-    db(db.psp_reuse_library.project_id==project.project_id).delete()
+    if project:
+        db(db.psp_reuse_library.project_id==project.project_id).delete()
     for entry in reuse_library_entries:
-        entry['project_id'] = project.project_id
+        entry['project_id'] = project and project.project_id or None
         db.psp_reuse_library.insert(**entry)
 
     return True
