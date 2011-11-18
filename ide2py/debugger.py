@@ -139,7 +139,7 @@ class Debugger(bdb.Bdb):
             return False
 
     def SetBreakpoint(self, filename, lineno, temporary=0):
-        self.set_break(filename, lineno, temporary)
+        self.set_break(self.canonic(filename), lineno, temporary)
 
     def ClearBreakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
