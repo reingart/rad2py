@@ -22,7 +22,14 @@ if False:
     #     with hiddenimports = gluon.import_all.base_modules
     #     web2py must be installed on parent folder
     import gluon.main
-
+    
+    # this libraries are required by psp2py
+    import matplotlib
+    import matplotlib.pyplot
+    import matplotlib.colors
+    import numpy
+    import pylab
+    
     
 class Web2pyMixin(object):
     "ide2py extension to execute web2py under debugger and shell"
