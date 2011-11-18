@@ -38,7 +38,6 @@ try:
     from psp import PSPMixin
     ADDONS.append("psp")
 except:
-    raise
     class PSPMixin(object):
         pass
 try:
