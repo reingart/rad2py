@@ -1063,7 +1063,7 @@ class PSPMixin(object):
             new = text.split(newlines)
             # check to see if there is old metadata
             fn_hash = hashlib.sha224(filename).hexdigest()
-            metadata_fn = os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash)
+            metadata_fn = os.path.abspath(os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash))
             if not os.path.exists(metadata_fn):
                 # create metadata
                 metadata = dict([(i, (self.current_psp_phase, l)) 
