@@ -16,7 +16,14 @@ from wsgiref.simple_server import make_server, demo_app
 import sys
 import wx
 
+if False:
+    # let pyinstaller to detect web2py modules 
+    #     hook-gluon.main.py is needed in pyinstaller/hooks
+    #     with hiddenimports = gluon.import_all.base_modules
+    #     web2py must be installed on parent folder
+    import gluon.main
 
+    
 class Web2pyMixin(object):
     "ide2py extension to execute web2py under debugger and shell"
 
@@ -63,6 +70,17 @@ class Web2pyMixin(object):
                 
                 self.web2py_environment = self.build_web2py_environment()
 
+                # Start a alternate web2py in a separate thread (for blocking requests)
+                from threading import Thread
+                def f(host, port, password):
+                    save_password(password, port)
+                    httpd2 = make_server(host, port, wsgibase)
+                    print "THREAD - Serving HTTP on port2 %s..." % port
+                    httpd2.serve_forever()
+
+                p = Thread(target=f, args=("127.0.0.1", 8000, password))
+                p.start()                
+                
             except Exception, e:
                 dlg = wx.MessageDialog(self, unicode(e),
                            'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)
@@ -88,7 +106,7 @@ class Web2pyMixin(object):
             self.GotoFileLine()
             # allow new request to be served:
             self.debugging = False
-
+            
     def build_web2py_environment(self):
         "build a namespace suitable for editor autocompletion and calltips"
         # warning: this can alter current global variable, use with care!
