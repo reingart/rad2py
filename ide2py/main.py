@@ -180,10 +180,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.SetMenuBar(self.menubar)
 
-        self.statusbar = self.CreateStatusBar(2, wx.ST_SIZEGRIP)
-        self.statusbar.SetStatusWidths([-2, -3])
+        self.statusbar = self.CreateStatusBar(3, wx.ST_SIZEGRIP)
+        self.statusbar.SetStatusWidths([-2, -3, -3])
         self.statusbar.SetStatusText("Ready", 0)
         self.statusbar.SetStatusText("Welcome To ide2py!", 1)
+        self.statusbar.SetStatusText("2011 \xA9 Mariano Reingart", 2)
 
         # min size for the frame itself isn't completely done.
         # see the end up FrameManager::Update() for the test
