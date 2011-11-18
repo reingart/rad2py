@@ -16,6 +16,12 @@ from wsgiref.simple_server import make_server, demo_app
 import sys
 import wx
 
+if False:
+    # let pyinstaller to detect web2py modules 
+    #     hook-gluon.main.py is needed in pyinstaller/hooks
+    #     with hiddenimports = gluon.import_all.base_modules
+    #     web2py must be installed on parent folder
+    import gluon.main
 
     
 class Web2pyMixin(object):
