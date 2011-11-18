@@ -559,6 +559,12 @@ class PSPMixin(object):
         self.SetPSPPhase(cfg.get("current_phase"))
 
         self.CreatePSPMenu()
+        
+        # start up a browser on psp2py app
+        url = cfg.get("psp2py_url")
+        if url:
+            import webbrowser
+            wx.CallAfter(webbrowser.open, url)
 
 
     def CreatePSPPlanSummaryGrid(self, filename):

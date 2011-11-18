@@ -44,6 +44,7 @@ metadata = metadata
 checklist = psp-checklist.dat
 server_url = http://localhost:8000/psp2py/services/call/jsonrpc
 wiki_url = http://localhost:8000/psp2py/wiki/load/index
+psp2py_url = http://localhost:8000/psp2py
 
 [MAIN]
 settings = settings.pkl
