@@ -184,7 +184,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.statusbar.SetStatusWidths([-2, -3, -3])
         self.statusbar.SetStatusText("Ready", 0)
         self.statusbar.SetStatusText("Welcome To ide2py!", 1)
-        self.statusbar.SetStatusText("2011 \xA9 Mariano Reingart", 2)
+        self.statusbar.SetStatusText(__copyright__, 2)
 
         # min size for the frame itself isn't completely done.
         # see the end up FrameManager::Update() for the test
@@ -711,12 +711,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.active_child:
             self.active_child.OnEditAction(event)
 
-    def ExceptHook(self, type, value, trace): 
-        exc = traceback.format_exception(type, value, trace) 
+    def ExceptHook(self, extype, exvalue, trace): 
+        exc = traceback.format_exception(extype, exvalue, trace) 
         #for e in exc: wx.LogError(e) 
         # format exception message
-        title = traceback.format_exception_only(type, value)[0]
-        msg = ''.join(traceback.format_exception(type, value, trace))
+        title = traceback.format_exception_only(extype, exvalue)[0]
+        msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         # display the exception
         print u'Unhandled Error: %s' % title
         dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
@@ -733,10 +733,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             else:
                 filename0 = ""
             # do not add exceptions raised by the IDE (indirectely too)
-            if not filename.startswith(INSTALL_DIR) and \
-               not filename0.startswith(INSTALL_DIR):
+            print "extype", extype
+            if (not filename.startswith(INSTALL_DIR) and \
+               not filename0.startswith(INSTALL_DIR)) or \
+               extype not in (AssertionError, ):
                 self.NotifyDefect(summary=title, type="60", filename=filename, 
                                   description="", lineno=lineno, offset=1)
+            else:
+                print "Not notified!"
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
