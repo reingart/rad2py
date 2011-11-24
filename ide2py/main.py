@@ -737,7 +737,26 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             if (not filename.startswith(INSTALL_DIR) and \
                not filename0.startswith(INSTALL_DIR)) or \
                extype not in (AssertionError, ):
-                self.NotifyDefect(summary=title, type="60", filename=filename, 
+                # Automatic Error Classification (PSP Defect Type Standard):
+                defect_type_standard = {
+                    '20': (SyntaxError, ), # this should be cached by the editor
+                    '40': (NameError, LookupError, ImportError),
+                    '50': (TypeError, AttributeError),
+                    '60': (AssertionError, ), #TODO: unittest/doctests
+                    '70': (ValueError, ArithmeticError, EOFError, BufferError),
+                    '80': (RuntimeError, ),
+                    '90': (SystemError, MemoryError, ReferenceError, ),
+                    '100': (EnvironmentError, ), # TODO: libraries?
+                    }
+                # Find the related defect_type code for the exception value:
+                for k, v in defect_type_standard.items():
+                    if isinstance(exvalue, v):
+                        defect_type = k
+                        break
+                else:
+                    defect_type = '80'  # default unclassified defect type
+                self.NotifyDefect(summary=title, type=defect_type, 
+                                  filename=filename, 
                                   description="", lineno=lineno, offset=1)
             else:
                 print "Not notified!"
