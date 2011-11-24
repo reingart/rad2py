@@ -826,7 +826,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
 
 
-    def ToggleComment(self):
+    def ToggleComment(self, event=None):
         "Toggle the comment of the selected region"
         sel = self.GetSelection()
         start = self.LineFromPosition(sel[0])
