@@ -517,8 +517,9 @@ class PSPMixin(object):
         psp_times = cfg.get("psp_times", "psp_times.dat")
         psp_summary = cfg.get("psp_summary", "psp_summary.dat")
 
-        # metadata directory
+        # metadata directory (convert to full path)
         self.psp_metadata_dir = cfg.get("metadata", "medatada")
+        self.psp_metadata_dir = os.path.abspath(self.psp_metadata_dir)
         self.psp_metadata_cache = {}     # filename: (filestamp, metadata)
         if not os.path.exists(self.psp_metadata_dir):
             os.makedirs(self.psp_metadata_dir)
@@ -1063,7 +1064,7 @@ class PSPMixin(object):
             new = text.split(newlines)
             # check to see if there is old metadata
             fn_hash = hashlib.sha224(filename).hexdigest()
-            metadata_fn = os.path.abspath(os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash))
+            metadata_fn = os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash)
             if not os.path.exists(metadata_fn):
                 # create metadata
                 metadata = dict([(i, (self.current_psp_phase, l)) 
