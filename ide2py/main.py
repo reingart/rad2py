@@ -716,6 +716,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         #for e in exc: wx.LogError(e) 
         # format exception message
         title = traceback.format_exception_only(type, value)[0]
+        if not isinstance(title, unicode):
+            title = title.decode("latin1", "ignore")
         msg = ''.join(traceback.format_exception(type, value, trace))
         # display the exception
         print u'Unhandled Error: %s' % title
