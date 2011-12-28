@@ -8,8 +8,10 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 # based on picalo implementation
+# new __main__ based on web2py.gluon.contrib.shell (google GAE)
 
 
+import new
 import time
 import os
 import traceback
@@ -98,13 +100,22 @@ class Shell(wx.py.shell.Shell):
             else:
                 sys.stdin, sys.stdout, sys.stderr =  self.interp.stdin, self.interp.stdout, self.interp.stderr
 
+            # create a dedicated module to be used as __main__ (globals)
+            statement_module = new.module('__main__')
+            import __builtin__
+            statement_module.__builtins__ = __builtin__
+            # sys.modules['__main__'] = statement_module    ## dangerous...
+
             # update the ui
             self.write(os.linesep)
             # run the script (either the interp and bdb calls exec!)
             if not debugger:
+                self.interp.globals = statement_module.__dict__
                 self.interp.runcode(code)
             else:
-                debugger.Run(code, interp=self.interp)
+                debugger.Run(code, interp=self.interp, 
+                                   globals=statement_module.__dict__,
+                                   locals={})
             self.prompt()
 
         finally:

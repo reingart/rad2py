@@ -492,7 +492,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             cwd = os.getcwd()
             try:
                 # change to script directory
-                os.chdir(syspath[0])                 
+                os.chdir(syspath[0])
                 # create a code objectbject and run it in the main thread
                 code = self.active_child.GetCodeObject()
                 filename = os.path.split(self.active_child.GetFilename())[1]
@@ -502,7 +502,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                     # set program arguments (workaround shlex unicode bug)
                     args = self.lastprogargs.encode("ascii", "ignore")
                     sys.argv = [filename] + shlex.split(args)
-                    self.shell.RunScript(code, syspath, debug and self.debugger, self.console)
+                    self.shell.RunScript(code, syspath, 
+                                         debug and self.debugger, 
+                                         self.console,
+                                         )
                 self.statusbar.SetStatusText("", 1)
             finally:
                 os.chdir(cwd)
@@ -715,7 +718,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         exc = traceback.format_exception(extype, exvalue, trace) 
         #for e in exc: wx.LogError(e) 
         # format exception message
-        title = traceback.format_exception_only(type, value)[0]
+        title = traceback.format_exception_only(type, exvalue)[0]
         if not isinstance(title, unicode):
             title = title.decode("latin1", "ignore")
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
