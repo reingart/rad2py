@@ -111,11 +111,12 @@ class Shell(wx.py.shell.Shell):
             # run the script (either the interp and bdb calls exec!)
             if not debugger:
                 self.interp.globals = statement_module.__dict__
+                self.interp.locals = self.interp.globals
                 self.interp.runcode(code)
             else:
                 debugger.Run(code, interp=self.interp, 
                                    globals=statement_module.__dict__,
-                                   locals={})
+                                   locals=None)
             self.prompt()
 
         finally:
