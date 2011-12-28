@@ -93,8 +93,8 @@ class Debugger(bdb.Bdb):
          # save and change interpreter namespaces to the current frame
         i_locals = self.interp.locals
         self.interp.locals = frame.f_locals
-        # copy globals into interpreter, so them can be inspected (DANGEROUS!)
-        self.interp.locals.update(frame.f_globals)
+        # copy globals into interpreter, so them can be inspected 
+        self.interp.globals = frame.f_globals
         try:
             while self.waiting:
                 wx.YieldIfNeeded()  # hope this is thread safe...

@@ -19,10 +19,44 @@ import StringIO
 import wx.py
 
 
+class LocalInterpreter(wx.py.interpreter.Interpreter):
+    "Customized interpreter for local execution (handling locals and globals)"
+
+    def __init__(self, locals, rawin, stdin, stdout, stderr, 
+                 ps1='main prompt', ps2='continuation prompt',
+                 globals=None,
+                 ):
+        """Create an interactive interpreter object."""
+        wx.py.interpreter.Interpreter.__init__(self, locals=locals, rawin=rawin, 
+                             stdin=stdin, stdout=stdout, stderr=stderr)
+        sys.ps1 = ps1
+        sys.ps2 = ps2
+        self.globals = globals or {}
+        
+    def runcode(self, code):
+        """Execute a code object.
+
+        When an exception occurs, self.showtraceback() is called to
+        display a traceback.  All exceptions are caught except
+        SystemExit, which is reraised.
+
+        A note about KeyboardInterrupt: this exception may occur
+        elsewhere in this code, and may not always be caught.  The
+        caller should be prepared to deal with it.
+
+        """
+        try:
+            exec code in self.globals, self.locals
+        except SystemExit:
+            raise
+        except:
+            self.showtraceback()
+
+
 class Shell(wx.py.shell.Shell):
     "Customized version of PyShell"
     def __init__(self, parent):
-        wx.py.shell.Shell.__init__(self, parent)
+        wx.py.shell.Shell.__init__(self, parent, InterpClass=LocalInterpreter)
         self.console = None
      
     def onCut(self, event=None):
