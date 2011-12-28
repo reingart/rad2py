@@ -25,7 +25,7 @@ class LocalInterpreter(wx.py.interpreter.Interpreter):
     "Customized interpreter for local execution (handling locals and globals)"
 
     def __init__(self, locals, rawin, stdin, stdout, stderr, 
-                 ps1='main prompt', ps2='continuation prompt',
+                 ps1='>>>', ps2='...',
                  globals=None,
                  ):
         """Create an interactive interpreter object."""
