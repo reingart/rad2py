@@ -42,7 +42,7 @@ class Qdb(bdb.Bdb):
         if self._wait_for_mainpyfile:
             return
         if self.stop_here(frame):
-            print >>self.stdout, '--Call--'
+            print '--Call--'
             self.interaction(frame, None)
    
     def user_line(self, frame):
