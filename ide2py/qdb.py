@@ -60,9 +60,10 @@ class Qdb(bdb.Bdb):
         self.interaction(frame)
 
     def user_exception(self, frame, info):
+        """This function is called if an exception occurs,
+        but only if we are to stop at or just below this level."""
         if self._wait_for_mainpyfile:
             return
-        ##print info
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
@@ -120,15 +121,10 @@ class Qdb(bdb.Bdb):
         # wait user events 
         self.waiting = True    
         self.frame = frame
-         # save and change interpreter namespaces to the current frame
-        ## frame.f_locals
-        # copy globals into interpreter, so them can be inspected 
-        ## frame.f_globals
         try:
             while self.waiting:
                 #  sync_source_line()
                 if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
-                    # notify debugger
                     line = linecache.getline(filename, self.frame.f_lineno,
                                              self.frame.f_globals)
                 else:
@@ -137,9 +133,8 @@ class Qdb(bdb.Bdb):
                 self.pipe.send({'method': 'interaction', 'id': None,
                                 'args': (filename, self.frame.f_lineno, line)})
 
-                ##print ">>>",
+                # receive a remote procedure call from the frontend:
                 request = self.pipe.recv()
-                ##print request
                 response = {'version': '1.1', 'id': request.get('id'), 
                             'result': None, 
                             'error': None}
@@ -285,8 +280,6 @@ class Qdb(bdb.Bdb):
         while t is not None:
             frame = t.tb_frame
             t = t.tb_next
-            #print frame, t
-            #print frame.f_code, frame.f_lineno
             code, lineno = frame.f_code, frame.f_lineno
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
@@ -439,17 +432,16 @@ class Cli(cmd.Cmd):
 
     def call(self, method, *args):
         req = {'method': method, 'args': args, 'id': self.i}
-        ##print msg
         self.pipe.send(req)
         self.i += 1
         while 1:
             # wait until command acknowledge (response match the request)
             res = self.pipe.recv()
             if 'id' not in res or not res['id']:
-                #print "*** notification received!", res
+                # "*** notification received!", res
                 self.notifies.append(res)
             elif 'result' not in res:
-                ##print "*** wrong packet received: expecting result", res
+                # "*** wrong packet received: expecting result", res
                 # protocol state is unknown
                 self.notifies.append(res)
             elif long(req['id']) != long(res['id']):
@@ -575,17 +567,21 @@ def main():
     conn.close()
     listener.close()
 
-
+qdb = None
 def set_trace():
     "Simplified interface to debug running programs"
+    global qdb
     
     from multiprocessing.connection import Listener
-    address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
-    listener = Listener(address, authkey='secret password')
-    conn = listener.accept()
+    # only create it if not currently instantiated
+    if not qdb:
+        address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
+        listener = Listener(address, authkey='secret password')
+        conn = listener.accept()
 
     # create the backend
-    qdb = Qdb(conn)
+        qdb = Qdb(conn)
+    # start debugger backend:
     qdb.set_trace()
 
 
