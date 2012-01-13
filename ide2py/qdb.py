@@ -200,7 +200,14 @@ class Qdb(bdb.Bdb):
                 self._lineno = lineno
 
     def do_set_breakpoint(self, filename, lineno, temporary=0):
-        self.set_break(self.canonic(filename), lineno, temporary)
+        return self.set_break(filename, int(lineno), temporary)
+
+    def do_list_breakpoint(self):
+        if self.breaks:  # There's at least one
+            print "Num Type         Disp Enb   Where"
+            for bp in bdb.Breakpoint.bpbynumber:
+                if bp:
+                    bp.bpprint(sys.stdout)
 
     def do_clear_breakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
@@ -360,6 +367,8 @@ class Cli(cmd.Cmd):
         while 1:
             request = self.pipe.recv()
             result = None
+            if request.get("error"):
+                print request['error']
             if request.get('method') == 'interaction':
                 self.interaction()
                 result = None
@@ -425,6 +434,14 @@ class Cli(cmd.Cmd):
             arg = eval(arg, {}, {})
         self.call('do_list', arg)
 
+    def do_b(self, arg):
+        "Set a breakpoint at filename:breakpoint"
+        if arg:
+            arg = arg.split(":")
+            self.call('do_set_breakpoint', *arg)
+        else:
+            self.call('do_list_breakpoint')
+
     def default(self, line):
         "Default command"
         if line[:1] == '!':
@@ -444,6 +461,8 @@ def connect(host="localhost", port=6000):
     conn = Client(address, authkey='secret password')
     try:
         Cli(conn).attach()
+    except EOFError:
+        pass
     finally:
         conn.close()
 
