@@ -111,7 +111,8 @@ class Qdb(bdb.Bdb):
             # notify debugger
             line = linecache.getline(filename, lineno,
                                      frame.f_globals)
-            self.pipe.send({'method': 'debug_event', 'args': (filename, lineno, line)})
+        else:
+            line = ""
 
         # wait user events 
         self.waiting = True    
@@ -122,7 +123,9 @@ class Qdb(bdb.Bdb):
         ## frame.f_globals
         try:
             while self.waiting:
-                self.pipe.send({'method': 'interaction', 'args': ()})
+                self.pipe.send({'method': 'interaction', 
+                                'args': (filename, lineno, line)})
+
                 ##print ">>>",
                 request = self.pipe.recv()
                 ##print request
@@ -370,12 +373,11 @@ class Cli(cmd.Cmd):
             if request.get("error"):
                 print request['error']
             if request.get('method') == 'interaction':
+                print "%s:%4d\t%s" % request.get("args"),
                 self.interaction()
                 result = None
             if request.get('method') == 'write':
                 print request.get("args")[0],
-            if request.get('method') == 'debug_event':
-                print "%s:%4d\t%s" % request.get("args"),
             if request.get('method') == 'show_line':
                 print "%s:%4d%s%s\t%s" % request.get("args"),
             if request.get('method') == 'readline':
