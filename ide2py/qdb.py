@@ -7,12 +7,16 @@ __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
-# remote debugger queue-based (jsonrpc-like interface)
+# remote debugger queue-based (jsonrpc-like interface):
+# - bidirectional communication (request - response calls in both ways)
+# - request with id == null is a notification (do not send a response)
+# - request with an id is a normal call, wait response
 # based on idle, inspired by pythonwin implementation
 
 import bdb
 import linecache
 import os
+import random
 import sys
 import traceback
 import cmd
@@ -25,6 +29,7 @@ class Qdb(bdb.Bdb):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
+        self.i = random.randint(0, sys.maxint / 2)  # sequential RPC call id
         self.waiting = False
         self.pipe = pipe # for communication
         self.start_continue = True # continue on first run
@@ -61,7 +66,8 @@ class Qdb(bdb.Bdb):
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
         trace = traceback.extract_tb(trace)
-        msg = {'method': 'except_hook', 'args':(extype, exvalue, trace)}
+        # send an Exception notification
+        msg = {'method': 'except_hook', 'args':(extype, exvalue, trace), 'id': None}
         self.pipe.send(msg)
         self.interaction(frame, info)
 
@@ -123,7 +129,8 @@ class Qdb(bdb.Bdb):
         ## frame.f_globals
         try:
             while self.waiting:
-                self.pipe.send({'method': 'interaction', 
+                # send the notification (debug event) - DOESN'T WAIT RESPONSE
+                self.pipe.send({'method': 'interaction', 'id': None,
                                 'args': (filename, lineno, line)})
 
                 ##print ">>>",
@@ -199,7 +206,9 @@ class Qdb(bdb.Bdb):
             else:
                 breakpoint = "B" if lineno in breaklist else ""
                 current = "->" if self.frame.f_lineno == lineno else ""
-                self.pipe.send({'method': 'show_line', 'args': (filename, lineno, breakpoint, current, line, )})
+                msg = {'method': 'show_line', 'id': None, 
+                       'args': (filename, lineno, breakpoint, current, line, )}
+                self.pipe.send(msg)
                 self._lineno = lineno
 
     def do_set_breakpoint(self, filename, lineno, temporary=0):
@@ -238,7 +247,8 @@ class Qdb(bdb.Bdb):
         """
         # reproduce the behavior of the standard displayhook, not printing None
         if obj is not None:
-            self.pipe.send({'method': 'display_hook', 'args':  repr(obj)})
+            msg = {'method': 'display_hook', 'args':  repr(obj), 'id': None}
+            self.pipe.send(msg)
 
     def reset(self):
         bdb.Bdb.reset(self)
@@ -265,16 +275,19 @@ class Qdb(bdb.Bdb):
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
             current = "->" if t is None else ""
-            self.pipe.send({'method': 'show_line', 'args': (filename, lineno, "", current, line, )})
+            msg = {'method': 'show_line', 'id': None,
+                   'args': (filename, lineno, "", current, line, )}
+            self.pipe.send(msg)
 
         self.interaction(frame)
 
     # console file-like object emulation
     def readline(self):
         "Replacement for stdin.readline()"
-        msg = {'method': 'readline', 'args': ()}
+        msg = {'method': 'readline', 'args': (), 'id': self.i}
         self.pipe.send(msg)
         msg = self.pipe.recv()
+        self.i += 1
         return msg['result']
 
     def readlines(self):
@@ -286,7 +299,7 @@ class Qdb(bdb.Bdb):
 
     def write(self, text):
         "Replacement for stdout.write()"
-        msg = {'method': 'write', 'args': (text, )}
+        msg = {'method': 'write', 'args': (text, ), 'id': None}
         self.pipe.send(msg)
         
     def writelines(self, l):

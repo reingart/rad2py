@@ -29,7 +29,7 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID
+from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID
 from console import ConsoleCtrl
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -304,6 +304,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # Connect to debugging events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
+        self.Connect(-1, -1, EVT_READLINE_ID, self.Readline)
+        self.Connect(-1, -1, EVT_WRITE_ID, self.Write)
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
@@ -595,6 +597,15 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                     self.debugging_child = child
                 else:
                     child.GotoLineOffset(lineno, offset)
+
+    def Readline(self, event):
+        print "RAWINPUT" * 10
+        text = self.console.readline()
+        self.debugger.Readline(text)
+
+    def Write(self, event):
+        print "WRITE" * 10
+        self.console.write(event.data)
                     
     def OnDebugCommand(self, event):
         event_id = event.GetId()
