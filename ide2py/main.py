@@ -95,7 +95,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.debugging_child = None     # current debugged file
         self.executing = False
         self.lastprogargs = ""
-        self.pythonargs = "-m qdb"      # debugger
+        self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
         self.pid = None      
         
         # tell FrameManager to manage this frame        
