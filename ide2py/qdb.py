@@ -18,11 +18,14 @@ import traceback
 import cmd
 
 
+sdtin = sys.stdin
+stdout = sys.stdout
+
 def log(func):
     def deco_fn(*args, **kwargs):
-        print "call", func.__name__
+        #print >> sdtout, "call", func.__name__
         r = func(*args, **kwargs)
-        print "ret", r
+        #print >> sdtout, "ret", r
         return r
     return deco_fn
 
@@ -38,6 +41,9 @@ class Qdb(bdb.Bdb):
         self.start_continue = True # continue on first run
         self._wait_for_mainpyfile = False
         self._lineno = None     # last listed line numbre
+        #
+        sys.stdin = self
+        sys.stdout = self
 
     # Override Bdb methods
 
@@ -136,7 +142,7 @@ class Qdb(bdb.Bdb):
         ## frame.f_globals
         try:
             while self.waiting:
-                self.pipe.send({'method': 'Interaction', 'args': ()})
+                self.pipe.send({'method': 'interaction', 'args': ()})
                 print ">>>",
                 request = self.pipe.recv()
                 print request
@@ -288,6 +294,35 @@ class Qdb(bdb.Bdb):
 
         self.interaction(frame)
 
+    # console file-like object emulation
+    def readline(self):
+        "Replacement for stdin.readline()"
+        msg = {'method': 'readline', 'args': ()}
+        self.pipe.send(msg)
+        msg = self.pipe.recv()
+        return msg['result']
+
+    def readlines(self):
+        "Replacement for stdin.readlines()"
+        lines = []
+        while lines[-1:] != ['\n']:
+            lines.append(self.readline())
+        return lines
+
+    def write(self, text):
+        "Replacement for stdout.write()"
+        msg = {'method': 'write', 'args': (text, )}
+        self.pipe.send(msg)
+        
+    def writelines(self, l):
+        map(self.write, l)
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return 0
+
 
 class QueuePipe(object):
     "Simulated pipe for threads (using two queues)"
@@ -358,10 +393,19 @@ class Cli(cmd.Cmd):
 
     def attach(self):
         while 1:
-            msg = self.pipe.recv()
-            print msg
-            if msg.get('method') == 'Interaction':
+            request = self.pipe.recv()
+            result = None
+            print request
+            if request.get('method') == 'interaction':
                 self.interaction()
+                result = None
+            if request.get('method') == 'readline':
+                result = raw_input("input...")
+            if result:
+                response = {'version': '1.1', 'id': request.get('id'), 
+                        'result': result, 
+                        'error': None}
+                self.pipe.send(response)
 
     def interaction(self):
         self.cmdloop()
@@ -481,12 +525,14 @@ def main():
     listener.close()
 
 
-# When invoked as main program, invoke the debugger on a script
 if __name__ == '__main__':
+    # When invoked as main program:
     #test()
     if not sys.argv[1:]:
+        # connect to a remote debbuger
         connect()
     else:
+        # start the debugger on a script
         # reimport as global __main__ namespace is destroyed
         import qdb
         qdb.main()
