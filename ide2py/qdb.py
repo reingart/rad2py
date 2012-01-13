@@ -576,6 +576,20 @@ def main():
     listener.close()
 
 
+def set_trace():
+    "Simplified interface to debug running programs"
+    
+    from multiprocessing.connection import Listener
+    address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
+    listener = Listener(address, authkey='secret password')
+    conn = listener.accept()
+
+    # create the backend
+    qdb = Qdb(conn)
+    qdb.set_trace()
+
+
+
 if __name__ == '__main__':
     # When invoked as main program:
     #test()
