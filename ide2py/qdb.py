@@ -16,7 +16,6 @@ __license__ = "GPL 3.0"
 import bdb
 import linecache
 import os
-import random
 import sys
 import traceback
 import cmd
@@ -29,7 +28,7 @@ class Qdb(bdb.Bdb):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
-        self.i = random.randint(1, sys.maxint / 2)  # sequential RPC call id
+        self.i = 1  # sequential RPC call id
         self.waiting = False
         self.pipe = pipe # for communication
         self.start_continue = True # continue on first run
