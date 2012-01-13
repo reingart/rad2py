@@ -11,6 +11,7 @@ __license__ = "GPL 3.0"
 # based on idle, inspired by pythonwin implementation
 
 import bdb
+import linecache
 import os
 import sys
 import traceback
@@ -36,6 +37,7 @@ class Qdb(bdb.Bdb):
         self.pipe = pipe # for communication
         self.start_continue = True # continue on first run
         self._wait_for_mainpyfile = False
+        self._lineno = None     # last listed line numbre
 
     # Override Bdb methods
 
@@ -185,6 +187,38 @@ class Qdb(bdb.Bdb):
         except ValueError, e:
             print '*** Jump failed:', e
             return False
+
+    @log
+    def do_list(self, arg):
+        last = None
+        if arg:
+            if isinstance(arg, tuple):
+                first, last = arg
+            else:
+                first = arg
+        elif not self._lineno:
+            first = max(1, self.frame.f_lineno - 5)                        
+        else:
+            first = self._lineno + 1
+        if last is None:
+            last = first + 10
+        filename = self.frame.f_code.co_filename
+        breaklist = self.get_file_breaks(filename)
+        for lineno in range(first, last+1):
+            line = linecache.getline(filename, lineno,
+                                     self.frame.f_globals)
+            if not line:
+                print '[EOF]'
+                break
+            else:
+                s = repr(lineno).rjust(3)
+                if len(s) < 4: s = s + ' '
+                if lineno in breaklist: s = s + 'B'
+                else: s = s + ' '
+                if lineno == self.frame.f_lineno:
+                    s = s + '->'
+                self.pipe.send({'method': 'show_line', 'args': s + '\t' + line})
+                self._lineno = lineno
 
     @log
     def do_set_breakpoint(self, filename, lineno, temporary=0):
@@ -366,6 +400,12 @@ class Cli(cmd.Cmd):
     def do_p(self, arg):
         "Inspect the value of the expression"
         self.call('do_inspect', arg)
+
+    def do_l(self, arg):
+        "List source code for the current file"
+        if arg:
+            arg = eval(arg, {}, {})
+        self.call('do_list', arg)
 
     def default(self, line):
         "Default command"
