@@ -18,18 +18,6 @@ import traceback
 import cmd
 
 
-sdtin = sys.stdin
-stdout = sys.stdout
-
-def log(func):
-    def deco_fn(*args, **kwargs):
-        #print >> sdtout, "call", func.__name__
-        r = func(*args, **kwargs)
-        #print >> sdtout, "ret", r
-        return r
-    return deco_fn
-
-
 class Qdb(bdb.Bdb):
 
     def __init__(self, pipe):
@@ -41,13 +29,12 @@ class Qdb(bdb.Bdb):
         self.start_continue = True # continue on first run
         self._wait_for_mainpyfile = False
         self._lineno = None     # last listed line numbre
-        #
+        # replace system standard input and output (send them thru the pipe)
         sys.stdin = self
         sys.stdout = self
 
     # Override Bdb methods
 
-    @log
     def user_call(self, frame, argument_list):
         """This method is called when there is the remote possibility
         that we ever need to stop in this function."""
@@ -56,8 +43,7 @@ class Qdb(bdb.Bdb):
         if self.stop_here(frame):
             print >>self.stdout, '--Call--'
             self.interaction(frame, None)
-            
-    @log
+   
     def user_line(self, frame):
         """This function is called when we stop or break at this line."""
         if self._wait_for_mainpyfile:
@@ -67,11 +53,10 @@ class Qdb(bdb.Bdb):
             self._wait_for_mainpyfile = 0
         self.interaction(frame)
 
-    @log
     def user_exception(self, frame, info):
         if self._wait_for_mainpyfile:
             return
-        print info
+        ##print info
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
         trace = traceback.extract_tb(trace)
@@ -79,7 +64,6 @@ class Qdb(bdb.Bdb):
         self.pipe.send(msg)
         self.interaction(frame, info)
 
-    @log
     def run(self, code, interp=None, *args, **kwargs):
         try:
             self.interp = interp
@@ -88,7 +72,6 @@ class Qdb(bdb.Bdb):
         finally:
             self.interacting = 0
 
-    @log
     def runcall(self, function, interp=None, *args, **kwargs):
         try:
             self.interp = interp
@@ -97,7 +80,6 @@ class Qdb(bdb.Bdb):
         finally:
             self.interacting = 0
 
-    @log
     def _runscript(self, filename):
         # The script has to run in __main__ namespace (clear it)
         import __main__
@@ -116,7 +98,6 @@ class Qdb(bdb.Bdb):
 
     # General interaction function
 
-    @log
     def interaction(self, frame, info=None):
         code, lineno = frame.f_code, frame.f_lineno
         filename = code.co_filename
@@ -127,11 +108,9 @@ class Qdb(bdb.Bdb):
         #  sync_source_line()
         if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             # notify debugger
-            self.pipe.send({'method': 'debug_event', 'args': (filename, lineno)})
             line = linecache.getline(filename, lineno,
                                      frame.f_globals)
-            if line:
-                self.pipe.send({'method': 'show_current_line', 'args': line})
+            self.pipe.send({'method': 'debug_event', 'args': (filename, lineno, line)})
 
         # wait user events 
         self.waiting = True    
@@ -143,9 +122,9 @@ class Qdb(bdb.Bdb):
         try:
             while self.waiting:
                 self.pipe.send({'method': 'interaction', 'args': ()})
-                print ">>>",
+                ##print ">>>",
                 request = self.pipe.recv()
-                print request
+                ##print request
                 response = {'version': '1.1', 'id': request.get('id'), 
                             'result': None, 
                             'error': None}
@@ -164,32 +143,26 @@ class Qdb(bdb.Bdb):
 
     # Command definitions, called by interaction()
 
-    @log
     def do_continue(self):
         self.set_continue()
         self.waiting = False
 
-    @log
     def do_step(self):
         self.set_step()
         self.waiting = False
 
-    @log
     def do_return(self):
         self.set_return(self.frame)
         self.waiting = False
 
-    @log
     def do_next(self):
         self.set_next(self.frame)
         self.waiting = False
 
-    @log
     def do_quit(self):
         self.set_quit()
         self.waiting = False
 
-    @log
     def do_jump(self, lineno):
         arg = int(lineno)
         try:
@@ -198,7 +171,6 @@ class Qdb(bdb.Bdb):
             print '*** Jump failed:', e
             return False
 
-    @log
     def do_list(self, arg):
         last = None
         if arg:
@@ -221,35 +193,26 @@ class Qdb(bdb.Bdb):
                 print '[EOF]'
                 break
             else:
-                s = repr(lineno).rjust(3)
-                if len(s) < 4: s = s + ' '
-                if lineno in breaklist: s = s + 'B'
-                else: s = s + ' '
-                if lineno == self.frame.f_lineno:
-                    s = s + '->'
-                self.pipe.send({'method': 'show_line', 'args': s + '\t' + line})
+                breakpoint = "B" if lineno in breaklist else ""
+                current = "->" if self.frame.f_lineno == lineno else ""
+                self.pipe.send({'method': 'show_line', 'args': (filename, lineno, breakpoint, current, line, )})
                 self._lineno = lineno
 
-    @log
     def do_set_breakpoint(self, filename, lineno, temporary=0):
         self.set_break(self.canonic(filename), lineno, temporary)
 
-    @log
     def do_clear_breakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
 
-    @log
     def do_clear_file_breakpoints(self, filename):
         self.clear_all_file_breaks(filename)
 
-    @log
     def do_clear(self, arg):
         # required by BDB to remove temp breakpoints!
         err = self.clear_bpbynumber(arg)
         if err:
             print '*** DO_CLEAR failed', err
 
-    @log
     def do_inspect(self, arg):
         return eval(arg, self.frame.f_globals,
                     self.frame.f_locals)
@@ -266,13 +229,11 @@ class Qdb(bdb.Bdb):
         if obj is not None:
             self.pipe.send({'method': 'display_hook', 'args':  repr(obj)})
 
-    @log
     def reset(self):
         bdb.Bdb.reset(self)
         self.waiting = False
         self.frame = None
 
-    @log
     def post_mortem(self, t=None):
         # handling the default
         if t is None:
@@ -282,15 +243,18 @@ class Qdb(bdb.Bdb):
             if t is None:
                 raise ValueError("A valid traceback must be passed if no "
                                  "exception is being handled")
-
         self.reset()
-        
         # get last frame:
         while t is not None:
             frame = t.tb_frame
             t = t.tb_next
-            print frame, t
-            print frame.f_code, frame.f_lineno
+            #print frame, t
+            #print frame.f_code, frame.f_lineno
+            code, lineno = frame.f_code, frame.f_lineno
+            filename = code.co_filename
+            line = linecache.getline(filename, lineno)
+            current = "->" if t is None else ""
+            self.pipe.send({'method': 'show_line', 'args': (filename, lineno, "", current, line, )})
 
         self.interaction(frame)
 
@@ -395,10 +359,15 @@ class Cli(cmd.Cmd):
         while 1:
             request = self.pipe.recv()
             result = None
-            print request
             if request.get('method') == 'interaction':
                 self.interaction()
                 result = None
+            if request.get('method') == 'write':
+                print request.get("args")[0],
+            if request.get('method') == 'debug_event':
+                print "%s:%4d\t%s" % request.get("args"),
+            if request.get('method') == 'show_line':
+                print "%s:%4d%s%s\t%s" % request.get("args"),
             if request.get('method') == 'readline':
                 result = raw_input("input...")
             if result:
@@ -415,7 +384,7 @@ class Cli(cmd.Cmd):
 
     def call(self, method, *args):
         msg = {'method': method, 'args': args, 'id': self.i}
-        print msg
+        ##print msg
         self.pipe.send(msg)
         self.i += 1
 
@@ -461,7 +430,7 @@ class Cli(cmd.Cmd):
             line = line[1:]
             self.call('do_exec', line)
         else:
-            print "*** Unknown command: ", l
+            print "*** Unknown command: ", line
 
 
 def connect(host="localhost", port=6000):
@@ -515,11 +484,8 @@ def main():
     except:
         traceback.print_exc()
         print "Uncaught exception. Entering post mortem debugging"
-        print "Running 'cont' or 'step' will restart the program"
         t = sys.exc_info()[2]
-        ##qdb.interaction(None, t)
-        print "Post mortem debugger finished. The " + mainpyfile + \
-              " will be restarted"
+        qdb.post_mortem(t)
 
     conn.close()
     listener.close()
