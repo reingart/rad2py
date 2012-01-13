@@ -10,8 +10,8 @@ __license__ = "GPL 3.0"
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
 # - request with id == null is a notification (do not send a response)
-# - request with an id is a normal call, wait response
-# based on idle, inspired by pythonwin implementation
+# - request with a value for id is a normal call, wait response
+# based on idle, inspired by pythonwin implementation, taken many code from pdb
 
 import bdb
 import linecache
@@ -29,7 +29,7 @@ class Qdb(bdb.Bdb):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
-        self.i = random.randint(0, sys.maxint / 2)  # sequential RPC call id
+        self.i = random.randint(1, sys.maxint / 2)  # sequential RPC call id
         self.waiting = False
         self.pipe = pipe # for communication
         self.start_continue = True # continue on first run
@@ -69,7 +69,7 @@ class Qdb(bdb.Bdb):
         trace = traceback.extract_tb(trace)
         title = traceback.format_exception_only(extype, exvalue)[0]
         # send an Exception notification
-        msg = {'method': 'except_hook', 
+        msg = {'method': 'exception', 
                'args': (title, extype.__name__, exvalue, trace, msg), 
                'id': None}
         self.pipe.send(msg)
@@ -116,13 +116,6 @@ class Qdb(bdb.Bdb):
         message = "%s:%s" % (basename, lineno)
         if code.co_name != "?":
             message = "%s: %s()" % (message, code.co_name)
-        #  sync_source_line()
-        if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
-            # notify debugger
-            line = linecache.getline(filename, lineno,
-                                     frame.f_globals)
-        else:
-            line = ""
 
         # wait user events 
         self.waiting = True    
@@ -133,9 +126,16 @@ class Qdb(bdb.Bdb):
         ## frame.f_globals
         try:
             while self.waiting:
+                #  sync_source_line()
+                if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+                    # notify debugger
+                    line = linecache.getline(filename, self.frame.f_lineno,
+                                             self.frame.f_globals)
+                else:
+                    line = ""
                 # send the notification (debug event) - DOESN'T WAIT RESPONSE
                 self.pipe.send({'method': 'interaction', 'id': None,
-                                'args': (filename, lineno, line)})
+                                'args': (filename, self.frame.f_lineno, line)})
 
                 ##print ">>>",
                 request = self.pipe.recv()
@@ -182,6 +182,7 @@ class Qdb(bdb.Bdb):
         arg = int(lineno)
         try:
             self.frame.f_lineno = arg
+            return arg
         except ValueError, e:
             print '*** Jump failed:', e
             return False
@@ -244,6 +245,17 @@ class Qdb(bdb.Bdb):
     def do_exec(self, arg):
         code = compile(arg + '\n', '<stdin>', 'single')
         exec code in self.frame.f_globals, self.frame.f_locals
+
+    def do_where(self):
+        "print_stack_trace"
+        stack, curindex = self.get_stack(self.frame, None)
+        for frame, lineno in stack:
+            filename = frame.f_code.co_filename
+            line = linecache.getline(filename, lineno)
+            msg = {'method': 'show_line', 'id': None,
+                   'args': (filename, lineno, "", "", line, )}
+            self.pipe.send(msg)
+
 
     def displayhook(self, obj):
         """Custom displayhook for the do_exec which prevents
@@ -380,25 +392,39 @@ class Cli(cmd.Cmd):
     
     def __init__(self, pipe, completekey='tab', stdin=None, stdout=None, skip=None):
         cmd.Cmd.__init__(self, completekey, stdin, stdout)
-        self.i = 0
+        self.i = 1
         self.pipe = pipe
+        self.notifies = []
 
-    def attach(self):
+    def run(self):
         while 1:
-            request = self.pipe.recv()
+            if not self.notifies:
+                # wait for a message...
+                request = self.pipe.recv()
+            else:
+                # process an asyncronus notification received earlier 
+                request = self.notifies.pop(0)
             result = None
             if request.get("error"):
-                print request['error']
-            if request.get('method') == 'interaction':
+                print "*" * 80
+                print "Error:", request['error']
+                print "*" * 80
+            elif request.get('method') == 'interaction':
                 print "%s:%4d\t%s" % request.get("args"),
                 self.interaction()
                 result = None
-            if request.get('method') == 'write':
+            elif request.get('method') == 'exception':
+                title, extype, exvalue, trace, request = request['args']
+                print "=" * 80
+                print "Exception", title
+                print request
+                print "-" * 80
+            elif request.get('method') == 'write':
                 print request.get("args")[0],
-            if request.get('method') == 'show_line':
+            elif request.get('method') == 'show_line':
                 print "%s:%4d%s%s\t%s" % request.get("args"),
-            if request.get('method') == 'readline':
-                result = raw_input("input...")
+            elif request.get('method') == 'readline':
+                result = raw_input("")
             if result:
                 response = {'version': '1.1', 'id': request.get('id'), 
                         'result': result, 
@@ -412,10 +438,25 @@ class Cli(cmd.Cmd):
         return not line.startswith("h") # stop
 
     def call(self, method, *args):
-        msg = {'method': method, 'args': args, 'id': self.i}
+        req = {'method': method, 'args': args, 'id': self.i}
         ##print msg
-        self.pipe.send(msg)
+        self.pipe.send(req)
         self.i += 1
+        while 1:
+            # wait until command acknowledge (response match the request)
+            res = self.pipe.recv()
+            if 'id' not in res or not res['id']:
+                #print "*** notification received!", res
+                self.notifies.append(res)
+            elif 'result' not in res:
+                ##print "*** wrong packet received: expecting result", res
+                # protocol state is unknown
+                self.notifies.append(res)
+            elif long(req['id']) != long(res['id']):
+                print "*** wrong packet received: expecting id", req['id'], res['id']
+                # protocol state is unknown
+            else:
+                return res['result']
 
     do_h = cmd.Cmd.do_help
 
@@ -437,7 +478,12 @@ class Cli(cmd.Cmd):
 
     def do_j(self, arg): 
         "Set the next line that will be executed."
-        self.call('do_jump', arg)
+        res = self.call('do_jump', arg)
+        print res
+
+    def do_w(self, arg):
+        "Print a stack trace, with the most recent frame at the bottom."
+        self.call('do_where')
 
     def do_q(self, arg):
         "Quit from the debugger. The program being executed is aborted."
@@ -445,7 +491,7 @@ class Cli(cmd.Cmd):
     
     def do_p(self, arg):
         "Inspect the value of the expression"
-        self.call('do_inspect', arg)
+        print self.call('do_inspect', arg)
 
     def do_l(self, arg):
         "List source code for the current file"
@@ -465,7 +511,7 @@ class Cli(cmd.Cmd):
         "Default command"
         if line[:1] == '!':
             line = line[1:]
-            self.call('do_exec', line)
+            print self.call('do_exec', line)
         else:
             print "*** Unknown command: ", line
 
@@ -479,7 +525,7 @@ def connect(host="localhost", port=6000):
     print "waiting for connection to", address
     conn = Client(address, authkey='secret password')
     try:
-        Cli(conn).attach()
+        Cli(conn).run()
     except EOFError:
         pass
     finally:
