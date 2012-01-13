@@ -69,7 +69,7 @@ class Qdb(bdb.Bdb):
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
         trace = traceback.extract_tb(trace)
-        msg = {'method': 'ExceptHook', 'args':(extype, exvalue, trace)}
+        msg = {'method': 'except_hook', 'args':(extype, exvalue, trace)}
         self.pipe.send(msg)
         self.interaction(frame, info)
 
@@ -121,7 +121,7 @@ class Qdb(bdb.Bdb):
         #  sync_source_line()
         if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             # notify debugger
-            self.pipe.send({'method': 'DebugEvent', 'args': (filename, lineno)})
+            self.pipe.send({'method': 'debug_event', 'args': (filename, lineno)})
             line = linecache.getline(filename, lineno,
                                      frame.f_globals)
             if line:
@@ -426,6 +426,7 @@ def connect(host="localhost", port=6000):
     address = (host, port)
     from multiprocessing.connection import Client
 
+    print "waiting for connection to", address
     conn = Client(address, authkey='secret password')
     try:
         Cli(conn).attach()
@@ -453,7 +454,7 @@ def main():
     from multiprocessing.connection import Listener
     address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
     listener = Listener(address, authkey='secret password')
-    print "waiting for connection", address
+    print "waiting for connection at", address
     conn = listener.accept()
     print 'connection accepted from', listener.last_accepted
 
