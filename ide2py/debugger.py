@@ -17,33 +17,23 @@ import sys
 import wx
 
 # Define notification event for thread completion
-EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID = wx.NewId(), wx.NewId(), wx.NewId()
+EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
+    for i in range(4)]
 
 
 class DebugEvent(wx.PyEvent):
     """Simple event to carry arbitrary result data."""
-    def __init__(self, filename, lineno):
+    def __init__(self, event_type, data=None):
         wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_DEBUG_ID)
-        self.data = filename, lineno
-
-
-class ReadlineEvent(wx.PyEvent):
-    """Simple event to notify a that a readline (console) must be done"""
-    def __init__(self):
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_READLINE_ID)
-
-
-class WriteEvent(wx.PyEvent):
-    """Simple event to notify a that a print (console) must be done"""
-    def __init__(self, data):
-        wx.PyEvent.__init__(self)
+        self.SetEventType(event_type)
         self.data = data
-        self.SetEventType(EVT_WRITE_ID)
 
 
 class RPCError(RuntimeError):
+    pass
+
+
+class UserException(RuntimeError):
     pass
 
 
@@ -53,7 +43,7 @@ class Debugger(Thread):
     def __init__(self, gui=None, pipe=None):
         Thread.__init__(self)
         self.frame = None
-        self.i = random.randint(0, sys.maxint / 2)  # sequential RPC call id
+        self.i = random.randint(1, sys.maxint / 2)  # sequential RPC call id
         self.done = Event()
         self.gui = gui # for callbacks
         self.pipe = None
@@ -81,20 +71,23 @@ class Debugger(Thread):
                     result = None
                     if request.get("error"):
                         print request['error']
-                    if request.get('method') == 'interaction':
+                    elif request.get('method') == 'interaction':
                         print "%s:%4d\t%s" % request.get("args"),
                         self.interaction(*request.get("args"))
                         result = None
-                    if request.get('method') == 'write':
+                    elif request.get('method') == 'write':
                         text = request.get("args")[0]
                         print "WRITE"*10, text
-                        wx.PostEvent(self.gui, WriteEvent(text))
-                    if request.get('method') == 'show_line':
+                        wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
+                    elif request.get('method') == 'show_line':
                         print "%s:%4d%s%s\t%s" % request.get("args"),
-                    if request.get('method') == 'readline':
+                    elif request.get('method') == 'exception':
+                        wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, 
+                                                          request.get("args")))
+                    elif request.get('method') == 'readline':
                         print "WAITING READLINE!!!!"
                         self.done.clear()
-                        wx.PostEvent(self.gui, ReadlineEvent())
+                        wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
                         self.done.wait()
                         result = self.rawinput
                         print "READLINE: ", result
@@ -130,14 +123,15 @@ class Debugger(Thread):
             # wait until command acknowledge (response match the request)
             res = self.pipe.recv()
             print "*** DBG <<< ", res
-            if 'id' not in res:
+            if 'id' not in res or not res['id']:
                 print "*** notification received!", res
-                self.notifies.append(req)
+                self.notifies.append(res)
             elif 'result' not in res:
-                print "*** wrong packet received: expecting id", res['id'], res
-                # protocol state is unknown                
-            elif req['id'] != res['id']:
-                print "*** wrong packet received: expecting result! ", res
+                ##print "*** wrong packet received: expecting result", res
+                # protocol state is unknown
+                self.notifies.append(res)
+            elif long(req['id']) != long(res['id']):
+                print "*** wrong packet received: expecting id", req['id'], res['id']
                 # protocol state is unknown
             elif 'error' in res and res['error']:
                 raise RPCError(res['error']['message'])
@@ -160,8 +154,8 @@ class Debugger(Thread):
             if self.gui:
                 # we may be in other thread (i.e. debugging web2py)
                 print "POSTEVENT", filename, lineno
-                wx.PostEvent(self.gui, DebugEvent(filename, lineno))
-                wx.Yield()
+                wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
+                                                  (filename, lineno)))
 
         # wait user events
         print "WAITING " * 10

@@ -29,7 +29,8 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID
+from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
+                               EVT_EXCEPTION_ID
 from console import ConsoleCtrl
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -304,8 +305,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # Connect to debugging events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
-        self.Connect(-1, -1, EVT_READLINE_ID, self.Readline)
-        self.Connect(-1, -1, EVT_WRITE_ID, self.Write)
+        self.Connect(-1, -1, EVT_READLINE_ID, self.OnReadline)
+        self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
+        self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
@@ -578,7 +580,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             tb.SetToolSticky(event.GetId(), False)
            
     def GotoFileLine(self, event=None, running=True):
-        print "GOTOFILELINE" * 10
         if event and running:
             filename, lineno = event.data
         elif not running:
@@ -598,13 +599,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 else:
                     child.GotoLineOffset(lineno, offset)
 
-    def Readline(self, event):
-        print "RAWINPUT" * 10
+    def OnReadline(self, event):
         text = self.console.readline()
         self.debugger.Readline(text)
 
-    def Write(self, event):
-        print "WRITE" * 10
+    def OnWrite(self, event):
         self.console.write(event.data)
                     
     def OnDebugCommand(self, event):
@@ -705,7 +704,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         exc = traceback.format_exception(extype, exvalue, trace) 
         #for e in exc: wx.LogError(e) 
         # format exception message
-        title = traceback.format_exception_only(type, exvalue)[0]
+        title = traceback.format_exception_only(extype, exvalue)[0]
         if not isinstance(title, unicode):
             title = title.decode("latin1", "ignore")
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
@@ -714,35 +713,36 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
         dlg.ShowModal()
         dlg.Destroy()
-        # TODO: automatic defect classification
-        tb = traceback.extract_tb(trace)
-        if tb:
-            filename, lineno, function_name, text = tb[-1]
-            if len(tb)>2:
-                # some exceptions raises on wxpython or python 
-                # (check also filename at call stack - 1)
-                filename0, lineno0, function_name0, text0 = tb[-2]
-            else:
-                filename0 = ""
-            # do not add exceptions raised by the IDE (indirectely too)
-            print "extype", extype
-            if (not filename.startswith(INSTALL_DIR) and \
-               not filename0.startswith(INSTALL_DIR)) or \
-               extype not in (AssertionError, ):
+
+    def OnException(self, event):
+        # unpack remote exception contents
+        title, extype, exvalue, trace, msg = event.data
+        if not isinstance(title, unicode):
+            title = title.decode("latin1", "ignore")
+        # display the exception
+        print u'Unhandled Remote Error: %s' % title
+        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
+        dlg.ShowModal()
+        dlg.Destroy()
+        # automatic defect classification
+        if extype:
+            # stack trace (tb) should be processed:
+            if trace:
+                filename, lineno, function_name, text = trace[-1]
                 # Automatic Error Classification (PSP Defect Type Standard):
                 defect_type_standard = {
-                    '20': (SyntaxError, ), # this should be cached by the editor
-                    '40': (NameError, LookupError, ImportError),
-                    '50': (TypeError, AttributeError),
-                    '60': (AssertionError, ), #TODO: unittest/doctests
-                    '70': (ValueError, ArithmeticError, EOFError, BufferError),
-                    '80': (RuntimeError, ),
-                    '90': (SystemError, MemoryError, ReferenceError, ),
-                    '100': (EnvironmentError, ), # TODO: libraries?
+                    '20': ('SyntaxError', ), # this should be cached by the editor
+                    '40': ('NameError', 'LookupError', 'ImportError'),
+                    '50': ('TypeError', 'AttributeError'),
+                    '60': ('AssertionError', ), #TODO: unittest/doctests
+                    '70': ('ValueError', 'ArithmeticError', 'EOFError', 'BufferError'),
+                    '80': ('RuntimeError', ),
+                    '90': ('SystemError', 'MemoryError', 'ReferenceError', ),
+                    '100': ('EnvironmentError', ), # TODO: libraries?
                     }
                 # Find the related defect_type code for the exception value:
                 for k, v in defect_type_standard.items():
-                    if isinstance(exvalue, v):
+                    if extype == v:
                         defect_type = k
                         break
                 else:
