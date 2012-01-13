@@ -65,9 +65,13 @@ class Qdb(bdb.Bdb):
         ##print info
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
+        msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         trace = traceback.extract_tb(trace)
+        title = traceback.format_exception_only(extype, exvalue)[0]
         # send an Exception notification
-        msg = {'method': 'except_hook', 'args':(extype, exvalue, trace), 'id': None}
+        msg = {'method': 'except_hook', 
+               'args': (title, extype.__name__, exvalue, trace, msg), 
+               'id': None}
         self.pipe.send(msg)
         self.interaction(frame, info)
 
