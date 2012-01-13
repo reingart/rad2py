@@ -122,6 +122,10 @@ class Qdb(bdb.Bdb):
         if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             # notify debugger
             self.pipe.send({'method': 'DebugEvent', 'args': (filename, lineno)})
+            line = linecache.getline(filename, lineno,
+                                     frame.f_globals)
+            if line:
+                self.pipe.send({'method': 'show_current_line', 'args': line})
 
         # wait user events 
         self.waiting = True    
