@@ -66,7 +66,8 @@ class Web2pyMixin(object):
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)
                 if self.browser:
-                    self.browser.LoadURL(url)
+                    #self.browser.LoadURL(url)
+                    pass
                 else:
                     # no interna browser, open external one
                     try:
@@ -77,16 +78,17 @@ class Web2pyMixin(object):
                 
                 self.web2py_environment = self.build_web2py_environment()
 
-                # Start a alternate web2py in a separate thread (for blocking requests)
-                from threading import Thread
-                def f(host, port, password):
-                    save_password(password, port)
-                    httpd2 = make_server(host, port, wsgibase)
-                    print "THREAD - Serving HTTP on port2 %s..." % port
-                    httpd2.serve_forever()
+                if False:
+                    # Start a alternate web2py in a separate thread (for blocking requests)
+                    from threading import Thread
+                    def f(host, port, password):
+                        save_password(password, port)
+                        httpd2 = make_server(host, port, wsgibase)
+                        print "THREAD - Serving HTTP on port2 %s..." % port
+                        httpd2.serve_forever()
 
-                p = Thread(target=f, args=("127.0.0.1", 8000, password))
-                p.start()                
+                    p = Thread(target=f, args=("127.0.0.1", 8000, password))
+                    p.start()                
                 
             except Exception, e:
                 dlg = wx.MessageDialog(self, unicode(e),

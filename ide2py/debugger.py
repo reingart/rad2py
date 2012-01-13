@@ -9,8 +9,10 @@ __license__ = "GPL 3.0"
 
 # based on idle, inspired by pythonwin implementation
 
-import bdb
+from threading import Thread, Event
+from multiprocessing.connection import Client
 import os
+import random
 import sys
 import wx
 
@@ -26,137 +28,150 @@ class DebugEvent(wx.PyEvent):
         self.data = filename, lineno
 
 
-class Debugger(bdb.Bdb):
+class Debugger(Thread):
+    "Frontend Visual interface to qdb"
 
-    def __init__(self, gui=None):
-        bdb.Bdb.__init__(self)
+    def __init__(self, gui=None, pipe=None):
+        Thread.__init__(self)
         self.frame = None
-        self.interacting = 0
-        self.waiting = False
+        self.i = random.randint(0, sys.maxint / 2)
+        self.done = Event()
         self.gui = gui # for callbacks
+        self.pipe = None
         self.start_continue = True # continue on first run
+        self.address = ('localhost', 6000)
+        self.setDaemon(1)
+        self.start()
 
-    def user_line(self, frame):
-        self.interaction(frame)
+    def run(self):
+        while 1:
+            print "waiting for connection to", self.address
+            self.pipe = Client(self.address, authkey='secret password')
+            try:
+                while 1:          
+                    print "recv..."      
+                    request = self.pipe.recv()
+                    print "*** DBG <<<< ", request
+                    result = None
+                    if request.get("error"):
+                        print request['error']
+                    if request.get('method') == 'interaction':
+                        print "%s:%4d\t%s" % request.get("args"),
+                        self.interaction(*request.get("args"))
+                        result = None
+                    if request.get('method') == 'write':
+                        print request.get("args")[0],
+                    if request.get('method') == 'show_line':
+                        print "%s:%4d%s%s\t%s" % request.get("args"),
+                    if request.get('method') == 'readline':
+                        print "READLINE!!!!"
+                        result = 'hola!'#self.gui.console.readline()
+                    if result:
+                        response = {'version': '1.1', 'id': request.get('id'), 
+                                'result': result, 
+                                'error': None}
+                        self.pipe.send(response)
+                        print ">>>", response
+            except EOFError:
+                print "DEBUGGER disconnected..."
+                self.pipe.close()
 
-    def user_exception(self, frame, info):
-        if self.gui:
-            self.gui.ExceptHook(*info)
-        self.interaction(frame, info)
+    def __getattr__(self, attr):
+        "Return a pseudomethod that can be called"
+        print "PSEUDOMETHOD:", attr
+        return lambda *args, **kwargs: self.queue_call(attr, *args)
 
-    def Run(self, code, interp=None, *args, **kwargs):
-        try:
-            self.interp = interp
-            self.interacting = self.start_continue and 1 or 2
-            return self.run(code, *args, **kwargs)
-        finally:
-            self.interacting = 0
+    def queue_call(self, method, *args):
+        "Schedule a call for further execution by the thread"
+        print "ACTION SCHEDULED:", method
+        self.action = lambda: self.call(method, *args)
 
-    def RunCall(self, function, interp=None, *args, **kwargs):
-        try:
-            self.interp = interp
-            self.interacting = self.start_continue and 1 or 2
-            return self.runcall(function, *args, **kwargs)
-        finally:
-            self.interacting = 0
+    def call(self, method, *args):
+        "Actually call the remote method (inside the thread)"
+        print "CALLING:", method        
+        req = {'method': method, 'args': args, 'id': self.i}
+        print "*** DBG >>> ", req
+        self.pipe.send(req)
+        res = self.pipe.recv()
+        print "*** DBG <<< ", res
+        if req['id'] != res['id']:
+            print "*** wrong packet received!", msg
+        self.i += 1
 
     def check_interaction(fn):
         "Decorator for exclusive functions (not allowed during interaction)"
         def check_fn(self, *args, **kwargs):
-            if not self.waiting:
+            if self.done.is_set():
+                print "-+-+-+ Already BuSY!"
                 wx.Bell()
             else:
                 fn(self, *args, **kwargs)
         return check_fn
 
-    def interaction(self, frame, info=None):
-        # first callback (Run)?, just continue...
-        if self.interacting == 1:
-            self.interacting += 1
-            self.set_continue()
-            return
-        code, lineno = frame.f_code, frame.f_lineno
-        filename = code.co_filename
-        basename = os.path.basename(filename)
-        message = "%s:%s" % (basename, lineno)
-        if code.co_name != "?":
-            message = "%s: %s()" % (message, code.co_name)
+    def interaction(self, filename, lineno, line):
         #  sync_source_line()
-        if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+        if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             if self.gui:
                 # we may be in other thread (i.e. debugging web2py)
+                print "POSTEVENT", filename, lineno
                 wx.PostEvent(self.gui, DebugEvent(filename, lineno))
+                wx.Yield()
 
-        # wait user events (like wxSemaphore.Wait?, see wx.py.shell.readline)
-        self.waiting = True    
-        self.frame = frame
-         # save and change interpreter namespaces to the current frame
-        i_locals = self.interp.locals
-        self.interp.locals = frame.f_locals
-        # copy globals into interpreter, so them can be inspected 
-        self.interp.globals = frame.f_globals
-        try:
-            while self.waiting:
-                wx.YieldIfNeeded()  # hope this is thread safe...
-        finally:
-            self.waiting = False
-            # dereference interpreter namespaces:
-            self.interp.locals = i_locals
-        self.frame = None
+        # wait user events
+        print "WAITING " * 10
+        self.done.clear()
+        self.done.wait()
+        
+        # execute user action
+        print "ACTION " * 10
+        self.action()
+        print "DONE " * 10        
+
 
     @check_interaction
     def Continue(self):
-        self.set_continue()
-        self.waiting = False
+        self.do_continue()
+        self.done.set()
 
     @check_interaction
     def Step(self):
-        self.set_step()
-        self.waiting = False
+        print "*** DBG FE *** Step"
+        self.do_step()
+        self.done.set()
 
     @check_interaction
     def StepReturn(self):
-        self.set_return(self.frame)
-        self.waiting = False
+        self.do_return()
+        self.done.set()
 
     @check_interaction
     def Next(self):
-        self.set_next(self.frame)
-        self.waiting = False
+        print "*** DBG FE *** Next"
+        self.do_next()
+        self.done.set()
 
     @check_interaction
     def Quit(self):
-        self.set_quit()
-        self.waiting = False
+        self.do_quit()
+        self.done.set()
 
     @check_interaction
     def Jump(self, lineno):
-        arg = int(lineno)
-        try:
-            self.frame.f_lineno = arg
-        except ValueError, e:
-            print '*** Jump failed:', e
-            return False
+        self.do_jump(lineno)
+        self.done.set()
 
     def SetBreakpoint(self, filename, lineno, temporary=0):
-        self.set_break(self.canonic(filename), lineno, temporary)
+        self.do_set_breakpoint(filename, lineno, temporary)
 
     def ClearBreakpoint(self, filename, lineno):
-        self.clear_break(filename, lineno)
+        self.do_clear_breakpoint(filename, lineno)
 
     def ClearFileBreakpoints(self, filename):
-        self.clear_all_file_breaks(filename)
+        self.do_clear_file_breakpoints(filename)
 
-    def do_clear(self, arg):
-        # required by BDB to remove temp breakpoints!
-        err = self.clear_bpbynumber(arg)
-        if err:
-            print '*** DO_CLEAR failed', err
-                        
-    def inspect(self, arg):
+    def Inspect(self, arg):
         try:
-            return eval(arg, self.frame.f_globals,
-                        self.frame.f_locals)
+            return self.do_inspect(arg)
         except:
             t, v = sys.exc_info()[:2]
             if isinstance(t, str):
@@ -164,31 +179,6 @@ class Debugger(bdb.Bdb):
             else: exc_type_name = t.__name__
             return '*** %s: %s' % (exc_type_name, repr(v))
 
-    def reset(self):
-        bdb.Bdb.reset(self)
-        self.waiting = False
-        self.frame = None
-
-    def post_mortem(self, t=None):
-        # handling the default
-        if t is None:
-            # sys.exc_info() returns (type, value, traceback) if an exception is
-            # being handled, otherwise it returns None
-            t = sys.exc_info()[2]
-            if t is None:
-                raise ValueError("A valid traceback must be passed if no "
-                                 "exception is being handled")
-
-        self.reset()
-        
-        # get last frame:
-        while t is not None:
-            frame = t.tb_frame
-            t = t.tb_next
-            print frame, t
-            print frame.f_code, frame.f_lineno
-
-        self.interaction(frame)
 
 
 def set_trace():
