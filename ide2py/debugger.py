@@ -212,13 +212,17 @@ class Debugger(Thread):
         self.done.set()
 
     def SetBreakpoint(self, filename, lineno, temporary=0):
+        print "*** DBG FE *** Set Breakpoint"
         self.do_set_breakpoint(filename, lineno, temporary)
+        self.done.set()
 
     def ClearBreakpoint(self, filename, lineno):
         self.do_clear_breakpoint(filename, lineno)
+        self.done.set()
 
     def ClearFileBreakpoints(self, filename):
         self.do_clear_file_breakpoints(filename)
+        self.done.set()
 
     def Inspect(self, arg):
         try:
