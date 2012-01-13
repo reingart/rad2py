@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-"Queues(Pipe)-based independent remote Python Debugger"
+"Queues(Pipe)-based independent remote client-server Python Debugger"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
@@ -19,6 +19,7 @@ import cmd
 
 
 class Qdb(bdb.Bdb):
+    "Qdb Debugger Backend"
 
     def __init__(self, pipe):
         bdb.Bdb.__init__(self)
