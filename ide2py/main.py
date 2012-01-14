@@ -624,10 +624,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             # clean running indication
             self.GotoFileLine()
         elif event_id == ID_STEPIN:
-            print "*** DBG *** Step"
             self.debugger.Step()
         elif event_id == ID_STEPNEXT:
-            print "*** DBG *** Next"
             self.debugger.Next()
         elif event_id == ID_STEPRETURN:
             self.debugger.StepReturn()

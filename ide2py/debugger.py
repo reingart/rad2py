@@ -56,8 +56,9 @@ class Debugger(Thread):
         while 1:
             self.pipe = None
             try:
-                print "waiting for connection to", self.address
+                print "DEBUGGER waiting for connection to", self.address
                 self.pipe = Client(self.address, authkey='secret password')
+                print "DEBUGGER connected!"
                 while 1:          
                     if not self.notifies:
                         # wait for a message...
@@ -97,8 +98,8 @@ class Debugger(Thread):
             except EOFError:
                 print "DEBUGGER disconnected..."
                 self.pipe.close()
-            except IOError:
-                print "DEBUGGER cannot connect..."
+            except IOError, e:
+                print "DEBUGGER connection exception:", e
                 if self.pipe:
                     self.pipe.close()
                 time.sleep(1)
