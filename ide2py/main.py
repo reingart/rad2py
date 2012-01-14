@@ -642,7 +642,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             val = self.debugger.Inspect(arg)
             dlg = wx.MessageDialog(self, "Expression: %s\nValue: %s" % (arg, val), 
                                    "Debugger Quick Inspection",
-                                   wx.ICON_INFORMATION)
+                                   wx.ICON_INFORMATION | wx.OK )
             dlg.ShowModal()
             dlg.Destroy()
         elif event_id == ID_JUMP and self.debugging_child:
