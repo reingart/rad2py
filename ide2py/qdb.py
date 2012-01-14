@@ -329,14 +329,10 @@ class QueuePipe(object):
         self.out_queue = out_queue
 
     def send(self, data):
-        print self.__name, "send", data
         self.out_queue.put(data, block=True)
-        print self.__name, "joined"
 
     def recv(self, count=None, timeout=None):
-        print self.__name, "recv", "..."
         data = self.in_queue.get(block=True, timeout=timeout)
-        print self.__name, "recv", data
         return data
         
 
