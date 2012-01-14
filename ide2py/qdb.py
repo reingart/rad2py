@@ -198,19 +198,19 @@ class Qdb(bdb.Bdb):
             last = first + 10
         filename = self.frame.f_code.co_filename
         breaklist = self.get_file_breaks(filename)
+        lines = []
         for lineno in range(first, last+1):
             line = linecache.getline(filename, lineno,
                                      self.frame.f_globals)
             if not line:
-                print '[EOF]'
+                lines.append((filename, lineno, breakpoint, current, "<EOF>\n"))
                 break
             else:
                 breakpoint = "B" if lineno in breaklist else ""
                 current = "->" if self.frame.f_lineno == lineno else ""
-                msg = {'method': 'show_line', 'id': None, 
-                       'args': (filename, lineno, breakpoint, current, line, )}
-                self.pipe.send(msg)
+                lines.append((filename, lineno, breakpoint, current, line))
                 self._lineno = lineno
+        return lines
 
     def do_set_breakpoint(self, filename, lineno, temporary=0):
         return self.set_break(filename, int(lineno), temporary)
@@ -245,12 +245,12 @@ class Qdb(bdb.Bdb):
     def do_where(self):
         "print_stack_trace"
         stack, curindex = self.get_stack(self.frame, None)
+        lines = []
         for frame, lineno in stack:
             filename = frame.f_code.co_filename
             line = linecache.getline(filename, lineno)
-            msg = {'method': 'show_line', 'id': None,
-                   'args': (filename, lineno, "", "", line, )}
-            self.pipe.send(msg)
+            lines.append((filename, lineno, "", "", line, ))
+        return lines
 
 
     def displayhook(self, obj):
@@ -284,10 +284,7 @@ class Qdb(bdb.Bdb):
             code, lineno = frame.f_code, frame.f_lineno
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
-            current = "->" if t is None else ""
-            msg = {'method': 'show_line', 'id': None,
-                   'args': (filename, lineno, "", current, line, )}
-            self.pipe.send(msg)
+            #(filename, lineno, "", current, line, )}
 
         self.interaction(frame)
 
@@ -376,18 +373,38 @@ def test():
 
     p.join()
 
-
-class Cli(cmd.Cmd):
-    "Qdb Front-end command line interface"
     
-    def __init__(self, pipe, completekey='tab', stdin=None, stdout=None, skip=None):
-        cmd.Cmd.__init__(self, completekey, stdin, stdout)
+class RPCError(RuntimeError):
+    "Remote Error"
+    pass
+
+    
+class Frontend(object):
+    "Qdb generic Frontend interface"
+    
+    def __init__(self, pipe):
         self.i = 1
         self.pipe = pipe
         self.notifies = []
 
+    def interaction(self, filename, lineno, line):
+        raise NotImplementedError
+    
+    def exception(self, title, extype, exvalue, trace, request):
+        "Show a user_exception"
+        raise NotImplementedError
+
+    def write(self, text):
+        "Console output (print)"
+        raise NotImplementedError
+    
+    def readline(self, text):
+        "Console input/rawinput"
+        raise NotImplementedError
+
     def run(self):
-        while 1:
+        "Main method dispatcher (infinite loop)"
+        if self.pipe:
             if not self.notifies:
                 # wait for a message...
                 request = self.pipe.recv()
@@ -396,114 +413,179 @@ class Cli(cmd.Cmd):
                 request = self.notifies.pop(0)
             result = None
             if request.get("error"):
-                print "*" * 80
-                print "Error:", request['error']
-                print "*" * 80
+                # it is not supposed to get an error here
+                # it should be raised by the method call
+                raise RPCError(res['error']['message'])
             elif request.get('method') == 'interaction':
-                print "%s:%4d\t%s" % request.get("args"),
-                self.interaction()
-                result = None
+                self.interaction(*request.get("args"))
             elif request.get('method') == 'exception':
-                title, extype, exvalue, trace, request = request['args']
-                print "=" * 80
-                print "Exception", title
-                print request
-                print "-" * 80
+                self.exception(*request['args'])
             elif request.get('method') == 'write':
-                print request.get("args")[0],
-            elif request.get('method') == 'show_line':
-                print "%s:%4d%s%s\t%s" % request.get("args"),
+                self.write(*request.get("args"))
             elif request.get('method') == 'readline':
-                result = raw_input("")
+                result = self.readline()
             if result:
                 response = {'version': '1.1', 'id': request.get('id'), 
                         'result': result, 
                         'error': None}
                 self.pipe.send(response)
-
-    def interaction(self):
-        self.cmdloop()
-
-    def postcmd(self, stop, line):
-        return not line.startswith("h") # stop
+            return True
 
     def call(self, method, *args):
+        "Actually call the remote method (inside the thread)"
         req = {'method': method, 'args': args, 'id': self.i}
         self.pipe.send(req)
-        self.i += 1
+        self.i += 1  # increment the id
         while 1:
             # wait until command acknowledge (response match the request)
             res = self.pipe.recv()
             if 'id' not in res or not res['id']:
-                # "*** notification received!", res
+                # notification received!
                 self.notifies.append(res)
             elif 'result' not in res:
-                # "*** wrong packet received: expecting result", res
-                # protocol state is unknown
+                print "DEBUGGER wrong packet received: expecting result", res
+                # protocol state is unknown, this should not happen
                 self.notifies.append(res)
             elif long(req['id']) != long(res['id']):
-                print "*** wrong packet received: expecting id", req['id'], res['id']
+                print "DEBUGGER wrong packet received: expecting id", req['id'], res['id']
                 # protocol state is unknown
+            elif 'error' in res and res['error']:
+                raise RPCError(res['error']['message'])
             else:
                 return res['result']
 
-    do_h = cmd.Cmd.do_help
-
-    def do_s(self, arg):
+    def do_step(self, arg=None):
         "Execute the current line, stop at the first possible occasion"
         self.call('do_step')
         
-    def do_n(self, arg):
+    def do_next(self, arg=None):
         "Execute the current line, do not stop at function calls"
         self.call('do_next')
 
-    def do_c(self, arg): 
+    def do_continue(self, arg=None): 
         "Continue execution, only stop when a breakpoint is encountered."
         self.call('do_continue')
         
-    def do_r(self, arg): 
+    def do_return(self, arg=None): 
         "Continue execution until the current function returns"
         self.call('do_return')
 
-    def do_j(self, arg): 
+    def do_jump(self, arg): 
         "Set the next line that will be executed."
         res = self.call('do_jump', arg)
         print res
 
-    def do_w(self, arg):
+    def do_where(self, arg=None):
         "Print a stack trace, with the most recent frame at the bottom."
-        self.call('do_where')
+        return self.call('do_where')
 
-    def do_q(self, arg):
+    def do_quit(self, arg=None):
         "Quit from the debugger. The program being executed is aborted."
         self.call('do_quit')
     
-    def do_p(self, arg):
+    def do_inspect(self, expr):
         "Inspect the value of the expression"
-        print self.call('do_inspect', arg)
+        return self.call('do_inspect', expr)
 
-    def do_l(self, arg):
+    def do_list(self, arg=None):
         "List source code for the current file"
-        if arg:
-            arg = eval(arg, {}, {})
-        self.call('do_list', arg)
+        return self.call('do_list', arg)
 
-    def do_b(self, arg):
+    def do_set_breakpoint(self, filename, lineno, temporary=0):
+        "Set a breakpoint at filename:breakpoint"
+        self.call('do_set_breakpoint', filename, lineno, temporary)
+    
+    def do_list_breakpoint(self):
+        "List all breakpoints"
+        return self.call('do_list_breakpoint')
+    
+    def do_exec(self, statement):
+        return self.call('do_exec', statement)
+
+
+class Cli(Frontend, cmd.Cmd):
+    "Qdb Front-end command line interface"
+    
+    def __init__(self, pipe, completekey='tab', stdin=None, stdout=None, skip=None):
+        cmd.Cmd.__init__(self, completekey, stdin, stdout)
+        Frontend.__init__(self, pipe)
+
+    # redefine Frontend methods:
+    
+    def run(self):
+        while 1:
+            Frontend.run(self)
+
+    def interaction(self, filename, lineno, line):
+        print "> %s(%d)\n-> %s" % (filename, lineno, line),
+        self.filename = filename
+        self.cmdloop()
+
+    def exception(self, title, extype, exvalue, trace, request):
+        print "=" * 80
+        print "Exception", title
+        print request
+        print "-" * 80
+
+    def write(self, text):
+        print text,
+    
+    def readline(self):
+        return raw_input()
+        
+    def postcmd(self, stop, line):
+        return not line.startswith("h") # stop
+
+    do_h = cmd.Cmd.do_help
+    
+    do_s = Frontend.do_step
+    do_n = Frontend.do_next
+    do_c = Frontend.do_continue        
+    do_r = Frontend.do_return
+    do_j = Frontend.do_jump
+    do_q = Frontend.do_quit
+
+    def do_inspect(self, args):
+        "Inspect the value of the expression"
+        print Frontend.do_inspect(self, args)
+ 
+    def do_list(self, args):
+        "List source code for the current file"
+        lines = Frontend.do_list(self, eval(args, {}, {}) if args else None)
+        self.print_lines(lines)
+    
+    def do_where(self, args):
+        "Print a stack trace, with the most recent frame at the bottom."
+        lines = Frontend.do_where(self)
+        self.print_lines(lines)
+            
+    def do_set_breakpoint(self, arg):
         "Set a breakpoint at filename:breakpoint"
         if arg:
-            arg = arg.split(":")
-            self.call('do_set_breakpoint', *arg)
+            if ':' in arg:
+                args = arg.split(":")
+            else:
+                args = (self.filename, arg)
+            Frontend.do_set_breakpoint(self, *args)
         else:
-            self.call('do_list_breakpoint')
+            self.do_list_breakpoint()
+
+    do_b = do_set_breakpoint
+    do_l = do_list
+    do_p = do_inspect
+    do_w = do_where
 
     def default(self, line):
         "Default command"
         if line[:1] == '!':
-            line = line[1:]
-            print self.call('do_exec', line)
+            print self.do_exec(line[1:])
         else:
             print "*** Unknown command: ", line
 
+    def print_lines(self, lines):
+        for filename, lineno, bp, current, source in lines:
+            print "%s:%4d%s%s\t%s" % (filename, lineno, bp, current, source),
+        print
 
 def connect(host="localhost", port=6000):
     "Connect to a running debugger backend"
