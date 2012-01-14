@@ -24,7 +24,7 @@ import cmd
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
-    def __init__(self, pipe):
+    def __init__(self, pipe, redirect_stdio=True):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
@@ -35,8 +35,9 @@ class Qdb(bdb.Bdb):
         self._wait_for_mainpyfile = False
         self._lineno = None     # last listed line numbre
         # replace system standard input and output (send them thru the pipe)
-        sys.stdin = self
-        sys.stdout = self
+        if redirect_stdio:
+            sys.stdin = self
+            sys.stdout = self
 
     # Override Bdb methods
 
@@ -332,52 +333,14 @@ class QueuePipe(object):
     def send(self, data):
         self.out_queue.put(data, block=True)
 
-    def recv(self, count=None, timeout=None):
+    def recv(self, count=None, timeout=10):
         data = self.in_queue.get(block=True, timeout=timeout)
+        print "<<<", data
         return data
         
-
-
-def test():
-    def f(pipe):
-        print "creating debugger"
-        qdb = Qdb(pipe=pipe)
-        print "set trace"
-
-        my_var = "Mariano!"
-        qdb.set_trace()
-        print "hello world!"
-        print "good by!"
-        saraza
-
-    if 'process' in sys.argv:
-        from multiprocessing import Process, Pipe
-        pipe, child_conn = Pipe()
-        p = Process(target=f, args=(child_conn,))
-
-    else:
-        from threading import Thread
-        from Queue import Queue
-        parent_queue, child_queue = Queue(), Queue()
-        pipe = QueuePipe("parent", parent_queue, child_queue)
-        child_conn = QueuePipe("child", child_queue, parent_queue)
-        p = Thread(target=f, args=(child_conn,))
-    
-    p.start()
-    i = 0
-
-    while 1:
-        print "<<<", pipe.recv()
-        raw_input()
-        msg = {'method': 'do_step', 'args': (), 'id': i}
-        pipe.send(msg)
-        i += 1
-
-    p.join()
-
     
 class RPCError(RuntimeError):
-    "Remote Error"
+    "Remote Error (not user exception)"
     pass
 
     
@@ -597,6 +560,52 @@ class Cli(Frontend, cmd.Cmd):
             print "%s:%4d%s%s\t%s" % (filename, lineno, bp, current, source),
         print
 
+
+def test():
+    def f(pipe):
+        print "creating debugger"
+        qdb = Qdb(pipe=pipe, redirect_stdio=False)
+        print "set trace"
+
+        my_var = "Mariano!"
+        qdb.set_trace()
+        print "hello world!"
+        print "good by!"
+        saraza
+
+    if '--process' in sys.argv:
+        from multiprocessing import Process, Pipe
+        pipe, child_conn = Pipe()
+        p = Process(target=f, args=(child_conn,))
+    else:
+        from threading import Thread
+        from Queue import Queue
+        parent_queue, child_queue = Queue(), Queue()
+        front_conn = QueuePipe("parent", parent_queue, child_queue)
+        child_conn = QueuePipe("child", child_queue, parent_queue)
+        p = Thread(target=f, args=(child_conn,))
+    
+    p.start()
+    import time
+
+    class Test(Frontend):
+        def interaction(self, *args):
+            print "interaction!", args
+        def exception(self, *args):
+            raise RuntimeError("exception %s" % repr(args))
+
+    qdb = Test(front_conn)
+    time.sleep(5)
+    
+    while 1:
+        print "running..."
+        Frontend.run(qdb)
+        time.sleep(1)
+        print "do_next"
+        qdb.do_next()
+    p.join()
+
+
 def connect(host="localhost", port=6000):
     "Connect to a running debugger backend"
     
@@ -656,6 +665,7 @@ def main():
     conn.close()
     listener.close()
 
+
 qdb = None
 def set_trace():
     "Simplified interface to debug running programs"
@@ -677,7 +687,8 @@ def set_trace():
 
 if __name__ == '__main__':
     # When invoked as main program:
-    #test()
+    if '--test' in sys.argv:
+        test()
     if not sys.argv[1:]:
         # connect to a remote debbuger
         connect()
