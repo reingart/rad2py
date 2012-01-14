@@ -212,15 +212,17 @@ class Qdb(bdb.Bdb):
                 self._lineno = lineno
         return lines
 
-    def do_set_breakpoint(self, filename, lineno, temporary=0):
-        return self.set_break(filename, int(lineno), temporary)
+    def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
+        return self.set_break(filename, int(lineno), temporary, cond)
 
     def do_list_breakpoint(self):
+        breaks = []
         if self.breaks:  # There's at least one
-            print "Num Type         Disp Enb   Where"
             for bp in bdb.Breakpoint.bpbynumber:
                 if bp:
-                    bp.bpprint(sys.stdout)
+                    breaks.append((bp.number, bp.file, bp.line, 
+                        bp.temporary, bp.enabled, bp.hits, bp.cond, ))
+        return breaks
 
     def do_clear_breakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
@@ -558,7 +560,15 @@ class Cli(Frontend, cmd.Cmd):
         "Print a stack trace, with the most recent frame at the bottom."
         lines = Frontend.do_where(self)
         self.print_lines(lines)
-            
+
+    def do_list_breakpoint(self):
+        "List all breakpoints"
+        breaks = Frontend.do_list_breakpoint(self)
+        print "Num File                          Line Temp Enab Hits Cond"
+        for bp in breaks:
+            print '%-4d%-30s%4d %4s %4s %4d %s' % bp
+        print
+
     def do_set_breakpoint(self, arg):
         "Set a breakpoint at filename:breakpoint"
         if arg:
