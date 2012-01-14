@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-"Integrated Debugger"
+"Integrated Debugger Frontend for qdb"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
@@ -34,9 +34,6 @@ class RPCError(RuntimeError):
     pass
 
 
-class UserException(RuntimeError):
-    pass
-
 
 class Debugger(Thread):
     "Frontend Visual interface to qdb"
@@ -62,44 +59,41 @@ class Debugger(Thread):
                 print "waiting for connection to", self.address
                 self.pipe = Client(self.address, authkey='secret password')
                 while 1:          
-                    print "recv..."
                     if not self.notifies:
                         # wait for a message...
                         request = self.pipe.recv()
                     else:
                         # process an asyncronus notification received earlier 
                         request = self.notifies.pop(0)
-                    print "*** DBG <<<< ", request
                     result = None
                     if request.get("error"):
-                        print request['error']
+                        # it is not supposed to get an error here
+                        # it should be raised by the method call (see RPCError)
+                        print "DEBUGGER UNEXPECTED ERROR", request['error']
                     elif request.get('method') == 'interaction':
-                        print "%s:%4d\t%s" % request.get("args"),
                         self.interaction(*request.get("args"))
                         result = None
                     elif request.get('method') == 'write':
                         text = request.get("args")[0]
-                        print "WRITE"*10, text
                         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
                     elif request.get('method') == 'show_line':
-                        print "%s:%4d%s%s\t%s" % request.get("args"),
+                        # this notification discarded as we open the whole file 
+                        # print "%s:%4d%s%s\t%s" % request.get("args"),
+                        pass
                     elif request.get('method') == 'exception':
                         wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, 
                                                           request.get("args")))
                     elif request.get('method') == 'readline':
-                        print "WAITING READLINE!!!!"
                         self.done.clear()
                         wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
                         self.done.wait()
                         result = self.rawinput
-                        print "READLINE: ", result
                     # do not reply notifications (no result)
                     if result:
                         response = {'version': '1.1', 'id': request.get('id'), 
                                 'result': result, 
                                 'error': None}
                         self.pipe.send(response)
-                        print ">>>", response
             except EOFError:
                 print "DEBUGGER disconnected..."
                 self.pipe.close()
@@ -111,34 +105,30 @@ class Debugger(Thread):
 
     def __getattr__(self, attr):
         "Return a pseudomethod that can be called"
-        print "PSEUDOMETHOD:", attr
         return lambda *args, **kwargs: self.queue_call(attr, *args)
 
     def queue_call(self, method, *args):
         "Schedule a call for further execution by the thread"
-        print "ACTION SCHEDULED:", method
+        # this is not a queue, only last call is scheduled:
         self.action = lambda: self.call(method, *args)
 
     def call(self, method, *args):
         "Actually call the remote method (inside the thread)"
-        print "CALLING:", method        
         req = {'method': method, 'args': args, 'id': self.i}
-        print "*** DBG >>> ", req
         self.pipe.send(req)
         self.i += 1  # increment the id
         while 1:
             # wait until command acknowledge (response match the request)
             res = self.pipe.recv()
-            print "*** DBG <<< ", res
             if 'id' not in res or not res['id']:
-                print "*** notification received!", res
+                # notification received!
                 self.notifies.append(res)
             elif 'result' not in res:
-                ##print "*** wrong packet received: expecting result", res
-                # protocol state is unknown
+                print "DEBUGGER wrong packet received: expecting result", res
+                # protocol state is unknown, this should not happen
                 self.notifies.append(res)
             elif long(req['id']) != long(res['id']):
-                print "*** wrong packet received: expecting id", req['id'], res['id']
+                print "DEBUGGER wrong packet received: expecting id", req['id'], res['id']
                 # protocol state is unknown
             elif 'error' in res and res['error']:
                 raise RPCError(res['error']['message'])
@@ -146,10 +136,9 @@ class Debugger(Thread):
                 return res['result']
 
     def check_interaction(fn):
-        "Decorator for exclusive functions (not allowed during interaction)"
+        "Decorator for mutually exclusive functions"
         def check_fn(self, *args, **kwargs):
             if self.done.is_set():
-                print "-+-+-+ Already BuSY!"
                 wx.Bell()
             else:
                 fn(self, *args, **kwargs)
@@ -159,24 +148,21 @@ class Debugger(Thread):
         #  sync_source_line()
         if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             if self.gui:
-                # we may be in other thread (i.e. debugging web2py)
-                print "POSTEVENT", filename, lineno
+                # we are in other thread so send the event to main thread
                 wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
                                                   (filename, lineno)))
 
-        # wait user events
-        print "WAITING " * 10
+        # wait user events: done is a threading.Event (set by the main thread)
         self.done.clear()
         self.done.wait()
         
-        # execute user action
-        print "ACTION " * 10
+        # execute user action scheduled by main thread
         self.action()
-        print "DONE " * 10        
 
+    # Methods to handle user interaction by main thread bellow:
+    
     @check_interaction
     def Readline(self, text):
-        print "READLINE TEXT READ: ", text
         self.rawinput = text
         self.done.set()
 
@@ -187,7 +173,6 @@ class Debugger(Thread):
 
     @check_interaction
     def Step(self):
-        print "*** DBG FE *** Step"
         self.do_step()
         self.done.set()
 
@@ -198,7 +183,6 @@ class Debugger(Thread):
 
     @check_interaction
     def Next(self):
-        print "*** DBG FE *** Next"
         self.do_next()
         self.done.set()
 
@@ -213,7 +197,6 @@ class Debugger(Thread):
         self.done.set()
 
     def SetBreakpoint(self, filename, lineno, temporary=0):
-        print "*** DBG FE *** Set Breakpoint"
         self.do_set_breakpoint(filename, lineno, temporary)
         self.done.set()
 
@@ -232,10 +215,4 @@ class Debugger(Thread):
             return self.action()
         except RPCError, e:
             return u'*** %s' % unicode(e)
-
-
-
-def set_trace():
-    Debugger().set_trace()
-
 
