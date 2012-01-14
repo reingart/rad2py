@@ -94,17 +94,19 @@ class Qdb(bdb.Bdb):
     def _runscript(self, filename):
         # The script has to run in __main__ namespace (clear it)
         import __main__
+        import imp
         __main__.__dict__.clear()
         __main__.__dict__.update({"__name__"    : "__main__",
                                   "__file__"    : filename,
                                   "__builtins__": __builtins__,
+                                  "imp"         : imp,          # need for run
                                  })
 
         # avoid stopping before we reach the main script 
         self._wait_for_mainpyfile = 1
         self.mainpyfile = self.canonic(filename)
         self._user_requested_quit = 0
-        statement = 'execfile( "%s")' % filename
+        statement = 'imp.load_source("__main__", "%s")' % filename
         self.run(statement)
 
     # General interaction function
@@ -509,7 +511,7 @@ def connect(host="localhost", port=6000):
     address = (host, port)
     from multiprocessing.connection import Client
 
-    print "waiting for connection to", address
+    print "qdb debugger fronted: waiting for connection to", address
     conn = Client(address, authkey='secret password')
     try:
         Cli(conn).run()
@@ -539,9 +541,9 @@ def main():
     from multiprocessing.connection import Listener
     address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
     listener = Listener(address, authkey='secret password')
-    print "waiting for connection at", address
+    print "qdb debugger backend: waiting for connection at", address
     conn = listener.accept()
-    print 'connection accepted from', listener.last_accepted
+    print 'qdb debugger backend: connected to', listener.last_accepted
 
     # create the backend
     qdb = Qdb(conn)
