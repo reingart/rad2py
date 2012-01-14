@@ -14,6 +14,7 @@ from multiprocessing.connection import Client
 import os
 import random
 import sys
+import time
 import wx
 
 # Define notification event for thread completion
@@ -56,9 +57,10 @@ class Debugger(Thread):
 
     def run(self):
         while 1:
-            print "waiting for connection to", self.address
-            self.pipe = Client(self.address, authkey='secret password')
+            self.pipe = None
             try:
+                print "waiting for connection to", self.address
+                self.pipe = Client(self.address, authkey='secret password')
                 while 1:          
                     print "recv..."
                     if not self.notifies:
@@ -101,6 +103,11 @@ class Debugger(Thread):
             except EOFError:
                 print "DEBUGGER disconnected..."
                 self.pipe.close()
+            except IOError:
+                print "DEBUGGER cannot connect..."
+                if self.pipe:
+                    self.pipe.close()
+                time.sleep(1)
 
     def __getattr__(self, attr):
         "Return a pseudomethod that can be called"
