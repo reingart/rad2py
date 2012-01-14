@@ -17,6 +17,8 @@ import sys
 import time
 import wx
 
+import qdb
+
 # Define notification event for thread completion
 EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
     for i in range(4)]
@@ -30,12 +32,7 @@ class DebugEvent(wx.PyEvent):
         self.data = data
 
 
-class RPCError(RuntimeError):
-    pass
-
-
-
-class Debugger(Thread):
+class Debugger(qdb.Frontend, Thread):
     "Frontend Visual interface to qdb"
 
     def __init__(self, gui=None, pipe=None):
@@ -59,42 +56,8 @@ class Debugger(Thread):
                 print "DEBUGGER waiting for connection to", self.address
                 self.pipe = Client(self.address, authkey='secret password')
                 print "DEBUGGER connected!"
-                while 1:          
-                    if not self.notifies:
-                        # wait for a message...
-                        request = self.pipe.recv()
-                    else:
-                        # process an asyncronus notification received earlier 
-                        request = self.notifies.pop(0)
-                    result = None
-                    if request.get("error"):
-                        # it is not supposed to get an error here
-                        # it should be raised by the method call (see RPCError)
-                        print "DEBUGGER UNEXPECTED ERROR", request['error']
-                    elif request.get('method') == 'interaction':
-                        self.interaction(*request.get("args"))
-                        result = None
-                    elif request.get('method') == 'write':
-                        text = request.get("args")[0]
-                        wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
-                    elif request.get('method') == 'show_line':
-                        # this notification discarded as we open the whole file 
-                        # print "%s:%4d%s%s\t%s" % request.get("args"),
-                        pass
-                    elif request.get('method') == 'exception':
-                        wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, 
-                                                          request.get("args")))
-                    elif request.get('method') == 'readline':
-                        self.done.clear()
-                        wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
-                        self.done.wait()
-                        result = self.rawinput
-                    # do not reply notifications (no result)
-                    if result:
-                        response = {'version': '1.1', 'id': request.get('id'), 
-                                'result': result, 
-                                'error': None}
-                        self.pipe.send(response)
+                while 1:
+                    qdb.Frontend.run(self)
             except EOFError:
                 print "DEBUGGER disconnected..."
                 self.pipe.close()
@@ -104,37 +67,10 @@ class Debugger(Thread):
                     self.pipe.close()
                 time.sleep(1)
 
-    def __getattr__(self, attr):
-        "Return a pseudomethod that can be called"
-        return lambda *args, **kwargs: self.queue_call(attr, *args)
-
-    def queue_call(self, method, *args):
+    def call(self, method, *args):
         "Schedule a call for further execution by the thread"
         # this is not a queue, only last call is scheduled:
-        self.action = lambda: self.call(method, *args)
-
-    def call(self, method, *args):
-        "Actually call the remote method (inside the thread)"
-        req = {'method': method, 'args': args, 'id': self.i}
-        self.pipe.send(req)
-        self.i += 1  # increment the id
-        while 1:
-            # wait until command acknowledge (response match the request)
-            res = self.pipe.recv()
-            if 'id' not in res or not res['id']:
-                # notification received!
-                self.notifies.append(res)
-            elif 'result' not in res:
-                print "DEBUGGER wrong packet received: expecting result", res
-                # protocol state is unknown, this should not happen
-                self.notifies.append(res)
-            elif long(req['id']) != long(res['id']):
-                print "DEBUGGER wrong packet received: expecting id", req['id'], res['id']
-                # protocol state is unknown
-            elif 'error' in res and res['error']:
-                raise RPCError(res['error']['message'])
-            else:
-                return res['result']
+        self.action = lambda: qdb.Frontend.call(self, method, *args)
 
     def check_interaction(fn):
         "Decorator for mutually exclusive functions"
@@ -159,6 +95,19 @@ class Debugger(Thread):
         
         # execute user action scheduled by main thread
         self.action()
+
+    def write(self, text):
+        wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
+
+    def readline(self):
+        self.done.clear()
+        wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
+        self.done.wait()
+        return self.rawinput
+
+    def exception(self, *args):
+        "Notify that a user exception was raised in the backend"
+        wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
 
     # Methods to handle user interaction by main thread bellow:
     
@@ -197,8 +146,8 @@ class Debugger(Thread):
         self.do_jump(lineno)
         self.done.set()
 
-    def SetBreakpoint(self, filename, lineno, temporary=0):
-        self.do_set_breakpoint(filename, lineno, temporary)
+    def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
+        self.do_set_breakpoint(filename, lineno, temporary, cond)
         self.done.set()
 
     def ClearBreakpoint(self, filename, lineno):
