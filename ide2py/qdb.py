@@ -592,7 +592,8 @@ def test():
         def interaction(self, *args):
             print "interaction!", args
         def exception(self, *args):
-            raise RuntimeError("exception %s" % repr(args))
+            print "exception", args
+            #raise RuntimeError("exception %s" % repr(args))
 
     qdb = Test(front_conn)
     time.sleep(5)
@@ -656,11 +657,9 @@ def main():
         # In most cases SystemExit does not warrant a post-mortem session.
         print "The program exited via sys.exit(). Exit status: ",
         print sys.exc_info()[1]
+        raise
     except:
-        traceback.print_exc()
-        print "Uncaught exception. Entering post mortem debugging"
-        t = sys.exc_info()[2]
-        qdb.post_mortem(t)
+        raise
 
     conn.close()
     listener.close()
@@ -684,7 +683,6 @@ def set_trace():
     qdb.set_trace()
 
 
-
 if __name__ == '__main__':
     # When invoked as main program:
     if '--test' in sys.argv:
@@ -697,4 +695,3 @@ if __name__ == '__main__':
         # reimport as global __main__ namespace is destroyed
         import qdb
         qdb.main()
-
