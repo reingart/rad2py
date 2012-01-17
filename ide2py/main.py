@@ -433,7 +433,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             wildcard="Python Files (*.py)|*.py",
             style=wx.OPEN 
             )
-        
+        # set the path to current active editing file
+        if self.active_child:
+            dlg.SetDirectory(os.path.dirname(self.active_child.GetFilename()))
         if dlg.ShowModal() == wx.ID_OK:
             # This returns a Python list of files that were selected.
             filename = dlg.GetPaths()[0]        
