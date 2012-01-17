@@ -456,9 +456,9 @@ class Frontend(object):
         "List source code for the current file"
         return self.call('do_list', arg)
 
-    def do_set_breakpoint(self, filename, lineno, temporary=0):
+    def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
         "Set a breakpoint at filename:breakpoint"
-        self.call('do_set_breakpoint', filename, lineno, temporary)
+        self.call('do_set_breakpoint', filename, lineno, temporary, cond)
     
     def do_list_breakpoint(self):
         "List all breakpoints"
