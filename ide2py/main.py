@@ -29,7 +29,8 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID
+from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
+                               EVT_EXCEPTION_ID
 from console import ConsoleCtrl
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -92,9 +93,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.children = []
         self.debugging_child = None     # current debugged file
-        self.debugging = False
+        self.executing = False
         self.lastprogargs = ""
-        self.pythonargs = ""
+        self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
         self.pid = None      
         
         # tell FrameManager to manage this frame        
@@ -304,6 +305,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # Connect to debugging events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
+        self.Connect(-1, -1, EVT_READLINE_ID, self.OnReadline)
+        self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
+        self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
@@ -484,32 +488,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.active_child:
             self.active_child.OnSaveAs(event)
 
-    def OnRun(self, event, debug=False):
-        if self.active_child:
-            # add the path of this script so we can import things
-            syspath = [ os.path.split(self.active_child.GetFilename())[0] ]            
-            # preserve current directory
-            cwd = os.getcwd()
-            try:
-                # change to script directory
-                os.chdir(syspath[0])
-                # create a code objectbject and run it in the main thread
-                code = self.active_child.GetCodeObject()
-                filename = os.path.split(self.active_child.GetFilename())[1]
-                msg = not debug and "Running" or "Debugging"
-                self.statusbar.SetStatusText("%s: %s" % (msg, filename), 1)
-                if code:
-                    # set program arguments (workaround shlex unicode bug)
-                    args = self.lastprogargs.encode("ascii", "ignore")
-                    sys.argv = [filename] + shlex.split(args)
-                    self.shell.RunScript(code, syspath, 
-                                         debug and self.debugger, 
-                                         self.console,
-                                         )
-                self.statusbar.SetStatusText("", 1)
-            finally:
-                os.chdir(cwd)
-
     def OnSetArgs(self, event):
         dlg = wx.TextEntryDialog(self, 'Enter program arguments (sys.argv):', 
             'Set Arguments', self.lastprogargs)
@@ -517,10 +495,15 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.lastprogargs = dlg.GetValue()
         dlg.Destroy()
     
-    def OnExecute(self, event):
+    def OnRun(self, event):
+        self.OnExecute(event, debug=False)
+        
+    def OnExecute(self, event, debug=True):
         if self.active_child and not self.console.process:
             filename = self.active_child.GetFilename()
             cdir, filen = os.path.split(filename)
+            if not cdir: 
+                cdir = "."
             cwd = os.getcwd()
             try:
                 os.chdir(cdir)
@@ -530,8 +513,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                     filename = filename.replace("\\", "/")
                 else:
                     pythexec = sys.executable
-                self.Execute((pythexec + " -u " +  self.pythonargs + ' "' + 
+                self.Execute((pythexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
                     filename + '"'  + largs), filen)
+                self.statusbar.SetStatusText("Executing: %s" % (filename), 1)
             except Exception, e:
                 raise
                 #ShowMessage("Error Setting current directory for Execute")
@@ -541,12 +525,18 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnKill(self, event):
         if self.console.process:
             self.console.process.Kill(self.console.process.pid, wx.SIGKILL)
+            self.statusbar.SetStatusText("killed", 1)
+        else:
+            self.statusbar.SetStatusText("", 1)
+        self.executing = False
+
 
     def Execute(self, command, filename, redin="", redout="", rederr=""):
         "Execute a command and redirect input/output/error to internal console"
         statusbar = self.statusbar
         console = self.console
         statusbar.SetStatusText("Executing %s" % command, 1)
+        parent = self
         
         class MyProcess(wx.Process):
             "Custom Process Class to handle OnTerminate event method"
@@ -554,10 +544,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             def OnTerminate(self, pid, status):
                 "Clean up on termination (prevent SEGV!)"
                 console.process = None
+                parent.executing = False
                 statusbar.SetStatusText("Terminated: %s!" % filename, 0)
                 statusbar.SetStatusText("", 1)
         
         process = console.process = MyProcess(self)
+        self.executing = True
         process.Redirect()
         flags = wx.EXEC_ASYNC
         if wx.Platform == '__WXMSW__':
@@ -606,6 +598,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                     self.debugging_child = child
                 else:
                     child.GotoLineOffset(lineno, offset)
+
+    def OnReadline(self, event):
+        text = self.console.readline()
+        self.debugger.Readline(text)
+
+    def OnWrite(self, event):
+        self.console.write(event.data)
                     
     def OnDebugCommand(self, event):
         event_id = event.GetId()
@@ -617,26 +616,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.debugger.SetBreakpoint(filename, lineno, temporary=1)
 
         # start debugger (if not running):
-        if event_id == ID_DEBUG or not self.debugging:
-            self.debugging = True
+        if event_id == ID_DEBUG or not self.executing:
+            print "*** Execute!!!!"
             # should it open debugger inmediatelly or continue?
             self.debugger.start_continue = event_id in (ID_CONTINUE, ID_CONTINUETO)
-            try:
-                sys.exc_clear()
-                self.OnRun(event, debug=True)
-            except SystemExit:
-                # In most cases SystemExit does not warrant a post-mortem session.
-                print "The program exited via sys.exit(). Exit status: ",
-                print sys.exc_info()[1]
-            except:
-                extype, exvalue, trace = sys.exc_info()
-                traceback.print_exc()
-                print "Uncaught exception. Entering post mortem debugging"
-                self.ExceptHook(extype, exvalue, trace)
-                self.debugger.start_continue = False
-                self.debugger.post_mortem(trace)
-                print "Post mortem debugger finished"
-            self.debugging = False
+            self.OnExecute(event)
             # clean running indication
             self.GotoFileLine()
         elif event_id == ID_STEPIN:
@@ -653,10 +637,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         elif event_id == ID_INSPECT and self.active_child:
             # Eval selected text (expression) in debugger running context
             arg = self.active_child.GetSelectedText()
-            val = self.debugger.inspect(arg)
+            val = self.debugger.Inspect(arg)
             dlg = wx.MessageDialog(self, "Expression: %s\nValue: %s" % (arg, val), 
                                    "Debugger Quick Inspection",
-                                   wx.ICON_INFORMATION)
+                                   wx.ICON_INFORMATION | wx.OK )
             dlg.ShowModal()
             dlg.Destroy()
         elif event_id == ID_JUMP and self.debugging_child:
@@ -718,7 +702,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         exc = traceback.format_exception(extype, exvalue, trace) 
         #for e in exc: wx.LogError(e) 
         # format exception message
-        title = traceback.format_exception_only(type, exvalue)[0]
+        title = traceback.format_exception_only(extype, exvalue)[0]
         if not isinstance(title, unicode):
             title = title.decode("latin1", "ignore")
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
@@ -727,35 +711,36 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
         dlg.ShowModal()
         dlg.Destroy()
-        # TODO: automatic defect classification
-        tb = traceback.extract_tb(trace)
-        if tb:
-            filename, lineno, function_name, text = tb[-1]
-            if len(tb)>2:
-                # some exceptions raises on wxpython or python 
-                # (check also filename at call stack - 1)
-                filename0, lineno0, function_name0, text0 = tb[-2]
-            else:
-                filename0 = ""
-            # do not add exceptions raised by the IDE (indirectely too)
-            print "extype", extype
-            if (not filename.startswith(INSTALL_DIR) and \
-               not filename0.startswith(INSTALL_DIR)) or \
-               extype not in (AssertionError, ):
+
+    def OnException(self, event):
+        # unpack remote exception contents
+        title, extype, exvalue, trace, msg = event.data
+        if not isinstance(title, unicode):
+            title = title.decode("latin1", "ignore")
+        # display the exception
+        print u'Unhandled Remote Error: %s' % title
+        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
+        dlg.ShowModal()
+        dlg.Destroy()
+        # automatic defect classification
+        if extype:
+            # stack trace (tb) should be processed:
+            if trace:
+                filename, lineno, function_name, text = trace[-1]
                 # Automatic Error Classification (PSP Defect Type Standard):
                 defect_type_standard = {
-                    '20': (SyntaxError, ), # this should be cached by the editor
-                    '40': (NameError, LookupError, ImportError),
-                    '50': (TypeError, AttributeError),
-                    '60': (AssertionError, ), #TODO: unittest/doctests
-                    '70': (ValueError, ArithmeticError, EOFError, BufferError),
-                    '80': (RuntimeError, ),
-                    '90': (SystemError, MemoryError, ReferenceError, ),
-                    '100': (EnvironmentError, ), # TODO: libraries?
+                    '20': ('SyntaxError', ), # this should be cached by the editor
+                    '40': ('NameError', 'LookupError', 'ImportError'),
+                    '50': ('TypeError', 'AttributeError'),
+                    '60': ('AssertionError', ), #TODO: unittest/doctests
+                    '70': ('ValueError', 'ArithmeticError', 'EOFError', 'BufferError'),
+                    '80': ('RuntimeError', ),
+                    '90': ('SystemError', 'MemoryError', 'ReferenceError', ),
+                    '100': ('EnvironmentError', ), # TODO: libraries?
                     }
                 # Find the related defect_type code for the exception value:
                 for k, v in defect_type_standard.items():
-                    if isinstance(exvalue, v):
+                    if extype == v:
                         defect_type = k
                         break
                 else:
@@ -915,4 +900,5 @@ if __name__ == '__main__':
     # start main app, avoid wx redirection on windows
     app = MainApp(redirect=False)
     app.MainLoop()
+
 

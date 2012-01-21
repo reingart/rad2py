@@ -7,8 +7,11 @@ __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
-# remote debugger queue-based (jsonrpc-like interface)
-# based on idle, inspired by pythonwin implementation
+# remote debugger queue-based (jsonrpc-like interface):
+# - bidirectional communication (request - response calls in both ways)
+# - request with id == null is a notification (do not send a response)
+# - request with a value for id is a normal call, wait response
+# based on idle, inspired by pythonwin implementation, taken many code from pdb
 
 import bdb
 import linecache
@@ -21,18 +24,20 @@ import cmd
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
-    def __init__(self, pipe):
+    def __init__(self, pipe, redirect_stdio=True):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.interacting = 0
+        self.i = 1  # sequential RPC call id
         self.waiting = False
         self.pipe = pipe # for communication
         self.start_continue = True # continue on first run
         self._wait_for_mainpyfile = False
         self._lineno = None     # last listed line numbre
         # replace system standard input and output (send them thru the pipe)
-        sys.stdin = self
-        sys.stdout = self
+        if redirect_stdio:
+            sys.stdin = self
+            sys.stdout = self
 
     # Override Bdb methods
 
@@ -55,13 +60,19 @@ class Qdb(bdb.Bdb):
         self.interaction(frame)
 
     def user_exception(self, frame, info):
+        """This function is called if an exception occurs,
+        but only if we are to stop at or just below this level."""
         if self._wait_for_mainpyfile:
             return
-        ##print info
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
+        msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         trace = traceback.extract_tb(trace)
-        msg = {'method': 'except_hook', 'args':(extype, exvalue, trace)}
+        title = traceback.format_exception_only(extype, exvalue)[0]
+        # send an Exception notification
+        msg = {'method': 'exception', 
+               'args': (title, extype.__name__, exvalue, trace, msg), 
+               'id': None}
         self.pipe.send(msg)
         self.interaction(frame, info)
 
@@ -84,17 +95,19 @@ class Qdb(bdb.Bdb):
     def _runscript(self, filename):
         # The script has to run in __main__ namespace (clear it)
         import __main__
+        import imp
         __main__.__dict__.clear()
         __main__.__dict__.update({"__name__"    : "__main__",
                                   "__file__"    : filename,
                                   "__builtins__": __builtins__,
+                                  "imp"         : imp,          # need for run
                                  })
 
         # avoid stopping before we reach the main script 
         self._wait_for_mainpyfile = 1
         self.mainpyfile = self.canonic(filename)
         self._user_requested_quit = 0
-        statement = 'execfile( "%s")' % filename
+        statement = 'imp.load_source("__main__", "%s")' % filename
         self.run(statement)
 
     # General interaction function
@@ -106,29 +119,24 @@ class Qdb(bdb.Bdb):
         message = "%s:%s" % (basename, lineno)
         if code.co_name != "?":
             message = "%s: %s()" % (message, code.co_name)
-        #  sync_source_line()
-        if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
-            # notify debugger
-            line = linecache.getline(filename, lineno,
-                                     frame.f_globals)
-        else:
-            line = ""
 
         # wait user events 
         self.waiting = True    
         self.frame = frame
-         # save and change interpreter namespaces to the current frame
-        ## frame.f_locals
-        # copy globals into interpreter, so them can be inspected 
-        ## frame.f_globals
         try:
             while self.waiting:
-                self.pipe.send({'method': 'interaction', 
-                                'args': (filename, lineno, line)})
+                #  sync_source_line()
+                if frame and filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+                    line = linecache.getline(filename, self.frame.f_lineno,
+                                             self.frame.f_globals)
+                else:
+                    line = ""
+                # send the notification (debug event) - DOESN'T WAIT RESPONSE
+                self.pipe.send({'method': 'interaction', 'id': None,
+                                'args': (filename, self.frame.f_lineno, line)})
 
-                ##print ">>>",
+                # receive a remote procedure call from the frontend:
                 request = self.pipe.recv()
-                ##print request
                 response = {'version': '1.1', 'id': request.get('id'), 
                             'result': None, 
                             'error': None}
@@ -171,6 +179,7 @@ class Qdb(bdb.Bdb):
         arg = int(lineno)
         try:
             self.frame.f_lineno = arg
+            return arg
         except ValueError, e:
             print '*** Jump failed:', e
             return False
@@ -190,27 +199,31 @@ class Qdb(bdb.Bdb):
             last = first + 10
         filename = self.frame.f_code.co_filename
         breaklist = self.get_file_breaks(filename)
+        lines = []
         for lineno in range(first, last+1):
             line = linecache.getline(filename, lineno,
                                      self.frame.f_globals)
             if not line:
-                print '[EOF]'
+                lines.append((filename, lineno, breakpoint, current, "<EOF>\n"))
                 break
             else:
                 breakpoint = "B" if lineno in breaklist else ""
                 current = "->" if self.frame.f_lineno == lineno else ""
-                self.pipe.send({'method': 'show_line', 'args': (filename, lineno, breakpoint, current, line, )})
+                lines.append((filename, lineno, breakpoint, current, line))
                 self._lineno = lineno
+        return lines
 
-    def do_set_breakpoint(self, filename, lineno, temporary=0):
-        return self.set_break(filename, int(lineno), temporary)
+    def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
+        return self.set_break(filename, int(lineno), temporary, cond)
 
     def do_list_breakpoint(self):
+        breaks = []
         if self.breaks:  # There's at least one
-            print "Num Type         Disp Enb   Where"
             for bp in bdb.Breakpoint.bpbynumber:
                 if bp:
-                    bp.bpprint(sys.stdout)
+                    breaks.append((bp.number, bp.file, bp.line, 
+                        bp.temporary, bp.enabled, bp.hits, bp.cond, ))
+        return breaks
 
     def do_clear_breakpoint(self, filename, lineno):
         self.clear_break(filename, lineno)
@@ -232,13 +245,25 @@ class Qdb(bdb.Bdb):
         code = compile(arg + '\n', '<stdin>', 'single')
         exec code in self.frame.f_globals, self.frame.f_locals
 
+    def do_where(self):
+        "print_stack_trace"
+        stack, curindex = self.get_stack(self.frame, None)
+        lines = []
+        for frame, lineno in stack:
+            filename = frame.f_code.co_filename
+            line = linecache.getline(filename, lineno)
+            lines.append((filename, lineno, "", "", line, ))
+        return lines
+
+
     def displayhook(self, obj):
         """Custom displayhook for the do_exec which prevents
         assignment of the _ variable in the builtins.
         """
         # reproduce the behavior of the standard displayhook, not printing None
         if obj is not None:
-            self.pipe.send({'method': 'display_hook', 'args':  repr(obj)})
+            msg = {'method': 'display_hook', 'args':  repr(obj), 'id': None}
+            self.pipe.send(msg)
 
     def reset(self):
         bdb.Bdb.reset(self)
@@ -259,22 +284,20 @@ class Qdb(bdb.Bdb):
         while t is not None:
             frame = t.tb_frame
             t = t.tb_next
-            #print frame, t
-            #print frame.f_code, frame.f_lineno
             code, lineno = frame.f_code, frame.f_lineno
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
-            current = "->" if t is None else ""
-            self.pipe.send({'method': 'show_line', 'args': (filename, lineno, "", current, line, )})
+            #(filename, lineno, "", current, line, )}
 
         self.interaction(frame)
 
     # console file-like object emulation
     def readline(self):
         "Replacement for stdin.readline()"
-        msg = {'method': 'readline', 'args': ()}
+        msg = {'method': 'readline', 'args': (), 'id': self.i}
         self.pipe.send(msg)
         msg = self.pipe.recv()
+        self.i += 1
         return msg['result']
 
     def readlines(self):
@@ -286,7 +309,7 @@ class Qdb(bdb.Bdb):
 
     def write(self, text):
         "Replacement for stdout.write()"
-        msg = {'method': 'write', 'args': (text, )}
+        msg = {'method': 'write', 'args': (text, ), 'id': None}
         self.pipe.send(msg)
         
     def writelines(self, l):
@@ -308,22 +331,240 @@ class QueuePipe(object):
         self.out_queue = out_queue
 
     def send(self, data):
-        print self.__name, "send", data
         self.out_queue.put(data, block=True)
-        print self.__name, "joined"
 
-    def recv(self, count=None, timeout=None):
-        print self.__name, "recv", "..."
+    def recv(self, count=None, timeout=10):
         data = self.in_queue.get(block=True, timeout=timeout)
-        print self.__name, "recv", data
+        print "<<<", data
         return data
         
+    
+class RPCError(RuntimeError):
+    "Remote Error (not user exception)"
+    pass
+
+    
+class Frontend(object):
+    "Qdb generic Frontend interface"
+    
+    def __init__(self, pipe):
+        self.i = 1
+        self.pipe = pipe
+        self.notifies = []
+
+    def interaction(self, filename, lineno, line):
+        raise NotImplementedError
+    
+    def exception(self, title, extype, exvalue, trace, request):
+        "Show a user_exception"
+        raise NotImplementedError
+
+    def write(self, text):
+        "Console output (print)"
+        raise NotImplementedError
+    
+    def readline(self, text):
+        "Console input/rawinput"
+        raise NotImplementedError
+
+    def run(self):
+        "Main method dispatcher (infinite loop)"
+        if self.pipe:
+            if not self.notifies:
+                # wait for a message...
+                request = self.pipe.recv()
+            else:
+                # process an asyncronus notification received earlier 
+                request = self.notifies.pop(0)
+            result = None
+            if request.get("error"):
+                # it is not supposed to get an error here
+                # it should be raised by the method call
+                raise RPCError(res['error']['message'])
+            elif request.get('method') == 'interaction':
+                self.interaction(*request.get("args"))
+            elif request.get('method') == 'exception':
+                self.exception(*request['args'])
+            elif request.get('method') == 'write':
+                self.write(*request.get("args"))
+            elif request.get('method') == 'readline':
+                result = self.readline()
+            if result:
+                response = {'version': '1.1', 'id': request.get('id'), 
+                        'result': result, 
+                        'error': None}
+                self.pipe.send(response)
+            return True
+
+    def call(self, method, *args):
+        "Actually call the remote method (inside the thread)"
+        req = {'method': method, 'args': args, 'id': self.i}
+        self.pipe.send(req)
+        self.i += 1  # increment the id
+        while 1:
+            # wait until command acknowledge (response match the request)
+            res = self.pipe.recv()
+            if 'id' not in res or not res['id']:
+                # notification received!
+                self.notifies.append(res)
+            elif 'result' not in res:
+                print "DEBUGGER wrong packet received: expecting result", res
+                # protocol state is unknown, this should not happen
+                self.notifies.append(res)
+            elif long(req['id']) != long(res['id']):
+                print "DEBUGGER wrong packet received: expecting id", req['id'], res['id']
+                # protocol state is unknown
+            elif 'error' in res and res['error']:
+                raise RPCError(res['error']['message'])
+            else:
+                return res['result']
+
+    def do_step(self, arg=None):
+        "Execute the current line, stop at the first possible occasion"
+        self.call('do_step')
+        
+    def do_next(self, arg=None):
+        "Execute the current line, do not stop at function calls"
+        self.call('do_next')
+
+    def do_continue(self, arg=None): 
+        "Continue execution, only stop when a breakpoint is encountered."
+        self.call('do_continue')
+        
+    def do_return(self, arg=None): 
+        "Continue execution until the current function returns"
+        self.call('do_return')
+
+    def do_jump(self, arg): 
+        "Set the next line that will be executed."
+        res = self.call('do_jump', arg)
+        print res
+
+    def do_where(self, arg=None):
+        "Print a stack trace, with the most recent frame at the bottom."
+        return self.call('do_where')
+
+    def do_quit(self, arg=None):
+        "Quit from the debugger. The program being executed is aborted."
+        self.call('do_quit')
+    
+    def do_inspect(self, expr):
+        "Inspect the value of the expression"
+        return self.call('do_inspect', expr)
+
+    def do_list(self, arg=None):
+        "List source code for the current file"
+        return self.call('do_list', arg)
+
+    def do_set_breakpoint(self, filename, lineno, temporary=0):
+        "Set a breakpoint at filename:breakpoint"
+        self.call('do_set_breakpoint', filename, lineno, temporary)
+    
+    def do_list_breakpoint(self):
+        "List all breakpoints"
+        return self.call('do_list_breakpoint')
+    
+    def do_exec(self, statement):
+        return self.call('do_exec', statement)
+
+
+class Cli(Frontend, cmd.Cmd):
+    "Qdb Front-end command line interface"
+    
+    def __init__(self, pipe, completekey='tab', stdin=None, stdout=None, skip=None):
+        cmd.Cmd.__init__(self, completekey, stdin, stdout)
+        Frontend.__init__(self, pipe)
+
+    # redefine Frontend methods:
+    
+    def run(self):
+        while 1:
+            Frontend.run(self)
+
+    def interaction(self, filename, lineno, line):
+        print "> %s(%d)\n-> %s" % (filename, lineno, line),
+        self.filename = filename
+        self.cmdloop()
+
+    def exception(self, title, extype, exvalue, trace, request):
+        print "=" * 80
+        print "Exception", title
+        print request
+        print "-" * 80
+
+    def write(self, text):
+        print text,
+    
+    def readline(self):
+        return raw_input()
+        
+    def postcmd(self, stop, line):
+        return not line.startswith("h") # stop
+
+    do_h = cmd.Cmd.do_help
+    
+    do_s = Frontend.do_step
+    do_n = Frontend.do_next
+    do_c = Frontend.do_continue        
+    do_r = Frontend.do_return
+    do_j = Frontend.do_jump
+    do_q = Frontend.do_quit
+
+    def do_inspect(self, args):
+        "Inspect the value of the expression"
+        print Frontend.do_inspect(self, args)
+ 
+    def do_list(self, args):
+        "List source code for the current file"
+        lines = Frontend.do_list(self, eval(args, {}, {}) if args else None)
+        self.print_lines(lines)
+    
+    def do_where(self, args):
+        "Print a stack trace, with the most recent frame at the bottom."
+        lines = Frontend.do_where(self)
+        self.print_lines(lines)
+
+    def do_list_breakpoint(self):
+        "List all breakpoints"
+        breaks = Frontend.do_list_breakpoint(self)
+        print "Num File                          Line Temp Enab Hits Cond"
+        for bp in breaks:
+            print '%-4d%-30s%4d %4s %4s %4d %s' % bp
+        print
+
+    def do_set_breakpoint(self, arg):
+        "Set a breakpoint at filename:breakpoint"
+        if arg:
+            if ':' in arg:
+                args = arg.split(":")
+            else:
+                args = (self.filename, arg)
+            Frontend.do_set_breakpoint(self, *args)
+        else:
+            self.do_list_breakpoint()
+
+    do_b = do_set_breakpoint
+    do_l = do_list
+    do_p = do_inspect
+    do_w = do_where
+
+    def default(self, line):
+        "Default command"
+        if line[:1] == '!':
+            print self.do_exec(line[1:])
+        else:
+            print "*** Unknown command: ", line
+
+    def print_lines(self, lines):
+        for filename, lineno, bp, current, source in lines:
+            print "%s:%4d%s%s\t%s" % (filename, lineno, bp, current, source),
+        print
 
 
 def test():
     def f(pipe):
         print "creating debugger"
-        qdb = Qdb(pipe=pipe)
+        qdb = Qdb(pipe=pipe, redirect_stdio=False)
         print "set trace"
 
         my_var = "Mariano!"
@@ -332,125 +573,38 @@ def test():
         print "good by!"
         saraza
 
-    if 'process' in sys.argv:
+    if '--process' in sys.argv:
         from multiprocessing import Process, Pipe
         pipe, child_conn = Pipe()
         p = Process(target=f, args=(child_conn,))
-
     else:
         from threading import Thread
         from Queue import Queue
         parent_queue, child_queue = Queue(), Queue()
-        pipe = QueuePipe("parent", parent_queue, child_queue)
+        front_conn = QueuePipe("parent", parent_queue, child_queue)
         child_conn = QueuePipe("child", child_queue, parent_queue)
         p = Thread(target=f, args=(child_conn,))
     
     p.start()
-    i = 0
+    import time
 
+    class Test(Frontend):
+        def interaction(self, *args):
+            print "interaction!", args
+        def exception(self, *args):
+            print "exception", args
+            #raise RuntimeError("exception %s" % repr(args))
+
+    qdb = Test(front_conn)
+    time.sleep(5)
+    
     while 1:
-        print "<<<", pipe.recv()
-        raw_input()
-        msg = {'method': 'do_step', 'args': (), 'id': i}
-        pipe.send(msg)
-        i += 1
-
+        print "running..."
+        Frontend.run(qdb)
+        time.sleep(1)
+        print "do_next"
+        qdb.do_next()
     p.join()
-
-
-class Cli(cmd.Cmd):
-    "Qdb Front-end command line interface"
-    
-    def __init__(self, pipe, completekey='tab', stdin=None, stdout=None, skip=None):
-        cmd.Cmd.__init__(self, completekey, stdin, stdout)
-        self.i = 0
-        self.pipe = pipe
-
-    def attach(self):
-        while 1:
-            request = self.pipe.recv()
-            result = None
-            if request.get("error"):
-                print request['error']
-            if request.get('method') == 'interaction':
-                print "%s:%4d\t%s" % request.get("args"),
-                self.interaction()
-                result = None
-            if request.get('method') == 'write':
-                print request.get("args")[0],
-            if request.get('method') == 'show_line':
-                print "%s:%4d%s%s\t%s" % request.get("args"),
-            if request.get('method') == 'readline':
-                result = raw_input("input...")
-            if result:
-                response = {'version': '1.1', 'id': request.get('id'), 
-                        'result': result, 
-                        'error': None}
-                self.pipe.send(response)
-
-    def interaction(self):
-        self.cmdloop()
-
-    def postcmd(self, stop, line):
-        return not line.startswith("h") # stop
-
-    def call(self, method, *args):
-        msg = {'method': method, 'args': args, 'id': self.i}
-        ##print msg
-        self.pipe.send(msg)
-        self.i += 1
-
-    do_h = cmd.Cmd.do_help
-
-    def do_s(self, arg):
-        "Execute the current line, stop at the first possible occasion"
-        self.call('do_step')
-        
-    def do_n(self, arg):
-        "Execute the current line, do not stop at function calls"
-        self.call('do_next')
-
-    def do_c(self, arg): 
-        "Continue execution, only stop when a breakpoint is encountered."
-        self.call('do_continue')
-        
-    def do_r(self, arg): 
-        "Continue execution until the current function returns"
-        self.call('do_return')
-
-    def do_j(self, arg): 
-        "Set the next line that will be executed."
-        self.call('do_jump', arg)
-
-    def do_q(self, arg):
-        "Quit from the debugger. The program being executed is aborted."
-        self.call('do_quit')
-    
-    def do_p(self, arg):
-        "Inspect the value of the expression"
-        self.call('do_inspect', arg)
-
-    def do_l(self, arg):
-        "List source code for the current file"
-        if arg:
-            arg = eval(arg, {}, {})
-        self.call('do_list', arg)
-
-    def do_b(self, arg):
-        "Set a breakpoint at filename:breakpoint"
-        if arg:
-            arg = arg.split(":")
-            self.call('do_set_breakpoint', *arg)
-        else:
-            self.call('do_list_breakpoint')
-
-    def default(self, line):
-        "Default command"
-        if line[:1] == '!':
-            line = line[1:]
-            self.call('do_exec', line)
-        else:
-            print "*** Unknown command: ", line
 
 
 def connect(host="localhost", port=6000):
@@ -459,10 +613,10 @@ def connect(host="localhost", port=6000):
     address = (host, port)
     from multiprocessing.connection import Client
 
-    print "waiting for connection to", address
+    print "qdb debugger fronted: waiting for connection to", address
     conn = Client(address, authkey='secret password')
     try:
-        Cli(conn).attach()
+        Cli(conn).run()
     except EOFError:
         pass
     finally:
@@ -489,9 +643,9 @@ def main():
     from multiprocessing.connection import Listener
     address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
     listener = Listener(address, authkey='secret password')
-    print "waiting for connection at", address
+    print "qdb debugger backend: waiting for connection at", address
     conn = listener.accept()
-    print 'connection accepted from', listener.last_accepted
+    print 'qdb debugger backend: connected to', listener.last_accepted
 
     # create the backend
     qdb = Qdb(conn)
@@ -503,19 +657,36 @@ def main():
         # In most cases SystemExit does not warrant a post-mortem session.
         print "The program exited via sys.exit(). Exit status: ",
         print sys.exc_info()[1]
+        raise
     except:
-        traceback.print_exc()
-        print "Uncaught exception. Entering post mortem debugging"
-        t = sys.exc_info()[2]
-        qdb.post_mortem(t)
+        raise
 
     conn.close()
     listener.close()
 
 
+qdb = None
+def set_trace():
+    "Simplified interface to debug running programs"
+    global qdb
+    
+    from multiprocessing.connection import Listener
+    # only create it if not currently instantiated
+    if not qdb:
+        address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
+        listener = Listener(address, authkey='secret password')
+        conn = listener.accept()
+
+    # create the backend
+        qdb = Qdb(conn)
+    # start debugger backend:
+    qdb.set_trace()
+
+
 if __name__ == '__main__':
     # When invoked as main program:
-    #test()
+    if '--test' in sys.argv:
+        test()
     if not sys.argv[1:]:
         # connect to a remote debbuger
         connect()
@@ -524,4 +695,3 @@ if __name__ == '__main__':
         # reimport as global __main__ namespace is destroyed
         import qdb
         qdb.main()
-

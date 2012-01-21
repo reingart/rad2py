@@ -563,7 +563,7 @@ class PSPMixin(object):
         
         # start up a browser on psp2py app
         url = cfg.get("psp2py_url")
-        if url:
+        if False and url:
             import webbrowser
             wx.CallAfter(webbrowser.open, url)
 
