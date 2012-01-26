@@ -27,11 +27,9 @@ class Qdb(bdb.Bdb):
     def __init__(self, pipe, redirect_stdio=True):
         bdb.Bdb.__init__(self)
         self.frame = None
-        self.interacting = 0
         self.i = 1  # sequential RPC call id
         self.waiting = False
         self.pipe = pipe # for communication
-        self.start_continue = True # continue on first run
         self._wait_for_mainpyfile = False
         self._lineno = None     # last listed line numbre
         # replace system standard input and output (send them thru the pipe)
@@ -79,18 +77,16 @@ class Qdb(bdb.Bdb):
     def run(self, code, interp=None, *args, **kwargs):
         try:
             self.interp = interp
-            self.interacting = self.start_continue and 1 or 2
             return bdb.Bdb.run(self, code, *args, **kwargs)
         finally:
-            self.interacting = 0
+            pass
 
     def runcall(self, function, interp=None, *args, **kwargs):
         try:
             self.interp = interp
-            self.interacting = self.start_continue and 1 or 2
             return bdb.Bdb.runcall(self, function, *args, **kwargs)
         finally:
-            self.interacting = 0
+            pass
 
     def _runscript(self, filename):
         # The script has to run in __main__ namespace (clear it)
@@ -463,7 +459,7 @@ class Frontend(object):
     def do_list_breakpoint(self):
         "List all breakpoints"
         return self.call('do_list_breakpoint')
-    
+        
     def do_exec(self, statement):
         return self.call('do_exec', statement)
 
