@@ -331,10 +331,9 @@ class QueuePipe(object):
 
     def recv(self, count=None, timeout=10):
         data = self.in_queue.get(block=True, timeout=timeout)
-        print "<<<", data
         return data
         
-    
+
 class RPCError(RuntimeError):
     "Remote Error (not user exception)"
     pass
