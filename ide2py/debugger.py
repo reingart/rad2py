@@ -32,29 +32,45 @@ class DebugEvent(wx.PyEvent):
         self.data = data
 
 
+class LoggingPipeWrapper(object):
+    
+    def __init__(self, pipe):
+        self.__pipe = pipe
+    
+    def send(self, data):
+        print("PIPE:send: %s" % repr(data))
+        self.__pipe.send(data)
+
+    def recv(self, *args, **kwargs):
+        data = self.__pipe.recv(*args, **kwargs)
+        print("PIPE:recv: %s" % repr(data))
+        return data
+    
+    def close(self):
+        self.__pipe.close()
+
+        
 class Debugger(qdb.Frontend, Thread):
     "Frontend Visual interface to qdb"
 
-    def __init__(self, gui=None, pipe=None):
+    def __init__(self, gui=None, pipe=None, host='localhost', port=6000):
         Thread.__init__(self)
-        self.frame = None
-        self.i = random.randint(1, sys.maxint / 2)  # sequential RPC call id
-        self.done = Event()
-        self.gui = gui # for callbacks
-        self.pipe = None
-        self.start_continue = True # continue on first run
+        qdb.Frontend.__init__(self, pipe)
+        self.done = Event()         # flag to block for user interaction
+        self.gui = gui              # wx window for callbacks
+        self.start_continue = True  # continue on first run
         self.rawinput = None
-        self.address = ('localhost', 6000)
-        self.notifies = []
-        self.setDaemon(1)
-        self.start()
+        self.address = (host, port)
+        self.breakpoints = {}       # {filename: {lineno: (temp, cond)}
+        self.setDaemon(1)           # do not join (kill on termination)
+        self.start()                # creathe the new thread
 
     def run(self):
         while 1:
             self.pipe = None
             try:
                 print "DEBUGGER waiting for connection to", self.address
-                self.pipe = Client(self.address, authkey='secret password')
+                self.pipe = LoggingPipeWrapper(Client(self.address, authkey='secret password'))
                 print "DEBUGGER connected!"
                 while 1:
                     qdb.Frontend.run(self)
@@ -82,6 +98,18 @@ class Debugger(qdb.Frontend, Thread):
         return check_fn
 
     def interaction(self, filename, lineno, line):
+        
+        if self.start_continue is not None:
+            print "loading breakpoints...."
+            self.LoadBreakpoints()
+            if self.start_continue:
+                print "continuing..."
+                self.Continue()
+                self.action()
+                self.start_continue = None
+                return
+            self.start_continue = None
+            
         #  sync_source_line()
         if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
             if self.gui:
@@ -146,23 +174,54 @@ class Debugger(qdb.Frontend, Thread):
         self.do_jump(lineno)
         self.done.set()
 
+    def LoadBreakpoints(self):
+        for filename, bps in self.breakpoints.items():
+            for lineno, (temporary, cond) in bps.items():
+                print "loading breakpoint", filename, lineno
+                self.do_set_breakpoint(filename, lineno, temporary, cond)
+                self.action()
+                # TODO: discard interaction message
+                self.pipe.recv()
+
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
-        self.do_set_breakpoint(filename, lineno, temporary, cond)
-        self.done.set()
+        # store breakpoint
+        self.breakpoints.setdefault(filename, {})[lineno] = (temporary, cond)
+        # only send if waiting for interaction:
+        if self.pipe and not self.done.is_set():
+            self.do_set_breakpoint(filename, lineno, temporary, cond)
+            self.action()
+            return True
+        else:
+            return False
 
     def ClearBreakpoint(self, filename, lineno):
-        self.do_clear_breakpoint(filename, lineno)
-        self.done.set()
+        try:
+            del self.breakpoints[filename][lineno]
+            # only send if waiting for interaction:
+            if self.pipe and not self.done.is_set():
+                self.do_clear_breakpoint(filename, lineno)
+                self.action()
+                return True
+            else:
+                return False
+        except KeyError, e:
+            print e
 
     def ClearFileBreakpoints(self, filename):
-        self.do_clear_file_breakpoints(filename)
-        self.done.set()
+        try:
+            del self.breakpoints[filename]
+            self.do_clear_file_breakpoints(filename)
+            self.action()
+            return True
+        except KeyError, e:
+            print e
 
     def Inspect(self, arg):
-        try:
-            self.do_inspect(arg)
-            # we need the result right now:
-            return self.action()
-        except RPCError, e:
-            return u'*** %s' % unicode(e)
+        if self.pipe and not self.done.is_set():
+            try:
+                self.do_inspect(arg)
+                # we need the result right now:
+                return self.action()
+            except RPCError, e:
+                return u'*** %s' % unicode(e)
 
