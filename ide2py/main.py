@@ -144,7 +144,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         edit_menu.Append(ID_GOTO, "&Goto Line/Regex\tCtrl-G", "")
 
         run_menu = self.menu['run'] = wx.Menu()
-        run_menu.Append(ID_RUN, "Run in &Interpreter\tShift-F5")
         run_menu.Append(ID_DEBUG, "Run in &Debugger\tF5")
         run_menu.AppendSeparator()
         run_menu.Append(ID_EXEC, "&Execute as an External Process\Shift-Ctrl-F5")
@@ -433,7 +432,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             wildcard="Python Files (*.py)|*.py",
             style=wx.OPEN 
             )
-        
+        # set the path to current active editing file
+        if self.active_child:
+            dlg.SetDirectory(os.path.dirname(self.active_child.GetFilename()))
         if dlg.ShowModal() == wx.ID_OK:
             # This returns a Python list of files that were selected.
             filename = dlg.GetPaths()[0]        
@@ -618,8 +619,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # start debugger (if not running):
         if event_id == ID_DEBUG or not self.executing:
             print "*** Execute!!!!"
-            # should it open debugger inmediatelly or continue?
-            self.debugger.start_continue = event_id in (ID_CONTINUE, ID_CONTINUETO)
+            # should it open debugger inmediatelly or continue?            
+            self.debugger.start_continue = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
             self.OnExecute(event)
             # clean running indication
             self.GotoFileLine()
