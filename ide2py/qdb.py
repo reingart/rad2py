@@ -454,7 +454,15 @@ class Frontend(object):
     def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
         "Set a breakpoint at filename:breakpoint"
         self.call('do_set_breakpoint', filename, lineno, temporary, cond)
-    
+
+    def do_clear_breakpoint(self, filename, lineno):
+        "Remove a breakpoint at filename:breakpoint"
+        self.call('do_clear_breakpoint', filename, lineno)
+
+    def do_clear_file_breakpoints(self, filename):
+        "Remove all breakpoints at filename"
+        self.call('do_clear_breakpoints', filename, lineno)
+        
     def do_list_breakpoint(self):
         "List all breakpoints"
         return self.call('do_list_breakpoint')
