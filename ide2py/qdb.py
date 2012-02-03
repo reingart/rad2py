@@ -339,10 +339,16 @@ class QueuePipe(object):
     def send(self, data):
         self.out_queue.put(data, block=True)
 
-    def recv(self, count=None, timeout=10):
+    def recv(self, count=None, timeout=None):
         data = self.in_queue.get(block=True, timeout=timeout)
         return data
-        
+
+    def poll(self, timeout=None):
+        return not self.in_queue.empty()
+
+    def close(self):
+        pass
+
 
 class RPCError(RuntimeError):
     "Remote Error (not user exception)"
