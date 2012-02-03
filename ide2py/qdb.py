@@ -32,6 +32,7 @@ class Qdb(bdb.Bdb):
         self.waiting = False
         self.pipe = pipe # for communication
         self._wait_for_mainpyfile = False
+        self._wait_for_breakpoint = False
         self._lineno = None     # last listed line numbre
         # replace system standard input and output (send them thru the pipe)
         if redirect_stdio:
@@ -43,7 +44,7 @@ class Qdb(bdb.Bdb):
     def user_call(self, frame, argument_list):
         """This method is called when there is the remote possibility
         that we ever need to stop in this function."""
-        if self._wait_for_mainpyfile:
+        if self._wait_for_mainpyfile or self._wait_for_breakpoint:
             return
         if self.stop_here(frame):
             print '--Call--'
@@ -56,6 +57,10 @@ class Qdb(bdb.Bdb):
                 or frame.f_lineno<= 0):
                 return
             self._wait_for_mainpyfile = 0
+        if self._wait_for_breakpoint:
+            if not self.break_here(frame):
+                return
+            self._wait_for_breakpoint = 0
         self.interaction(frame)
 
     def user_exception(self, frame, info):
@@ -152,6 +157,14 @@ class Qdb(bdb.Bdb):
         finally:
             self.waiting = False
         self.frame = None
+
+    def do_debug(self, wait_breakpoint=1):
+        self.reset()
+        self._wait_for_mainpyfile = 1
+        frame = sys._getframe().f_back
+        self.mainpyfile = self.canonic(frame.f_code.co_filename)
+        self._wait_for_breakpoint = wait_breakpoint
+        sys.settrace(self.trace_dispatch)
 
     # Command definitions, called by interaction()
 
