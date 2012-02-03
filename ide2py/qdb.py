@@ -19,6 +19,7 @@ import os
 import sys
 import traceback
 import cmd
+import pydoc
 
 
 class Qdb(bdb.Bdb):
@@ -251,6 +252,15 @@ class Qdb(bdb.Bdb):
             lines.append((filename, lineno, "", "", line, ))
         return lines
 
+    def do_environment(self):
+        "return current frame local and global environment"
+        env = {'locals': {}, 'globals': {}}
+        # converts the frame global and locals to a short text representation:
+        for name, value in self.frame.f_locals.items():
+            env['locals'][name] = pydoc.text.repr(value)
+        for name, value in self.frame.f_globals.items():
+            env['globals'][name] = pydoc.text.repr(value)
+        return env
 
     def displayhook(self, obj):
         """Custom displayhook for the do_exec which prevents
@@ -447,6 +457,10 @@ class Frontend(object):
         "Inspect the value of the expression"
         return self.call('do_inspect', expr)
 
+    def do_environment(self):
+        "List all the locals and globals variables (string representation)"
+        return self.call('do_environment')
+
     def do_list(self, arg=None):
         "List source code for the current file"
         return self.call('do_list', arg)
@@ -527,6 +541,15 @@ class Cli(Frontend, cmd.Cmd):
         lines = Frontend.do_where(self)
         self.print_lines(lines)
 
+    def do_environment(self, args=None):
+        env = Frontend.do_environment(self)
+        for key in env:
+            print "=" * 78
+            print key.capitalize()
+            print "-" * 78
+            for name, value in env[key].items():
+                print "%-12s = %s" % (name, value)
+
     def do_list_breakpoint(self):
         "List all breakpoints"
         breaks = Frontend.do_list_breakpoint(self)
@@ -550,6 +573,7 @@ class Cli(Frontend, cmd.Cmd):
     do_l = do_list
     do_p = do_inspect
     do_w = do_where
+    do_e = do_environment
 
     def default(self, line):
         "Default command"
