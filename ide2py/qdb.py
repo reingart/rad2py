@@ -110,6 +110,9 @@ class Qdb(bdb.Bdb):
     # General interaction function
 
     def interaction(self, frame, info=None):
+        # chache frame locals to ensure that modifications are not overwritten
+        self.frame_locals = frame and frame.f_locals or {}
+        # extract current filename and line number
         code, lineno = frame.f_code, frame.f_lineno
         filename = code.co_filename
         basename = os.path.basename(filename)
@@ -236,11 +239,20 @@ class Qdb(bdb.Bdb):
 
     def do_inspect(self, arg):
         return eval(arg, self.frame.f_globals,
-                    self.frame.f_locals)
+                    self.frame_locals)
 
     def do_exec(self, arg):
+        locals = self.frame_locals
+        globals = self.frame.f_globals
         code = compile(arg + '\n', '<stdin>', 'single')
-        exec code in self.frame.f_globals, self.frame.f_locals
+        save_displayhook = sys.displayhook
+        self.displayhook_value = None
+        try:
+            sys.displayhook = self.displayhook
+            exec code in globals, locals
+        finally:
+            sys.displayhook = save_displayhook
+        return self.displayhook_value
 
     def do_where(self):
         "print_stack_trace"
@@ -256,7 +268,7 @@ class Qdb(bdb.Bdb):
         "return current frame local and global environment"
         env = {'locals': {}, 'globals': {}}
         # converts the frame global and locals to a short text representation:
-        for name, value in self.frame.f_locals.items():
+        for name, value in self.frame_locals.items():
             env['locals'][name] = pydoc.text.repr(value)
         for name, value in self.frame.f_globals.items():
             env['globals'][name] = pydoc.text.repr(value)
@@ -266,10 +278,7 @@ class Qdb(bdb.Bdb):
         """Custom displayhook for the do_exec which prevents
         assignment of the _ variable in the builtins.
         """
-        # reproduce the behavior of the standard displayhook, not printing None
-        if obj is not None:
-            msg = {'method': 'display_hook', 'args':  repr(obj), 'id': None}
-            self.pipe.send(msg)
+        self.displayhook_value = repr(obj)
 
     def reset(self):
         bdb.Bdb.reset(self)
