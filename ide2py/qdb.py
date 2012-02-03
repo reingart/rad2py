@@ -53,7 +53,7 @@ class Qdb(bdb.Bdb):
     def user_line(self, frame):
         """This function is called when we stop or break at this line."""
         if self._wait_for_mainpyfile:
-            if (self.mainpyfile != self.canonic(frame.f_code.co_filename)
+            if (not self.canonic(frame.f_code.co_filename).startswith(self.mainpyfile)
                 or frame.f_lineno<= 0):
                 return
             self._wait_for_mainpyfile = 0
@@ -66,7 +66,7 @@ class Qdb(bdb.Bdb):
     def user_exception(self, frame, info):
         """This function is called if an exception occurs,
         but only if we are to stop at or just below this level."""
-        if self._wait_for_mainpyfile:
+        if self._wait_for_mainpyfile or self._wait_for_breakpoint:
             return
         extype, exvalue, trace = info
         # pre-process stack trace as it isn't pickeable (cannot be sent pure)
@@ -158,11 +158,14 @@ class Qdb(bdb.Bdb):
             self.waiting = False
         self.frame = None
 
-    def do_debug(self, wait_breakpoint=1):
+    def do_debug(self, mainpyfile=None, wait_breakpoint=1):
         self.reset()
-        self._wait_for_mainpyfile = 1
-        frame = sys._getframe().f_back
-        self.mainpyfile = self.canonic(frame.f_code.co_filename)
+        if not wait_breakpoint or mainpyfile:
+            self._wait_for_mainpyfile = 1
+            if not mainpyfile:
+                frame = sys._getframe().f_back
+                mainpyfile = self.canonic(frame.f_code.co_filename)
+            self.mainpyfile = mainpyfile
         self._wait_for_breakpoint = wait_breakpoint
         sys.settrace(self.trace_dispatch)
 
