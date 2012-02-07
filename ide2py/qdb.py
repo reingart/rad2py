@@ -164,8 +164,8 @@ class Qdb(bdb.Bdb):
             self._wait_for_mainpyfile = 1
             if not mainpyfile:
                 frame = sys._getframe().f_back
-                mainpyfile = self.canonic(frame.f_code.co_filename)
-            self.mainpyfile = mainpyfile
+                mainpyfile = frame.f_code.co_filename
+            self.mainpyfile = self.canonic(mainpyfile)
         self._wait_for_breakpoint = wait_breakpoint
         sys.settrace(self.trace_dispatch)
 
