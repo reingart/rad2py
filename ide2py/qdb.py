@@ -220,7 +220,7 @@ class Qdb(bdb.Bdb):
             line = linecache.getline(filename, lineno,
                                      self.frame.f_globals)
             if not line:
-                lines.append((filename, lineno, breakpoint, current, "<EOF>\n"))
+                lines.append((filename, lineno, '', current, "<EOF>\n"))
                 break
             else:
                 breakpoint = "B" if lineno in breaklist else ""
