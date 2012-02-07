@@ -13,8 +13,14 @@ __license__ = "GPL 3.0"
 import os
 import select
 from wsgiref.simple_server import make_server, demo_app 
+from urlparse import urlparse
 import sys
 import wx
+
+import simplejsonrpc
+
+ID_ATTACH = wx.NewId()
+
 
 if False:
     # let pyinstaller to detect web2py modules 
@@ -36,6 +42,11 @@ class Web2pyMixin(object):
 
     def __init__(self, path="../web2py", port=8006, password="a"):
         "start-up a web2py server instance"
+
+        self.menu['run'].Append(ID_ATTACH, 
+                                "Attach to remote &webserver\tCtrl-W")
+        self.Bind(wx.EVT_MENU, self.OnAttachWebserver, id=ID_ATTACH)
+
 
         # read configuration with safe defaults        
         cfg = wx.GetApp().get_config("WEB2PY")
@@ -144,3 +155,25 @@ class Web2pyMixin(object):
 
     def web2py_namespace(self):
         return self.web2py_environment
+        
+    def OnAttachWebserver(self, event):
+        dlg = wx.TextEntryDialog(self, 
+                'Enter the URL of the web2py admin:', 
+                'Attach debugger to a web2py "Server"', 
+                'http://admin:a@localhost:8000/admin/webservices/call/jsonrpc')
+        if dlg.ShowModal() == wx.ID_OK:
+            self.debugger.detach()
+            url = dlg.GetValue()
+            o = urlparse(url)
+            r = simplejsonrpc.ServiceProxy(url, verbose=True)
+            host = o.hostname
+            port = 6000
+            authkey = "saraza"
+            # attach local thread (wait for connections)
+            self.debugger.attach(host, port, authkey)
+            # attach remote web2py process:
+            r.attach_debugger(host, port, authkey)
+            # set flag to not start new processes on debug command
+            self.executing = True
+        dlg.Destroy()
+

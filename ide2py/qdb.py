@@ -33,6 +33,7 @@ class Qdb(bdb.Bdb):
         self.pipe = pipe # for communication
         self._wait_for_mainpyfile = False
         self._wait_for_breakpoint = False
+        self.mainpyfile = ""
         self._lineno = None     # last listed line numbre
         # replace system standard input and output (send them thru the pipe)
         if redirect_stdio:

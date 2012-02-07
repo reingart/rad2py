@@ -18,7 +18,6 @@ import time
 import wx
 
 import qdb
-import simplejsonrpc
 
 # Define notification event for thread completion
 EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
@@ -54,14 +53,14 @@ class LoggingPipeWrapper(object):
 class Debugger(qdb.Frontend, Thread):
     "Frontend Visual interface to qdb"
 
-    def __init__(self, gui=None, pipe=None, host='localhost', port=6000):
+    def __init__(self, gui=None, pipe=None):
         Thread.__init__(self)
         qdb.Frontend.__init__(self, pipe)
         self.done = Event()         # flag to block for user interaction
+        self.attached = Event()     # flag to block waiting for remote side
         self.gui = gui              # wx window for callbacks
         self.start_continue = True  # continue on first run
         self.rawinput = None
-        self.address = (host, port)
         self.breakpoints = {}       # {filename: {lineno: (temp, cond)}
         self.setDaemon(1)           # do not join (kill on termination)
         self.start()                # creathe the new thread
@@ -70,19 +69,28 @@ class Debugger(qdb.Frontend, Thread):
         while 1:
             self.pipe = None
             try:
+                self.attached.wait()
                 print "DEBUGGER waiting for connection to", self.address
-                self.pipe = LoggingPipeWrapper(Client(self.address, authkey='secret password'))
+                self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
                 print "DEBUGGER connected!"
-                while 1:
+                while self.attached.is_set():
                     qdb.Frontend.run(self)
             except EOFError:
                 print "DEBUGGER disconnected..."
-                self.pipe.close()
             except IOError, e:
                 print "DEBUGGER connection exception:", e
+            finally:
+                self.detach()
                 if self.pipe:
                     self.pipe.close()
-                time.sleep(1)
+
+    def attach(self, host='localhost', port=6000, authkey='secret password'):
+        self.address = (host, port)
+        self.authkey = authkey
+        self.attached.set()
+    
+    def detach(self):
+        self.attached.clear()
 
     def call(self, method, *args):
         "Schedule a call for further execution by the thread"

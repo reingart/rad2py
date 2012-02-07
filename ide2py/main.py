@@ -145,11 +145,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         run_menu = self.menu['run'] = wx.Menu()
         run_menu.Append(ID_DEBUG, "Run in &Debugger\tF5")
-        run_menu.AppendSeparator()
-        run_menu.Append(ID_EXEC, "&Execute as an External Process\Shift-Ctrl-F5")
+        run_menu.Append(ID_EXEC, "&Run\Shift-Ctrl-F5")
         run_menu.Append(ID_KILL, "&Kill external process\tCtrl-K")
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
+        run_menu.AppendSeparator()
 
         dbg_menu = self.menu['debug'] = wx.Menu()
         dbg_menu.Append(ID_STEPIN, "&Step In\tF8")
@@ -517,6 +517,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 self.Execute((pythexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
                     filename + '"'  + largs), filen)
                 self.statusbar.SetStatusText("Executing: %s" % (filename), 1)
+                if debug:
+                    self.debugger.attach()
+
             except Exception, e:
                 raise
                 #ShowMessage("Error Setting current directory for Execute")
