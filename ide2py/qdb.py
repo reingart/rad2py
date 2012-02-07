@@ -169,6 +169,14 @@ class Qdb(bdb.Bdb):
         self._wait_for_breakpoint = wait_breakpoint
         sys.settrace(self.trace_dispatch)
 
+    def set_trace(self, frame=None):
+        # start debugger interaction immediatelly
+        if frame is None:
+            frame = sys._getframe().f_back
+        self._wait_for_mainpyfile = frame.f_code.co_filename
+        self._wait_for_breakpoint = 0
+        bdb.Bdb.set_trace(self, frame)
+
     # Command definitions, called by interaction()
 
     def do_continue(self):
