@@ -591,7 +591,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 child.SynchCurrentLine(None)
                 self.debugging_child = None
         # then look for the file being debugged
-        if event:
+        if event and filename:
             child = self.DoOpen(filename)
             if child:
                 if running:

@@ -124,6 +124,9 @@ class Debugger(qdb.Frontend, Thread):
         # execute user action scheduled by main thread
         self.action()
 
+        # clean current line
+        wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None)))
+
     def write(self, text):
         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
 
