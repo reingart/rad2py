@@ -159,12 +159,17 @@ class Web2pyMixin(object):
     def OnAttachWebserver(self, event):
         dlg = wx.TextEntryDialog(self, 
                 'Enter the URL of the web2py admin:', 
-                'Attach debugger to a web2py "Server"', 
+                'Attach debugger to a webserver', 
                 'http://admin:a@localhost:8000/admin/webservices/call/jsonrpc')
         if dlg.ShowModal() == wx.ID_OK:
+            # detach any running debugger
             self.debugger.detach()
+            # web2py debugger will break on the model/controller:
+            self.debugger.start_continue = False
+            # get and parse the URL (TODO: better configuration)
             url = dlg.GetValue()
             o = urlparse(url)
+            # connect to the remote webserver:
             r = simplejsonrpc.ServiceProxy(url, verbose=True)
             host = o.hostname
             port = 6000
