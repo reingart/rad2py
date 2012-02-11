@@ -249,7 +249,12 @@ class EditorCtrl(stc.StyledTextCtrl):
         # open the file with universal line-endings support
         f = None
         try:
-            f = open(filename, "Ur")
+            if self.debugger and self.debugger.is_remote():
+                f = self.debugger.ReadFile(filename)
+                readonly = True
+            else:
+                f = open(filename, "Ur")
+                readonly = False
 
             # analyze encoding and line ending, get text properly decoded
             text, encoding, bom, eol, nl = fileutil.unicode_file_read(f, encoding)
@@ -264,6 +269,10 @@ class EditorCtrl(stc.StyledTextCtrl):
                 
             # load text (unicode!)
             self.SetText(text)
+            
+            # remote text cannot be modified:
+            if readonly:  
+                self.SetReadOnly(True)
             return True
         except Exception, e:
             dlg = wx.MessageDialog(self, unicode(e), "Unable to Load File",
@@ -276,6 +285,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                 f.close()
             
     def SaveFile(self, filename, encoding=None):
+        if self.ReadOnly:
+            return  # do not save if the file is readonly (remote debugger)
         f = None
         try:
             f = open(filename, "wb")

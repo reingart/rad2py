@@ -92,6 +92,10 @@ class Debugger(qdb.Frontend, Thread):
     def detach(self):
         self.attached.clear()
 
+    def is_remote(self):
+        return (self.attached.is_set() and 
+                self.address[0] not in ("localhost"))
+
     def call(self, method, *args):
         "Schedule a call for further execution by the thread"
         # this is not a queue, only last call is scheduled:
@@ -236,6 +240,14 @@ class Debugger(qdb.Frontend, Thread):
                 return self.action()
             except RPCError, e:
                 return u'*** %s' % unicode(e)
+
+
+    def ReadFile(self, filename):
+        "Load remote file"
+        from cStringIO import StringIO
+        self.do_read(filename)
+        data = self.action()
+        return StringIO(data)
 
 
 if __name__ == '__main__':
