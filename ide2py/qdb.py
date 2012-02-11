@@ -25,7 +25,7 @@ import pydoc
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
-    def __init__(self, pipe, redirect_stdio=True):
+    def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False):
         bdb.Bdb.__init__(self)
         self.frame = None
         self.i = 1  # sequential RPC call id
@@ -39,6 +39,9 @@ class Qdb(bdb.Bdb):
         if redirect_stdio:
             sys.stdin = self
             sys.stdout = self
+        if allow_interruptions:
+            # fake breakpoint to prevent removing trace_dispatch on set_continue
+            self.breaks[None] = []
 
     def process_remote_procedure_call(self):
         # receive a remote procedure call from the frontend:
@@ -56,6 +59,23 @@ class Qdb(bdb.Bdb):
         self.pipe.send(response)
 
     # Override Bdb methods
+
+    def trace_dispatch(self, frame, event, arg):
+        # check for non-interaction rpc (set_breakpoint, interrupt)
+        while self.pipe.poll():
+            self.process_remote_procedure_call()
+        # process the frame (see Bdb.trace_dispatch)
+        if self.quitting:
+            return # None
+        if event == 'line':
+            return self.dispatch_line(frame)
+        if event == 'call':
+            return self.dispatch_call(frame, arg)
+        if event == 'return':
+            return self.dispatch_return(frame, arg)
+        if event == 'exception':
+            return self.dispatch_exception(frame, arg)
+        return self.trace_dispatch
 
     def user_call(self, frame, argument_list):
         """This method is called when there is the remote possibility
@@ -197,6 +217,9 @@ class Qdb(bdb.Bdb):
     def do_next(self):
         self.set_next(self.frame)
         self.waiting = False
+
+    def do_interrupt(self):
+        self.set_step()
 
     def do_quit(self):
         self.set_quit()
@@ -533,6 +556,11 @@ class Frontend(object):
     def do_exec(self, statement):
         return self.call('do_exec', statement)
 
+    def do_interrupt(self):
+        "Immediately stop at the first possible occasion (outside interaction)"
+        # DO NOT USE this method inside a interaction loop!
+        self.call('do_interrupt')
+
 
 class Cli(Frontend, cmd.Cmd):
     "Qdb Front-end command line interface"
@@ -545,7 +573,11 @@ class Cli(Frontend, cmd.Cmd):
     
     def run(self):
         while 1:
-            Frontend.run(self)
+            try:
+                Frontend.run(self)
+            except KeyboardInterrupt:
+                print "Interupting..."
+                self.do_interrupt()
 
     def interaction(self, filename, lineno, line):
         print "> %s(%d)\n-> %s" % (filename, lineno, line),
@@ -599,7 +631,7 @@ class Cli(Frontend, cmd.Cmd):
             for name, value in env[key].items():
                 print "%-12s = %s" % (name, value)
 
-    def do_list_breakpoint(self):
+    def do_list_breakpoint(self, arg=None):
         "List all breakpoints"
         breaks = Frontend.do_list_breakpoint(self)
         print "Num File                          Line Temp Enab Hits Cond"
@@ -724,7 +756,7 @@ def main(host='localhost', port=6000, authkey='secret password'):
     print 'qdb debugger backend: connected to', listener.last_accepted
 
     # create the backend
-    qdb = Qdb(conn)
+    qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
     try:
         print "running", mainpyfile
         qdb._runscript(mainpyfile)
