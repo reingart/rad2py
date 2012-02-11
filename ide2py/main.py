@@ -69,6 +69,7 @@ ID_DEBUG = wx.NewId()
 ID_EXEC = wx.NewId()
 ID_SETARGS = wx.NewId()
 ID_KILL = wx.NewId()
+ID_ATTACH = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
 ID_CLEARBREAKPOINTS = wx.NewId()
@@ -150,6 +151,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
         run_menu.AppendSeparator()
+        run_menu.Append(ID_ATTACH, "Attach to &remote debugger\tCtrl-R")
 
         dbg_menu = self.menu['debug'] = wx.Menu()
         dbg_menu.Append(ID_STEPIN, "&Step In\tF8")
@@ -234,6 +236,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (ID_EXEC, self.OnExecute),
             (ID_SETARGS, self.OnSetArgs),
             (ID_KILL, self.OnKill),
+            (ID_ATTACH, self.OnAttachRemoteDebugger),
             (ID_DEBUG, self.OnDebugCommand),
             #(wx.ID_PRINT, self.OnPrint),
             (wx.ID_FIND, self.OnEditAction),
@@ -754,6 +757,25 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                                   description="", lineno=lineno, offset=1)
             else:
                 print "Not notified!"
+
+    def OnAttachRemoteDebugger(self, event):
+        dlg = wx.TextEntryDialog(self, 
+                'Enter the address of the remote qdb frontend:', 
+                'Attach to remote debugger', 
+                'host="localhost", port=6000, authkey="secret password"')
+        if dlg.ShowModal() == wx.ID_OK:
+            # detach any running debugger
+            self.debugger.detach()
+            # step on connection:
+            self.debugger.start_continue = False
+            # get and parse the URL (TODO: better configuration)
+            d = eval("dict(%s)" % dlg.GetValue(), {}, {})
+            # attach local thread (wait for connections)
+            self.debugger.attach(d['host'], d['port'], d['authkey'])
+            # set flag to not start new processes on debug command
+            self.executing = True
+        dlg.Destroy()
+
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
