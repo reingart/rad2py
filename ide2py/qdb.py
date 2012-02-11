@@ -733,22 +733,35 @@ def main():
 
 
 qdb = None
-def set_trace():
+def set_trace(host='localhost', port=6000, authkey='secret password'):
     "Simplified interface to debug running programs"
-    global qdb
+    global qdb, listener, conn
     
     from multiprocessing.connection import Listener
     # only create it if not currently instantiated
     if not qdb:
-        address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
-        listener = Listener(address, authkey='secret password')
+        address = (host, port)     # family is deduced to be 'AF_INET'
+        listener = Listener(address, authkey=authkey)
         conn = listener.accept()
 
-    # create the backend
+        # create the backend
         qdb = Qdb(conn)
     # start debugger backend:
     qdb.set_trace()
 
+
+def quit():
+    "Remove trace and quit"
+    global qdb, listener, conn
+    if qdb:
+        sys.settrace(None)
+        qdb = None
+    if conn:
+        conn.close()
+        conn = None
+    if listener:
+        listener.close() 
+        listener = None
 
 if __name__ == '__main__':
     # When invoked as main program:
