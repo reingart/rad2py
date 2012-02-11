@@ -44,7 +44,7 @@ class Web2pyMixin(object):
         "start-up a web2py server instance"
 
         self.menu['run'].Append(ID_ATTACH, 
-                                "Attach to remote &webserver\tCtrl-W")
+                                "Attach to remote &webserver debugger\tCtrl-W")
         self.Bind(wx.EVT_MENU, self.OnAttachWebserver, id=ID_ATTACH)
 
 
@@ -174,6 +174,8 @@ class Web2pyMixin(object):
             host = o.hostname
             port = 6000
             authkey = "saraza"
+            ## prevent connecting to an old debugger:
+            r.detach_debugger()
             # attach local thread (wait for connections)
             self.debugger.attach(host, port, authkey)
             # attach remote web2py process:
