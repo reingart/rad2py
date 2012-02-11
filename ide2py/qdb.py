@@ -674,14 +674,14 @@ def test():
     p.join()
 
 
-def connect(host="localhost", port=6000):
+def connect(host="localhost", port=6000, authkey='secret password'):
     "Connect to a running debugger backend"
     
     address = (host, port)
     from multiprocessing.connection import Client
 
     print "qdb debugger fronted: waiting for connection to", address
-    conn = Client(address, authkey='secret password')
+    conn = Client(address, authkey=authkey)
     try:
         Cli(conn).run()
     except EOFError:
@@ -690,7 +690,7 @@ def connect(host="localhost", port=6000):
         conn.close()
 
 
-def main():
+def main(host='localhost', port=6000, authkey='secret password'):
     "Debug a script and accept a remote frontend"
     
     if not sys.argv[1:] or sys.argv[1] in ("--help", "-h"):
@@ -708,8 +708,8 @@ def main():
     sys.path[0] = os.path.dirname(mainpyfile)
 
     from multiprocessing.connection import Listener
-    address = ('localhost', 6000)     # family is deduced to be 'AF_INET'
-    listener = Listener(address, authkey='secret password')
+    address = (host, port)     # family is deduced to be 'AF_INET'
+    listener = Listener(address, authkey=authkey)
     print "qdb debugger backend: waiting for connection at", address
     conn = listener.accept()
     print 'qdb debugger backend: connected to', listener.last_accepted
@@ -767,11 +767,18 @@ if __name__ == '__main__':
     # When invoked as main program:
     if '--test' in sys.argv:
         test()
+    # Check environment for configuration parameters:
+    kwargs = {}
+    for param in 'host', 'port', 'authkey':
+       if 'QDB_%s' % param.upper() in os.environ:
+            kwargs[param] = os.environ['QDB_%s' % param.upper()]
+
     if not sys.argv[1:]:
         # connect to a remote debbuger
-        connect()
+        connect(**kwargs)
     else:
         # start the debugger on a script
         # reimport as global __main__ namespace is destroyed
         import qdb
-        qdb.main()
+        qdb.main(**kwargs)
+
