@@ -40,6 +40,21 @@ class Qdb(bdb.Bdb):
             sys.stdin = self
             sys.stdout = self
 
+    def process_remote_procedure_call(self):
+        # receive a remote procedure call from the frontend:
+        request = self.pipe.recv()
+        response = {'version': '1.1', 'id': request.get('id'), 
+                    'result': None, 
+                    'error': None}
+        try:
+            # dispatch message (JSON RPC like)
+            method = getattr(self, request['method'])
+            response['result'] = method.__call__(*request['args'], 
+                                        **request.get('kwargs', {}))
+        except Exception, e:
+            response['error'] = {'code': 0, 'message': str(e)}
+        self.pipe.send(response)
+
     # Override Bdb methods
 
     def user_call(self, frame, argument_list):
@@ -48,7 +63,6 @@ class Qdb(bdb.Bdb):
         if self._wait_for_mainpyfile or self._wait_for_breakpoint:
             return
         if self.stop_here(frame):
-            print '--Call--'
             self.interaction(frame, None)
    
     def user_line(self, frame):
@@ -141,19 +155,7 @@ class Qdb(bdb.Bdb):
                 self.pipe.send({'method': 'interaction', 'id': None,
                                 'args': (filename, self.frame.f_lineno, line)})
 
-                # receive a remote procedure call from the frontend:
-                request = self.pipe.recv()
-                response = {'version': '1.1', 'id': request.get('id'), 
-                            'result': None, 
-                            'error': None}
-                try:
-                    # dispatch message (JSON RPC like)
-                    method = getattr(self, request['method'])
-                    response['result'] = method.__call__(*request['args'], 
-                                                **request.get('kwargs', {}))
-                except Exception, e:
-                    response['error'] = {'code': 0, 'message': str(e)}
-                self.pipe.send(response)
+                self.process_remote_procedure_call()
 
         finally:
             self.waiting = False
