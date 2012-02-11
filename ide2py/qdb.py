@@ -238,6 +238,9 @@ class Qdb(bdb.Bdb):
                 self._lineno = lineno
         return lines
 
+    def do_read(self, filename):
+        return open(filename, "Ur").read()
+
     def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
         return self.set_break(filename, int(lineno), temporary, cond)
 
@@ -504,6 +507,10 @@ class Frontend(object):
     def do_list(self, arg=None):
         "List source code for the current file"
         return self.call('do_list', arg)
+
+    def do_read(self, filename):
+        "Read and send a local filename"
+        return self.call('do_read', filename)
 
     def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
         "Set a breakpoint at filename:breakpoint"
