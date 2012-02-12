@@ -81,6 +81,7 @@ ID_JUMP = wx.NewId()
 ID_CONTINUE = wx.NewId()
 ID_CONTINUETO = wx.NewId()
 ID_STOP = wx.NewId()
+ID_INTERRUPT = wx.NewId()
 ID_INSPECT = wx.NewId()
 
 
@@ -134,9 +135,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         edit_menu.Append(wx.ID_UNDO, "&Undo\tCtrl-U")
         edit_menu.Append(wx.ID_REDO, "&Redo\tCtrl-Y")
         edit_menu.AppendSeparator()
-        edit_menu.Append(wx.ID_CUT, "Cu&t\tCtrl-X")
-        edit_menu.Append(wx.ID_COPY, "&Copy\tCtrl-C")
-        edit_menu.Append(wx.ID_PASTE, "&Paste\tCtrl-P")
+        edit_menu.Append(wx.ID_CUT, "Cu&t\tShift-Delete")
+        edit_menu.Append(wx.ID_COPY, "&Copy\tCtrl-Insert")
+        edit_menu.Append(wx.ID_PASTE, "&Paste\tShift-Insert")
         edit_menu.AppendSeparator()
         edit_menu.Append(wx.ID_FIND, '&Find\tCtrl-F', 'Find in the Demo Code')
         edit_menu.Append(wx.ID_REPLACE, "&Replace\tCtrl-H", "Search and replace")
@@ -161,6 +162,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dbg_menu.Append(ID_CONTINUE, "&Continue\tF5")
         dbg_menu.Append(ID_JUMP, "&Jump to instruction\tCtrl-F9")
         dbg_menu.Append(ID_STOP, "Sto&p")
+        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-C")
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_INSPECT, "Quick &Inspection\tShift-F9", 
                         help="Evaluate selected text (expression) in context")
@@ -269,7 +271,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.toolbardbg.Realize()
 
         for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT, ID_STEPRETURN,
-                        ID_CONTINUE, ID_STOP, ID_INSPECT, ID_JUMP, ID_CONTINUETO]:
+                        ID_CONTINUE, ID_STOP, ID_INSPECT, ID_JUMP, 
+                        ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
         self.debugger = Debugger(self)
@@ -310,6 +313,21 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.Connect(-1, -1, EVT_READLINE_ID, self.OnReadline)
         self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
         self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
+
+        # key bindings (shortcuts). TODO: configuration
+        # NOTE: wx.WXK_PAUSE doesn't work (at least in wxGTK -Ubuntu-)
+        accels = [
+                    (wx.ACCEL_CTRL, wx.WXK_PAUSE, ID_INTERRUPT, 
+                        self.OnDebugCommand),
+                    (wx.ACCEL_NORMAL, wx.WXK_PAUSE, ID_INTERRUPT, 
+                        self.OnDebugCommand),
+                ]
+        atable = wx.AcceleratorTable([acc[0:3] for acc in accels])
+        for acc in accels:
+            self.Bind(wx.EVT_MENU, acc[3], id=acc[2])
+        self.SetAcceleratorTable(atable)
+        
+        # Initialize secondary mixins
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
@@ -643,6 +661,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.debugger.Continue()
         elif event_id == ID_STOP:
             self.debugger.Quit()
+        elif event_id == ID_INTERRUPT:
+            self.debugger.Interrupt()
         elif event_id == ID_INSPECT and self.active_child:
             # Eval selected text (expression) in debugger running context
             arg = self.active_child.GetSelectedText()
