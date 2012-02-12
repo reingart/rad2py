@@ -740,18 +740,20 @@ class EditorCtrl(stc.StyledTextCtrl):
                         self.ToggleFold(lineclicked)
 
     def ToggleBreakpoint(self, evt, lineno=None):
-        #import pdb; pdb.set_trace()
+        ok = None
         if not lineno:
             lineno = self.LineFromPosition(self.GetCurrentPos())
         # toggle breakpoints:
         if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:
             if self.debugger:
-                self.debugger.ClearBreakpoint(self.filename, lineno+1)
-            self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                ok = self.debugger.ClearBreakpoint(self.filename, lineno+1)
+            if ok is not None:
+                self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM)
         else:
             if self.debugger:
-                self.debugger.SetBreakpoint(self.filename, lineno+1)
-            self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                ok = self.debugger.SetBreakpoint(self.filename, lineno+1)
+            if ok is not None:
+                self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
 
     def ClearBreakpoints(self, evt):
         lineno = 1
