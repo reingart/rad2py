@@ -9,7 +9,7 @@ __license__ = "GPL 3.0"
 
 # based on idle, inspired by pythonwin implementation
 
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from Queue import Queue
 from multiprocessing.connection import Client
 import os
@@ -66,6 +66,7 @@ class Debugger(qdb.Frontend, Thread):
         self.breakpoints = {}       # {filename: {lineno: (temp, cond)}
         self.setDaemon(1)           # do not join (kill on termination)
         self.actions = Queue()
+        self.mutex = Lock()         # critical section protection (comm chanel)
         self.start()                # creathe the new thread
 
     def run(self):
@@ -115,10 +116,14 @@ class Debugger(qdb.Frontend, Thread):
     def check_interaction(fn):
         "Decorator for mutually exclusive functions"
         def check_fn(self, *args, **kwargs):
-            if self.done.is_set():
+            if not self.interacting.is_set() or self.done.is_set():
                 wx.Bell()
             else:
-                fn(self, *args, **kwargs)
+                if self.mutex.acquire(False):                
+                    try:
+                        fn(self, *args, **kwargs)
+                    finally:
+                        self.mutex.release()
         return check_fn
 
     def interaction(self, filename, lineno, line):
@@ -158,10 +163,15 @@ class Debugger(qdb.Frontend, Thread):
         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
 
     def readline(self):
-        self.done.clear()
-        wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
-        self.done.wait()
-        return self.rawinput
+        # "raw_input" should be atomic and uninterrupted
+        self.mutex.acquire()
+        try:
+            self.done.clear()
+            wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
+            self.done.wait()
+            return self.rawinput
+        finally:
+            self.mutex.release()
 
     def exception(self, *args):
         "Notify that a user exception was raised in the backend"
@@ -237,17 +247,24 @@ class Debugger(qdb.Frontend, Thread):
         return ret
 
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
-        # store breakpoint
-        self.breakpoints.setdefault(filename, {})[lineno] = (temporary, cond)
-        # only send if debugger is connected and attached
-        if self.pipe and self.attached.is_set():
-            action = lambda: self.do_set_breakpoint(filename, lineno, temporary, cond)
-            self.async_push(action)
-            return True
-        else:
-            return False
+        if not self.mutex.acquire(False):
+            return
+        try:
+            # store breakpoint
+            self.breakpoints.setdefault(filename, {})[lineno] = (temporary, cond)
+            # only send if debugger is connected and attached
+            if self.pipe and self.attached.is_set():
+                action = lambda: self.do_set_breakpoint(filename, lineno, temporary, cond)
+                self.async_push(action)
+                return True
+            else:
+                return False
+        finally:
+            self.mutex.release()
 
     def ClearBreakpoint(self, filename, lineno):
+        if not self.mutex.acquire(False):
+            return
         try:
             del self.breakpoints[filename][lineno]
             # only send if debugger is connected and attached
@@ -259,8 +276,12 @@ class Debugger(qdb.Frontend, Thread):
                 return False
         except KeyError, e:
             print e
-
+        finally:
+            self.mutex.release()
+            
     def ClearFileBreakpoints(self, filename):
+        if not self.mutex.acquire(False):
+            return
         try:
             del self.breakpoints[filename]
             action = self.do_clear_file_breakpoints(filename)
@@ -268,14 +289,20 @@ class Debugger(qdb.Frontend, Thread):
             return True
         except KeyError, e:
             print e
+        finally:
+            self.mutex.release()
 
     def Inspect(self, arg):
         if self.pipe and self.attached.is_set():
+            if not self.mutex.acquire(False):
+                return
             try:
                 # we need the result right now:
                 return self.async_push(lambda: self.do_inspect(arg))
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
+            finally:
+                self.mutex.release()
 
 
     def ReadFile(self, filename):
