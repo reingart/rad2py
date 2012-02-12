@@ -277,6 +277,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         self.debugger = Debugger(self)
 
+        self.x = 0
+        self.call_stack = self.CreateTextCtrl()
+        self._mgr.AddPane(self.call_stack, aui.AuiPaneInfo().Name("stack").
+              Caption("Call Stack").Float().FloatingSize(wx.Size(400, 100)).
+              FloatingPosition(self.GetStartPosition()).
+              MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
+
+        self.environment = self.CreateTextCtrl()
+        self._mgr.AddPane(self.environment, aui.AuiPaneInfo().Name("environ").
+              Caption("Environment").Float().FloatingSize(wx.Size(400, 100)).
+              FloatingPosition(self.GetStartPosition()).
+              MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
+
+
         self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().Name("toolbar").
                           ToolbarPane().Top().Position(0))
 
@@ -361,6 +375,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         # restore previuous open files
         wx.CallAfter(self.DoOpenFiles)
+
+    def GetStartPosition(self):
+
+        self.x = self.x + 20
+        x = self.x
+        pt = self.ClientToScreen(wx.Point(0, 0))
+        
+        return wx.Point(pt.x + x, pt.y + x)
 
     @property
     def active_child(self):
@@ -607,6 +629,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def GotoFileLine(self, event=None, running=True):
         if event and running:
             filename, lineno = event.data
+            if filename:
+                context = self.debugger.GetContext()
+                self.call_stack.SetValue(context['call_stack'])
+                self.environment.SetValue(context['environment'])
+            #self.environment
         elif not running:
             filename, lineno, offset = event
         # first, clean all current debugging markers

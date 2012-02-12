@@ -39,12 +39,12 @@ class LoggingPipeWrapper(object):
         self.__pipe = pipe
     
     def send(self, data):
-        print("PIPE:send: %s" % repr(data))
+        print("PIPE:send: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
         self.__pipe.send(data)
 
     def recv(self, *args, **kwargs):
         data = self.__pipe.recv(*args, **kwargs)
-        print("PIPE:recv: %s" % repr(data))
+        print("PIPE:recv: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
         return data
     
     def close(self):
@@ -285,6 +285,30 @@ class Debugger(qdb.Frontend, Thread):
         data = self.async_push(action)
         return StringIO(data)
 
+
+    def GetContext(self):
+        self.set_burst(3)
+        self.do_where()
+        w = self.push_actions()
+        ret = ""
+        for filename, lineno, bp, current, source in w:
+            ret += "%s:%4d%s%s\t%s" % (filename, lineno, bp, current, source)
+        d = {'call_stack': ret}
+        self.do_environment()
+        env = self.push_actions()
+        ret = ""
+        for key in env:
+            ret += "=" * 78
+            ret += "\n"
+            ret += key.capitalize()
+            ret += "\n"
+            ret += "-" * 78
+            ret += "\n"
+            for name, value in env[key].items():
+                ret += "%-12s = %s" % (name, value)
+                ret += "\n"
+        d['environment'] = ret
+        return d
 
 if __name__ == '__main__':
     import sys
