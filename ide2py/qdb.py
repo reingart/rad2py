@@ -20,7 +20,7 @@ import sys
 import traceback
 import cmd
 import pydoc
-
+import threading
 
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
@@ -427,6 +427,22 @@ class Frontend(object):
         self.i = 1
         self.pipe = pipe
         self.notifies = []
+        self.read_lock = threading.RLock()
+        self.write_lock = threading.RLock()
+
+    def recv(self):
+        self.read_lock.acquire()
+        try:
+            return self.pipe.recv()
+        finally:
+            self.read_lock.release()
+
+    def send(self, data):
+        self.write_lock.acquire()
+        try:
+            return self.pipe.send(data)
+        finally:
+            self.write_lock.release()
 
     def interaction(self, filename, lineno, line):
         raise NotImplementedError
@@ -448,7 +464,7 @@ class Frontend(object):
         if self.pipe:
             if not self.notifies:
                 # wait for a message...
-                request = self.pipe.recv()
+                request = self.recv()
             else:
                 # process an asyncronus notification received earlier 
                 request = self.notifies.pop(0)
@@ -469,17 +485,17 @@ class Frontend(object):
                 response = {'version': '1.1', 'id': request.get('id'), 
                         'result': result, 
                         'error': None}
-                self.pipe.send(response)
+                self.send(response)
             return True
 
     def call(self, method, *args):
         "Actually call the remote method (inside the thread)"
         req = {'method': method, 'args': args, 'id': self.i}
-        self.pipe.send(req)
+        self.send(req)
         self.i += 1  # increment the id
         while 1:
             # wait until command acknowledge (response match the request)
-            res = self.pipe.recv()
+            res = self.recv()
             if 'id' not in res or not res['id']:
                 # notification received!
                 self.notifies.append(res)
@@ -563,7 +579,7 @@ class Frontend(object):
         "Immediately stop at the first possible occasion (outside interaction)"
         # this is a notification!, do not expect a response
         req = {'method': 'interrupt', 'args': ()}
-        self.pipe.send(req)
+        self.send(req)
 
 
 class Cli(Frontend, cmd.Cmd):
