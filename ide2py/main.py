@@ -607,7 +607,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                     child.GotoLineOffset(lineno, offset)
 
     def OnReadline(self, event):
+        wx.Yield()
         text = self.console.readline()
+        wx.Yield()
         self.debugger.Readline(text)
 
     def OnWrite(self, event):
