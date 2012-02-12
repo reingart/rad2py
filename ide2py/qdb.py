@@ -43,6 +43,7 @@ class Qdb(bdb.Bdb):
             # fake breakpoint to prevent removing trace_dispatch on set_continue
             self.breaks[None] = []
         self.allow_interruptions = allow_interruptions
+        self.burst = 0          # do not send notifications ("burst" mode)
 
     def pull_actions(self):
         # receive a remote procedure call from the frontend:
@@ -175,7 +176,9 @@ class Qdb(bdb.Bdb):
                 else:
                     line = ""
                 # send the notification (debug event) - DOESN'T WAIT RESPONSE
-                self.pipe.send({'method': 'interaction', 'id': None,
+                self.burst -= 1
+                if self.burst < 0:
+                    self.pipe.send({'method': 'interaction', 'id': None,
                                 'args': (filename, self.frame.f_lineno, line)})
 
                 self.pull_actions()
@@ -329,6 +332,10 @@ class Qdb(bdb.Bdb):
         for name, value in self.frame.f_globals.items():
             env['globals'][name] = pydoc.text.repr(value)
         return env
+
+    def set_burst(self, val):
+        "Set burst mode -multiple command count- (shut up notifications)"
+        self.burst = val
 
     def displayhook(self, obj):
         """Custom displayhook for the do_exec which prevents
@@ -580,6 +587,11 @@ class Frontend(object):
         # this is a notification!, do not expect a response
         req = {'method': 'interrupt', 'args': ()}
         self.send(req)
+
+    def set_burst(self, value):
+        req = {'method': 'set_burst', 'args': (value, )}
+        self.send(req)
+        
 
 
 class Cli(Frontend, cmd.Cmd):
