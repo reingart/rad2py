@@ -44,7 +44,7 @@ class Qdb(bdb.Bdb):
             self.breaks[None] = []
         self.allow_interruptions = allow_interruptions
 
-    def process_remote_procedure_call(self):
+    def pull_actions(self):
         # receive a remote procedure call from the frontend:
         request = self.pipe.recv()
         response = {'version': '1.1', 'id': request.get('id'), 
@@ -66,7 +66,7 @@ class Qdb(bdb.Bdb):
     def trace_dispatch(self, frame, event, arg):
         # check for non-interaction rpc (set_breakpoint, interrupt)
         while self.allow_interruptions and self.pipe.poll():
-            self.process_remote_procedure_call()
+            self.pull_actions()
         # process the frame (see Bdb.trace_dispatch)
         if self.quitting:
             return # None
@@ -178,7 +178,7 @@ class Qdb(bdb.Bdb):
                 self.pipe.send({'method': 'interaction', 'id': None,
                                 'args': (filename, self.frame.f_lineno, line)})
 
-                self.process_remote_procedure_call()
+                self.pull_actions()
 
         finally:
             self.waiting = False
