@@ -10,6 +10,7 @@ __license__ = "GPL 3.0"
 # based on idle, inspired by pythonwin implementation
 
 from threading import Thread, Event
+from Queue import Queue
 from multiprocessing.connection import Client
 import os
 import random
@@ -63,6 +64,7 @@ class Debugger(qdb.Frontend, Thread):
         self.rawinput = None
         self.breakpoints = {}       # {filename: {lineno: (temp, cond)}
         self.setDaemon(1)           # do not join (kill on termination)
+        self.actions = Queue()
         self.start()                # creathe the new thread
 
     def run(self):
@@ -98,8 +100,15 @@ class Debugger(qdb.Frontend, Thread):
 
     def call(self, method, *args):
         "Schedule a call for further execution by the thread"
-        # this is not a queue, only last call is scheduled:
-        self.action = lambda: qdb.Frontend.call(self, method, *args)
+        self.actions.put(lambda: qdb.Frontend.call(self, method, *args))
+
+    def push_actions(self):
+        "Execute scheduled actions"
+        while not self.actions.empty():
+            action = self.actions.get()
+            ret = action()
+            self.actions.task_done()
+        return ret
 
     def check_interaction(fn):
         "Decorator for mutually exclusive functions"
@@ -118,7 +127,7 @@ class Debugger(qdb.Frontend, Thread):
             if self.start_continue:
                 print "continuing..."
                 self.Continue()
-                self.action()
+                self.push_actions()
                 self.start_continue = None
                 return
             self.start_continue = None
@@ -135,7 +144,7 @@ class Debugger(qdb.Frontend, Thread):
         self.done.wait()
         
         # execute user action scheduled by main thread
-        self.action()
+        self.push_actions()
 
         # clean current line
         wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None)))
@@ -195,7 +204,7 @@ class Debugger(qdb.Frontend, Thread):
             for lineno, (temporary, cond) in bps.items():
                 print "loading breakpoint", filename, lineno
                 self.do_set_breakpoint(filename, lineno, temporary, cond)
-                self.action()
+                self.push_actions()
                 # TODO: discard interaction message
                 self.pipe.recv()
 
@@ -205,7 +214,7 @@ class Debugger(qdb.Frontend, Thread):
         # only send if waiting for interaction:
         if self.pipe and not self.done.is_set():
             self.do_set_breakpoint(filename, lineno, temporary, cond)
-            self.action()
+            self.do_actions()
             return True
         else:
             return False
@@ -216,7 +225,7 @@ class Debugger(qdb.Frontend, Thread):
             # only send if waiting for interaction:
             if self.pipe and not self.done.is_set():
                 self.do_clear_breakpoint(filename, lineno)
-                self.action()
+                self.push_actions()
                 return True
             else:
                 return False
@@ -227,7 +236,7 @@ class Debugger(qdb.Frontend, Thread):
         try:
             del self.breakpoints[filename]
             self.do_clear_file_breakpoints(filename)
-            self.action()
+            self.push_actions()
             return True
         except KeyError, e:
             print e
@@ -237,7 +246,7 @@ class Debugger(qdb.Frontend, Thread):
             try:
                 self.do_inspect(arg)
                 # we need the result right now:
-                return self.action()
+                return self.push_actions()
             except RPCError, e:
                 return u'*** %s' % unicode(e)
 
@@ -246,7 +255,7 @@ class Debugger(qdb.Frontend, Thread):
         "Load remote file"
         from cStringIO import StringIO
         self.do_read(filename)
-        data = self.action()
+        data = self.push_actions()
         return StringIO(data)
 
 
