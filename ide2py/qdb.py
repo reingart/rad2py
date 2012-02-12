@@ -57,7 +57,9 @@ class Qdb(bdb.Bdb):
                                         **request.get('kwargs', {}))
         except Exception, e:
             response['error'] = {'code': 0, 'message': str(e)}
-        self.pipe.send(response)
+        # send the result for normal method calls, not for notifications
+        if request.get('id'):
+            self.pipe.send(response)
 
     # Override Bdb methods
 
@@ -219,7 +221,7 @@ class Qdb(bdb.Bdb):
         self.set_next(self.frame)
         self.waiting = False
 
-    def do_interrupt(self):
+    def interrupt(self):
         self.set_step()
 
     def do_quit(self):
@@ -557,10 +559,11 @@ class Frontend(object):
     def do_exec(self, statement):
         return self.call('do_exec', statement)
 
-    def do_interrupt(self):
+    def interrupt(self):
         "Immediately stop at the first possible occasion (outside interaction)"
-        # DO NOT USE this method inside a interaction loop!
-        self.call('do_interrupt')
+        # this is a notification!, do not expect a response
+        req = {'method': 'interrupt', 'args': ()}
+        self.pipe.send(req)
 
 
 class Cli(Frontend, cmd.Cmd):
@@ -578,7 +581,7 @@ class Cli(Frontend, cmd.Cmd):
                 Frontend.run(self)
             except KeyboardInterrupt:
                 print "Interupting..."
-                self.do_interrupt()
+                self.interrupt()
 
     def interaction(self, filename, lineno, line):
         print "> %s(%d)\n-> %s" % (filename, lineno, line),
