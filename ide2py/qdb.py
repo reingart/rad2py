@@ -42,6 +42,7 @@ class Qdb(bdb.Bdb):
         if allow_interruptions:
             # fake breakpoint to prevent removing trace_dispatch on set_continue
             self.breaks[None] = []
+        self.allow_interruptions = allow_interruptions
 
     def process_remote_procedure_call(self):
         # receive a remote procedure call from the frontend:
@@ -62,7 +63,7 @@ class Qdb(bdb.Bdb):
 
     def trace_dispatch(self, frame, event, arg):
         # check for non-interaction rpc (set_breakpoint, interrupt)
-        while self.pipe.poll():
+        while self.allow_interruptions and self.pipe.poll():
             self.process_remote_procedure_call()
         # process the frame (see Bdb.trace_dispatch)
         if self.quitting:
