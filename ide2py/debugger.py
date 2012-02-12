@@ -57,6 +57,7 @@ class Debugger(qdb.Frontend, Thread):
     def __init__(self, gui=None, pipe=None):
         Thread.__init__(self)
         qdb.Frontend.__init__(self, pipe)
+        self.interacting = Event()  # flag to 
         self.done = Event()         # flag to block for user interaction
         self.attached = Event()     # flag to block waiting for remote side
         self.gui = gui              # wx window for callbacks
@@ -104,6 +105,7 @@ class Debugger(qdb.Frontend, Thread):
 
     def push_actions(self):
         "Execute scheduled actions"
+        ret = None
         while not self.actions.empty():
             action = self.actions.get()
             ret = action()
@@ -120,34 +122,37 @@ class Debugger(qdb.Frontend, Thread):
         return check_fn
 
     def interaction(self, filename, lineno, line):
-        
-        if self.start_continue is not None:
-            print "loading breakpoints...."
-            self.LoadBreakpoints()
-            if self.start_continue:
-                print "continuing..."
-                self.Continue()
-                self.push_actions()
-                self.start_continue = None
-                return
-            self.start_continue = None
-            
-        #  sync_source_line()
-        if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
-            if self.gui:
-                # we are in other thread so send the event to main thread
-                wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
-                                                  (filename, lineno)))
-
-        # wait user events: done is a threading.Event (set by the main thread)
         self.done.clear()
-        self.done.wait()
-        
-        # execute user action scheduled by main thread
-        self.push_actions()
+        self.interacting.set()
+        try:
+            if self.start_continue is not None:
+                print "loading breakpoints...."
+                self.LoadBreakpoints()
+                if self.start_continue:
+                    print "continuing..."
+                    self.Continue()
+                    self.push_actions()
+                    self.start_continue = None
+                    return
+                self.start_continue = None
+                
+            #  sync_source_line()
+            if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+                if self.gui:
+                    # we are in other thread so send the event to main thread
+                    wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
+                                                      (filename, lineno)))
 
-        # clean current line
-        wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None)))
+            # wait user events: done is a threading.Event (set by the main thread)
+            self.done.wait()
+            
+            # execute user action scheduled by main thread
+            self.push_actions()
+
+            # clean current line
+            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None)))
+        finally:
+            self.interacting.clear()
 
     def write(self, text):
         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
@@ -164,7 +169,6 @@ class Debugger(qdb.Frontend, Thread):
 
     # Methods to handle user interaction by main thread bellow:
     
-    @check_interaction
     def Readline(self, text):
         self.rawinput = text
         self.done.set()
@@ -199,6 +203,9 @@ class Debugger(qdb.Frontend, Thread):
         self.do_jump(lineno)
         self.done.set()
 
+    def Interrupt(self):
+        self.interrupt()
+
     def LoadBreakpoints(self):
         for filename, bps in self.breakpoints.items():
             for lineno, (temporary, cond) in bps.items():
@@ -208,13 +215,34 @@ class Debugger(qdb.Frontend, Thread):
                 # TODO: discard interaction message
                 self.pipe.recv()
 
+
+    def async_push(self, action):
+        # if no interaction yet, send an interrupt (step on the next stmt)
+        if not self.interacting.is_set():
+            self.interrupt()
+            cont = True
+        else:
+            cont = False
+        # wait for interaction and send the method request (signal we are done)
+        self.interacting.wait()
+        action()
+        ret = self.push_actions()
+        self.interacting.clear()
+        self.done.set()
+        # if interrupted, send a continue to resume
+        if cont:
+            self.interacting.wait()
+            self.do_continue()
+            self.done.set()
+        return ret
+
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
         # store breakpoint
         self.breakpoints.setdefault(filename, {})[lineno] = (temporary, cond)
-        # only send if waiting for interaction:
-        if self.pipe and not self.done.is_set():
-            self.do_set_breakpoint(filename, lineno, temporary, cond)
-            self.do_actions()
+        # only send if debugger is connected and attached
+        if self.pipe and self.attached.is_set():
+            action = lambda: self.do_set_breakpoint(filename, lineno, temporary, cond)
+            self.async_push(action)
             return True
         else:
             return False
@@ -222,10 +250,10 @@ class Debugger(qdb.Frontend, Thread):
     def ClearBreakpoint(self, filename, lineno):
         try:
             del self.breakpoints[filename][lineno]
-            # only send if waiting for interaction:
-            if self.pipe and not self.done.is_set():
-                self.do_clear_breakpoint(filename, lineno)
-                self.push_actions()
+            # only send if debugger is connected and attached
+            if self.pipe and self.attached.is_set():
+                action = lambda: self.do_clear_breakpoint(filename, lineno)
+                self.async_push(action)
                 return True
             else:
                 return False
@@ -235,27 +263,26 @@ class Debugger(qdb.Frontend, Thread):
     def ClearFileBreakpoints(self, filename):
         try:
             del self.breakpoints[filename]
-            self.do_clear_file_breakpoints(filename)
-            self.push_actions()
+            action = self.do_clear_file_breakpoints(filename)
+            self.async_push(action)
             return True
         except KeyError, e:
             print e
 
     def Inspect(self, arg):
-        if self.pipe and not self.done.is_set():
+        if self.pipe and self.attached.is_set():
             try:
-                self.do_inspect(arg)
                 # we need the result right now:
-                return self.push_actions()
-            except RPCError, e:
+                return self.async_push(lambda: self.do_inspect(arg))
+            except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
 
 
     def ReadFile(self, filename):
         "Load remote file"
         from cStringIO import StringIO
-        self.do_read(filename)
-        data = self.push_actions()
+        action = lambda: self.do_read(filename)
+        data = self.async_push(action)
         return StringIO(data)
 
 
