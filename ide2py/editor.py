@@ -959,6 +959,8 @@ class EditorCtrl(stc.StyledTextCtrl):
     def HighlightText(self, findstring, mode):
         "Find text and applies indicator style (ORANGE BOX) to all occurrences"
         start, end = 0, self.GetLength()
+        # force to the lexer to style the text not visible yet
+        self.Colourise(start, end)
         style = stc.STC_INDIC1_MASK
         lenght= len(findstring)
         # clear all highlighted previous found text
@@ -979,6 +981,8 @@ class EditorCtrl(stc.StyledTextCtrl):
     def HighlightLines(self, lines):
         "Applies indicator style (RED SQUIGGLE default) to the lines listed"
         start, end = 0, self.GetLength()
+        # force to the lexer to style the text not visible yet
+        self.Colourise(start, end)
         style = stc.STC_INDIC0_MASK
         # clear all highlighted previous found text
         self.StartStyling(start, style)
