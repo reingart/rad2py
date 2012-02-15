@@ -54,14 +54,14 @@ class ConsoleCtrl(wx.TextCtrl):
         controldown = event.ControlDown()
         altdown = event.AltDown()
         shiftdown = event.ShiftDown()
-        
+
         if controldown and key in BREAK_KEYS:
             if DEBUG: print >> sys.stdout, "CTRL+C"
             if self.process:
                 self.process.Kill(self.process.pid, wx.SIGKILL)
             else:
                 raise KeyboardInterrupt()
-        elif self.process and key!=wx.WXK_RETURN:
+        elif self.process and key not in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
             if not self.startpos: # simulate readline!
                 self.startpos = self.GetInsertionPoint()
             event.Skip()
@@ -94,9 +94,10 @@ class ConsoleCtrl(wx.TextCtrl):
         if self.process:
             self.outputstream.write(text+"\n")
             self.startpos = None
-        
+    
     def readline(self):
         "Replacement for stdin.readline()"
+        
         if self.isreading:
             # if we don't cancel, we will block...
             raise RuntimeError("Already expecting user input!")
