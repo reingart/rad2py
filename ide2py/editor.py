@@ -161,7 +161,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM, wx.stc.STC_MARK_SHORTARROW, wx.BLACK, (255,255,128))
         # Define the breakpoint marker
         self.MarkerDefine(self.BREAKPOINT_MARKER_NUM, wx.stc.STC_MARK_CIRCLE, wx.BLACK, (255,0,0))
-        
 
         # Make some styles,  The lexer defines what each style is used for, we
         # just have to define what each style looks like.  This set is adapted from
@@ -830,6 +829,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         return line
 
     def SynchCurrentLine(self, linenum):
+        # do not update if currently in the same line
         self.MarkerDeleteAll(self.CURRENT_LINE_MARKER_NUM)
         if linenum:
             # line numbering for editor is 0 based, dbg is 1 based.

@@ -304,14 +304,12 @@ class Debugger(qdb.Frontend, Thread):
             finally:
                 self.mutex.release()
 
-
     def ReadFile(self, filename):
         "Load remote file"
         from cStringIO import StringIO
         action = lambda: self.do_read(filename)
         data = self.async_push(action)
         return StringIO(data)
-
 
     def GetContext(self):
         self.set_burst(3)
@@ -336,6 +334,50 @@ class Debugger(qdb.Frontend, Thread):
                 ret += "\n"
         d['environment'] = ret
         return d
+
+    # methods used by the shell:
+    
+    def Run(self, statement):
+        "Run source code statement in debugger context (returns string)"
+        if self.pipe and self.attached.is_set():
+            if self.mutex.acquire(False):
+                try:
+                    # execute the statement in the remote debugger:
+                    ret = self.async_push(lambda: self.do_exec(statement))
+                    if isinstance(ret, basestring):
+                        return ret
+                    else:
+                        return str(ret)
+                except qdb.RPCError, e:
+                    return u'*** %s' % unicode(e)
+                finally:
+                    self.mutex.release()
+        return None
+
+    def GetAutoCompleteList(self, expr=''):
+        "Return list of auto-completion options for an expression"
+        if self.pipe and self.attached.is_set():
+            if self.mutex.acquire(False):
+                try:
+                    cmd = lambda: self.get_autocomplete_list(expr)
+                    return self.async_push(cmd)
+                except qdb.RPCError, e:
+                    return u'*** %s' % unicode(e)
+                finally:
+                    self.mutex.release()
+
+    def GetCallTip(self, expr):
+        "Returns (name, argspec, tip) for an expression"
+        if self.pipe and self.attached.is_set():
+            if self.mutex.acquire(False):
+                try:
+                    cmd = lambda: self.get_call_tip(expr)
+                    return self.async_push(cmd)
+                except qdb.RPCError, e:
+                    return u'*** %s' % unicode(e)
+                finally:
+                    self.mutex.release()
+
 
 if __name__ == '__main__':
     import sys

@@ -21,12 +21,13 @@ import StringIO
 import wx.py
 
 
-class LocalInterpreter(wx.py.interpreter.Interpreter):
+class Interpreter(wx.py.interpreter.Interpreter):
     "Customized interpreter for local execution (handling locals and globals)"
 
     def __init__(self, locals, rawin, stdin, stdout, stderr, 
                  ps1='>>>', ps2='...',
                  globals=None,
+                 debugger=None,
                  ):
         """Create an interactive interpreter object."""
         wx.py.interpreter.Interpreter.__init__(self, locals=locals, rawin=rawin, 
@@ -34,31 +35,42 @@ class LocalInterpreter(wx.py.interpreter.Interpreter):
         sys.ps1 = ps1
         sys.ps2 = ps2
         self.globals = globals or {}
+        self.debugger = debugger
         
-    def runcode(self, code):
-        """Execute a code object.
+    def runsource(self, source):
+        """Compile and run source code in the interpreter."""
+        text = self.debugger.Run(source)
+        if text is not None:
+            self.stdout.write(text)
+            self.stdout.write(os.linesep)
+            return False    # no line continuation in debug mode by now
+        else:
+            return wx.py.interpreter.Interpreter.runsource(self, 
+                        source)
 
-        When an exception occurs, self.showtraceback() is called to
-        display a traceback.  All exceptions are caught except
-        SystemExit, which is reraised.
 
-        A note about KeyboardInterrupt: this exception may occur
-        elsewhere in this code, and may not always be caught.  The
-        caller should be prepared to deal with it.
+    def getAutoCompleteList(self, command='', *args, **kwds):
+        root = wx.py.introspect.getRoot(command, terminator=".")
+        l = self.debugger.GetAutoCompleteList(root)
+        if l is None:
+            l = wx.py.interpreter.Interpreter.getAutoCompleteList(self, 
+                        command, *args, **kwds)
+        return l
 
-        """
-        try:
-            exec code in self.globals, self.locals
-        except SystemExit:
-            raise
-        except:
-            self.showtraceback()
+    def getCallTip(self, command='', *args, **kwds):
+        root = wx.py.introspect.getRoot(command, terminator="(")
+        calltip = self.debugger.GetCallTip(root)
+        if calltip is None:
+            calltip = wx.py.interpreter.Interpreter.getCallTip(self, 
+                        command, *args, **kwds)
+        return calltip
 
 
 class Shell(wx.py.shell.Shell):
     "Customized version of PyShell"
-    def __init__(self, parent):
-        wx.py.shell.Shell.__init__(self, parent, InterpClass=LocalInterpreter)
+    def __init__(self, parent, debugger):
+        wx.py.shell.Shell.__init__(self, parent, InterpClass=Interpreter,
+                                   debugger=debugger)
         self.console = None
      
     def onCut(self, event=None):
@@ -78,51 +90,3 @@ class Shell(wx.py.shell.Shell):
             return self.console.readline()
         else:
             return wx.py.shell.Shell.raw_input(self, prompt)
-
-    def RunScript(self, code, syspath_dirs=None, debugger=None, console=None):
-        '''Runs a script in the shell.
-
-           @param code          The actual code object (not the filename).
-           @param syspath_dirs  A list of directories to add to sys.path during the run.
-        '''
-        # save sys.stdout
-        oldsfd = sys.stdin, sys.stdout, sys.stderr
-        try:
-            # save the current sys.path, then add any directories to it
-            syspath = sys.path
-            if syspath_dirs:
-                sys.path = syspath_dirs + sys.path
-
-            # redirect standard streams
-            if console:
-                sys.stdin = sys.stdout = sys.stderr = console
-                self.console = console
-            else:
-                sys.stdin, sys.stdout, sys.stderr =  self.interp.stdin, self.interp.stdout, self.interp.stderr
-
-            # create a dedicated module to be used as __main__ (globals)
-            statement_module = new.module('__main__')
-            import __builtin__
-            statement_module.__builtins__ = __builtin__
-            # sys.modules['__main__'] = statement_module    ## dangerous...
-
-            # update the ui
-            self.write(os.linesep)
-            # run the script (either the interp and bdb calls exec!)
-            if not debugger:
-                self.interp.globals = statement_module.__dict__
-                self.interp.locals = self.interp.globals
-                self.interp.runcode(code)
-            else:
-                debugger.Run(code, interp=self.interp, 
-                                   globals=statement_module.__dict__,
-                                   locals=None)
-            self.prompt()
-
-        finally:
-            # set the system path back to what it was before the script
-            sys.path = syspath
-            # set the title back to normal
-            sys.stdin, sys.stdout, sys.stderr = oldsfd
-            self.console = console
-

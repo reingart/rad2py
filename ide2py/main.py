@@ -302,7 +302,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self._mgr.AddPane(self.browser, aui.AuiPaneInfo().Name("browser").
                           Caption("Simple Browser").Right().CloseButton(True))
 
-        self.shell = Shell(self)
+        self.shell = Shell(self, debugger=self.debugger)
         self._mgr.AddPane(self.shell, aui.AuiPaneInfo().Name("shell").
                           Caption("Shell").
                           Bottom().Layer(1).Position(1).CloseButton(True))
@@ -504,8 +504,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.children.append(child)
         else:
             child = found[0]
-            child.Activate()
-            child.SetFocus()
+            # do not interfere with shell focus
+            if not self.shell.HasFocus():
+                child.Activate()
+                child.SetFocus()
         return child
 
     def DoOpenFiles(self):
@@ -891,7 +893,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         
     def SynchCurrentLine(self, lineno):
         if lineno:
-            self.SetFocus()
+            pass##self.SetFocus()
         self.editor.SynchCurrentLine(lineno)
 
     def GotoLineOffset(self, lineno, offset):
