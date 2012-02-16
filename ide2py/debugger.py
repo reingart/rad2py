@@ -18,6 +18,7 @@ import sys
 import time
 import wx
 import wx.gizmos
+from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 import qdb
 
@@ -316,9 +317,9 @@ class Debugger(qdb.Frontend, Thread):
         self.set_burst(3)
         self.do_where()
         w = self.push_actions()
-        ret = ""
+        ret = []
         for filename, lineno, bp, current, source in w:
-            ret += "%s:%4d%s%s\t%s" % (filename, lineno, bp, current, source)
+            ret.append((filename, lineno, "%s%s" % (bp, current), source))
         d = {'call_stack': ret}
         self.do_environment()
         env = self.push_actions()
@@ -430,6 +431,34 @@ class EnvironmentPanel(wx.Panel):
 
     def OnSize(self, evt):
         self.tree.SetSize(self.GetSize())
+
+
+class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
+    "Defect recording log facilities"
+    def __init__(self, parent, filename=""):
+        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        ListCtrlAutoWidthMixin.__init__(self)
+        self.parent = parent
+        self.InsertColumn(0, "Filename", wx.LIST_FORMAT_LEFT) 
+        self.SetColumnWidth(0, 200)
+        self.InsertColumn(1, "LineNo", wx.LIST_FORMAT_RIGHT) 
+        self.SetColumnWidth(1, 50)
+        self.InsertColumn(2, "Flags", wx.LIST_FORMAT_CENTER) 
+        self.SetColumnWidth(2, 10)
+        self.InsertColumn(3, "source", wx.LIST_AUTOSIZE) 
+        self.SetColumnWidth(3, 0)
+        self.setResizeColumn(4)
+
+    def AddItem(self, item, key=None):
+        index = self.InsertStringItem(sys.maxint, item[0])
+        for i, val in enumerate(item[1:]):
+            self.SetStringItem(index, i + 1, str(val))
+    
+    def BuildList(self, items):
+        self.DeleteAllItems()
+        for item in items:
+            self.AddItem(item)
+
 
 class TestFrame(wx.Frame):
 

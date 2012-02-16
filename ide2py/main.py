@@ -30,7 +30,7 @@ import images
 from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
-                               EVT_EXCEPTION_ID, EnvironmentPanel
+                               EVT_EXCEPTION_ID, EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -278,7 +278,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.debugger = Debugger(self)
 
         self.x = 0
-        self.call_stack = self.CreateTextCtrl()
+        self.call_stack = StackListCtrl(self)
         self._mgr.AddPane(self.call_stack, aui.AuiPaneInfo().Name("stack").
               Caption("Call Stack").Float().FloatingSize(wx.Size(400, 100)).
               FloatingPosition(self.GetStartPosition()).
@@ -633,7 +633,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             filename, lineno = event.data
             if filename:
                 context = self.debugger.GetContext()
-                self.call_stack.SetValue(context['call_stack'])
+                self.call_stack.BuildList(context['call_stack'])
                 self.environment.BuildTree(context['environment'],
                                            sort_order=('locals', 'globals'))
             #self.environment
