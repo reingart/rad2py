@@ -537,6 +537,10 @@ class Frontend(object):
             else:
                 # process an asyncronus notification received earlier 
                 request = self.notifies.pop(0)
+            return self.process_message(request)
+    
+    def process_message(self, request):
+        if request:
             result = None
             if request.get("error"):
                 # it is not supposed to get an error here
@@ -563,15 +567,14 @@ class Frontend(object):
         self.send(req)
         self.i += 1  # increment the id
         while 1:
-            # wait until command acknowledge (response match the request)
+            # wait until command acknowledge (response id match the request)
             res = self.recv()
             if 'id' not in res or not res['id']:
-                # notification received!
-                self.notifies.append(res)
+                # nested notification received (i.e. write)! process it!
+                self.process_message(res)
             elif 'result' not in res:
-                print "DEBUGGER wrong packet received: expecting result", res
-                # protocol state is unknown, this should not happen
-                self.notifies.append(res)
+                # nested request received (i.e. readline)! process it!
+                self.process_message(res)
             elif long(req['id']) != long(res['id']):
                 print "DEBUGGER wrong packet received: expecting id", req['id'], res['id']
                 # protocol state is unknown
