@@ -329,11 +329,18 @@ class Debugger(qdb.Frontend, Thread):
 
     # methods used by the shell:
     
-    def Run(self, statement):
+    def Run(self, statement, write=None, readline=None):
         "Run source code statement in debugger context (returns string)"
         if self.pipe and self.attached.is_set():
             if self.mutex.acquire(False):
+                old_write = self.write
+                old_readline = self.readline
                 try:
+                    # replace console function
+                    if write:
+                        self.write = write
+                    if readline:
+                        self.readline = readline
                     # execute the statement in the remote debugger:
                     ret = self.async_push(lambda: self.do_exec(statement))
                     if isinstance(ret, basestring):
@@ -343,6 +350,8 @@ class Debugger(qdb.Frontend, Thread):
                 except qdb.RPCError, e:
                     return u'*** %s' % unicode(e)
                 finally:
+                    self.write = old_write
+                    self.readline = readline
                     self.mutex.release()
         return None
 

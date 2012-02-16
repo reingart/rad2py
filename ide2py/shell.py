@@ -39,7 +39,9 @@ class Interpreter(wx.py.interpreter.Interpreter):
         
     def runsource(self, source):
         """Compile and run source code in the interpreter."""
-        text = self.debugger.Run(source)
+        text = self.debugger.Run(source, 
+                                 write=self.stdout.write, 
+                                 readline=self.stdin.readline)
         if text is not None:
             self.stdout.write(text)
             self.stdout.write(os.linesep)
