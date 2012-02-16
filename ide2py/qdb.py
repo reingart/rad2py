@@ -330,9 +330,9 @@ class Qdb(bdb.Bdb):
         # converts the frame global and locals to a short text representation:
         if self.frame:
             for name, value in self.frame_locals.items():
-                env['locals'][name] = pydoc.text.repr(value), repr(type(value))
+                env['locals'][name] = pydoc.cram(repr(value), 255), repr(type(value))
             for name, value in self.frame.f_globals.items():
-                env['globals'][name] = pydoc.text.repr(value), repr(type(value))
+                env['globals'][name] = pydoc.cram(repr(value), 20), repr(type(value))
         return env
 
     def get_autocomplete_list(self, expression):
