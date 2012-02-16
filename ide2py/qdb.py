@@ -14,6 +14,7 @@ __license__ = "GPL 3.0"
 # based on idle, inspired by pythonwin implementation, taken many code from pdb
 
 import bdb
+import inspect
 import linecache
 import os
 import sys
@@ -333,6 +334,66 @@ class Qdb(bdb.Bdb):
             env['globals'][name] = pydoc.text.repr(value)
         return env
 
+    def get_autocomplete_list(self, expression):
+        "Return list of auto-completion options for expression"
+        try:
+            obj = self.do_inspect(expression)
+        except:
+            return []
+        else:
+            return dir(obj)
+    
+    def get_call_tip(self, expression):
+        "Return list of auto-completion options for expression"
+        try:
+            obj = self.do_inspect(expression)
+        except Exception, e:
+            return ('', '', str(e)) 
+        else:
+            name = ''
+            try:
+                name = obj.__name__
+            except AttributeError:
+                pass
+            argspec = ''
+            drop_self = 0
+            f = None
+            try:
+                if inspect.isbuiltin(obj):
+                    pass
+                elif inspect.ismethod(obj):
+                    # Get the function from the object
+                    f = obj.im_func
+                    drop_self = 1
+                elif inspect.isclass(obj):
+                    # Get the __init__ method function for the class.
+                    if hasattr(obj, '__init__'):
+                        f = obj.__init__.im_func
+                    else:
+                        for base in object.__bases__:
+                            if hasattr(base, '__init__'):
+                                f = base.__init__.im_func
+                                break
+                    if f is not None:
+                        drop_self = 1
+                elif callable(obj):
+                    # use the obj as a function by default
+                    f = obj
+                    # Get the __call__ method instead.
+                    f = obj.__call__.im_func
+                    drop_self = 0
+            except AttributeError:
+                pass
+            if f:
+                argspec = apply(inspect.formatargspec, inspect.getargspec(f))
+            doc = ''
+            if callable(obj):
+                try:
+                    doc = inspect.getdoc(obj)
+                except:
+                    pass
+            return (name, argspec[1:-1], doc.strip())
+
     def set_burst(self, val):
         "Set burst mode -multiple command count- (shut up notifications)"
         self.burst = val
@@ -582,6 +643,12 @@ class Frontend(object):
     def do_exec(self, statement):
         return self.call('do_exec', statement)
 
+    def get_autocomplete_list(self, expression):
+        return self.call('get_autocomplete_list', expression)
+
+    def get_call_tip(self, expression):
+        return self.call('get_call_tip', expression)
+        
     def interrupt(self):
         "Immediately stop at the first possible occasion (outside interaction)"
         # this is a notification!, do not expect a response
