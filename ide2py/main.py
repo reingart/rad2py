@@ -30,7 +30,7 @@ import images
 from editor import EditorCtrl
 from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
-                               EVT_EXCEPTION_ID
+                               EVT_EXCEPTION_ID, EnvironmentPanel
 from console import ConsoleCtrl
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -284,7 +284,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
               FloatingPosition(self.GetStartPosition()).
               MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
 
-        self.environment = self.CreateTextCtrl()
+        self.environment = EnvironmentPanel(self)
         self._mgr.AddPane(self.environment, aui.AuiPaneInfo().Name("environ").
               Caption("Environment").Float().FloatingSize(wx.Size(400, 100)).
               FloatingPosition(self.GetStartPosition()).
@@ -634,7 +634,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             if filename:
                 context = self.debugger.GetContext()
                 self.call_stack.SetValue(context['call_stack'])
-                self.environment.SetValue(context['environment'])
+                self.environment.BuildTree(context['environment'],
+                                           sort_order=('locals', 'globals'))
             #self.environment
         elif not running:
             filename, lineno, offset = event

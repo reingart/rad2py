@@ -17,6 +17,7 @@ import random
 import sys
 import time
 import wx
+import wx.gizmos
 
 import qdb
 
@@ -322,17 +323,7 @@ class Debugger(qdb.Frontend, Thread):
         self.do_environment()
         env = self.push_actions()
         ret = ""
-        for key in env:
-            ret += "=" * 78
-            ret += "\n"
-            ret += key.capitalize()
-            ret += "\n"
-            ret += "-" * 78
-            ret += "\n"
-            for name, value in env[key].items():
-                ret += "%-12s = %s" % (name, value)
-                ret += "\n"
-        d['environment'] = ret
+        d['environment'] = env
         return d
 
     # methods used by the shell:
@@ -379,7 +370,82 @@ class Debugger(qdb.Frontend, Thread):
                     self.mutex.release()
 
 
+class EnvironmentPanel(wx.Panel):
+    def __init__(self, parent=None):
+        wx.Panel.__init__(self, parent, -1)
+        self.Bind(wx.EVT_SIZE, self.OnSize)
+
+        self.tree = wx.gizmos.TreeListCtrl(self, -1, style =
+                                        wx.TR_DEFAULT_STYLE
+                                        #| wx.TR_HAS_BUTTONS
+                                        #| wx.TR_TWIST_BUTTONS
+                                        #| wx.TR_ROW_LINES
+                                        #| wx.TR_COLUMN_LINES
+                                        #| wx.TR_NO_LINES 
+                                        | wx.TR_HIDE_ROOT
+                                        | wx.TR_FULL_ROW_HIGHLIGHT
+                                   )
+
+        # create some columns
+        self.tree.AddColumn("Name")
+        self.tree.AddColumn("Type")
+        self.tree.AddColumn("Repr")
+        self.tree.SetMainColumn(0) # the one with the tree in it...
+        self.tree.SetColumnWidth(0, 175)
+
+    def BuildItem(self, item, txt, cols=None):
+        child = self.tree.AppendItem(item, txt)
+        if cols:
+            for i, col in enumerate(cols):
+                self.tree.SetItemText(child, col, i+1)
+        return child
+        
+    def BuildTree(self, scopes, sort_order):
+        print "scopes", scopes
+        self.tree.DeleteAllItems()
+        self.root = self.tree.AddRoot("The Root Item")
+        # process locals and globals
+        for key in sort_order:
+            vars = scopes[key]
+            child = self.BuildItem(self.root, key)
+            for var_name, (var_repr, var_type) in vars.items():
+                self.BuildItem(child, var_name, (var_type, var_repr))
+            self.tree.Expand(child)
+        self.tree.Expand(self.root)
+
+        self.tree.GetMainWindow().Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
+        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate)
+
+
+    def OnActivate(self, evt):
+        print('OnActivate: %s' % self.tree.GetItemText(evt.GetItem()))
+        
+
+    def OnRightUp(self, evt):
+        pos = evt.GetPosition()
+        item, flags, col = self.tree.HitTest(pos)
+        if item:
+            print('Flags: %s, Col:%s, Text: %s' %
+                           (flags, col, self.tree.GetItemText(item, col)))
+
+    def OnSize(self, evt):
+        self.tree.SetSize(self.GetSize())
+
+class TestFrame(wx.Frame):
+
+    def __init__(self, filename=None):
+        wx.Frame.__init__(self, None)
+        self.Show()
+        self.panel = EnvironmentPanel(self)
+        self.panel.BuildTree({'locals': {'saraza': ('str', 'none')}})
+        self.SendSizeEvent() 
+
 if __name__ == '__main__':
+    
+    app = wx.App()
+    frame = TestFrame()
+    app.MainLoop()
+    
     import sys
     
     url = "http://admin:a@localhost:8000/admin/webservices/call/jsonrpc"
