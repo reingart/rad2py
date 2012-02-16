@@ -973,6 +973,8 @@ INSTALL_DIR = os.path.dirname(os.path.abspath(basepath))
 
 
 if __name__ == '__main__':
+    #  get rid of ubuntu unity and force use of the old scroll bars
+    os.environ['LIBOVERLAY_SCROLLBAR'] = '0'
     # start main app, avoid wx redirection on windows
     app = MainApp(redirect=False)
     app.MainLoop()
