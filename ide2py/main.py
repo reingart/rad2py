@@ -630,13 +630,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
            
     def GotoFileLine(self, event=None, running=True):
         if event and running:
-            filename, lineno = event.data
-            if filename:
-                context = self.debugger.GetContext()
+            filename, lineno, context = event.data
+            if context:
+                print "context", context
                 self.call_stack.BuildList(context['call_stack'])
                 self.environment.BuildTree(context['environment'],
                                            sort_order=('locals', 'globals'))
-            #self.environment
         elif not running:
             filename, lineno, offset = event
         # first, clean all current debugging markers

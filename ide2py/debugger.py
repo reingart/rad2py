@@ -128,13 +128,15 @@ class Debugger(qdb.Frontend, Thread):
                         self.mutex.release()
         return check_fn
 
-    def interaction(self, filename, lineno, line):
+    def interaction(self, filename, lineno, line, **context):
         self.done.clear()
         self.interacting.set()
         try:
             if self.start_continue is not None:
                 print "loading breakpoints...."
                 self.LoadBreakpoints()
+                print "enabling call_stack and environment at interaction"
+                self.set_params(dict(call_stack=True, environment=True))
                 if self.start_continue:
                     print "continuing..."
                     self.Continue()
@@ -148,7 +150,7 @@ class Debugger(qdb.Frontend, Thread):
                 if self.gui:
                     # we are in other thread so send the event to main thread
                     wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
-                                                      (filename, lineno)))
+                                                      (filename, lineno, context)))
 
             # wait user events: done is a threading.Event (set by the main thread)
             self.done.wait()
@@ -443,7 +445,7 @@ class EnvironmentPanel(wx.Panel):
 
 
 class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
-    "Defect recording log facilities"
+    "Call stack window (filename lineno flags, source)"
     def __init__(self, parent, filename=""):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         ListCtrlAutoWidthMixin.__init__(self)
@@ -453,15 +455,18 @@ class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.InsertColumn(1, "LineNo", wx.LIST_FORMAT_RIGHT) 
         self.SetColumnWidth(1, 50)
         self.InsertColumn(2, "Flags", wx.LIST_FORMAT_CENTER) 
-        self.SetColumnWidth(2, 10)
-        self.InsertColumn(3, "source", wx.LIST_AUTOSIZE) 
+        self.SetColumnWidth(2, 0)
+        self.InsertColumn(3, "Current", wx.LIST_FORMAT_CENTER) 
         self.SetColumnWidth(3, 0)
-        self.setResizeColumn(4)
+        self.InsertColumn(4, "source", wx.LIST_AUTOSIZE) 
+        self.SetColumnWidth(4, -1)
+        self.setResizeColumn(5)
 
     def AddItem(self, item, key=None):
         index = self.InsertStringItem(sys.maxint, item[0])
         for i, val in enumerate(item[1:]):
-            self.SetStringItem(index, i + 1, str(val))
+            print i,val
+            self.SetStringItem(index, i+1, str(val))
     
     def BuildList(self, items):
         self.DeleteAllItems()
