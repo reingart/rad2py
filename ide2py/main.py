@@ -641,7 +641,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 environment = context['environment']
             else:
                 call_stack = environment = {}
-            print "GotoFileLine", filename, lineno, context
             self.call_stack.BuildList(call_stack)
             self.environment.BuildTree(environment,
                                        sort_order=('locals', 'globals'))

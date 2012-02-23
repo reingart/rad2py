@@ -417,14 +417,15 @@ class EnvironmentPanel(wx.Panel):
         self.tree.DeleteAllItems()
         self.root = self.tree.AddRoot("The Root Item")
         # process locals and globals
-        for key in sort_order:
+        for i, key in enumerate(sort_order):
             vars = scopes.get(key)
             child = self.BuildItem(self.root, key)
             if not vars:
                 continue
             for var_name, (var_repr, var_type) in vars.items():
                 self.BuildItem(child, var_name, (var_type, var_repr))
-            self.tree.Expand(child)
+            if i == 0:
+                self.tree.Expand(child)
         self.tree.Expand(self.root)
 
         self.tree.GetMainWindow().Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
@@ -467,7 +468,6 @@ class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def AddItem(self, item, key=None):
         index = self.InsertStringItem(sys.maxint, item[0])
         for i, val in enumerate(item[1:]):
-            print i,val
             self.SetStringItem(index, i+1, str(val))
     
     def BuildList(self, items):
