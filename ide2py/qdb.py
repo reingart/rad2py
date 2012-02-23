@@ -45,6 +45,7 @@ class Qdb(bdb.Bdb):
             self.breaks[None] = []
         self.allow_interruptions = allow_interruptions
         self.burst = 0          # do not send notifications ("burst" mode)
+        self.params = {}        # optional parameters for interaction
 
     def pull_actions(self):
         # receive a remote procedure call from the frontend:
@@ -179,8 +180,14 @@ class Qdb(bdb.Bdb):
                 # send the notification (debug event) - DOESN'T WAIT RESPONSE
                 self.burst -= 1
                 if self.burst < 0:
+                    kwargs = {}
+                    if self.params.get('call_stack'):
+                        kwargs['call_stack'] = self.do_where()
+                    if self.params.get('environment'):
+                        kwargs['environment'] = self.do_environment()
                     self.pipe.send({'method': 'interaction', 'id': None,
-                                'args': (filename, self.frame.f_lineno, line)})
+                                'args': (filename, self.frame.f_lineno, line),
+                                'kwargs': kwargs})
 
                 self.pull_actions()
 
@@ -399,6 +406,11 @@ class Qdb(bdb.Bdb):
         "Set burst mode -multiple command count- (shut up notifications)"
         self.burst = val
 
+    def set_params(self, params):
+        "Set parameters for interaction"
+        print "setting", params
+        self.params.update(params)
+
     def displayhook(self, obj):
         """Custom displayhook for the do_exec which prevents
         assignment of the _ variable in the builtins.
@@ -513,7 +525,7 @@ class Frontend(object):
         finally:
             self.write_lock.release()
 
-    def interaction(self, filename, lineno, line):
+    def interaction(self, filename, lineno, line, *kwargs):
         raise NotImplementedError
     
     def exception(self, title, extype, exvalue, trace, request):
@@ -547,7 +559,7 @@ class Frontend(object):
                 # it should be raised by the method call
                 raise RPCError(res['error']['message'])
             elif request.get('method') == 'interaction':
-                self.interaction(*request.get("args"))
+                self.interaction(*request.get("args"), **request.get("kwargs"))
             elif request.get('method') == 'exception':
                 self.exception(*request['args'])
             elif request.get('method') == 'write':
@@ -663,6 +675,9 @@ class Frontend(object):
         req = {'method': 'set_burst', 'args': (value, )}
         self.send(req)
         
+    def set_params(self, params):
+        req = {'method': 'set_params', 'args': (params, )}
+        self.send(req)
 
 
 class Cli(Frontend, cmd.Cmd):
