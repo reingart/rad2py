@@ -146,8 +146,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         edit_menu.Append(ID_GOTO, "&Goto Line/Regex\tCtrl-G", "")
 
         run_menu = self.menu['run'] = wx.Menu()
-        run_menu.Append(ID_DEBUG, "Run in &Debugger\tF5")
-        run_menu.Append(ID_EXEC, "&Run\tShift-Ctrl-F5")
+        run_menu.Append(ID_DEBUG, "&Run under &Debugger\tShift-F5")
+        run_menu.Append(ID_EXEC, "&Execute\tShift-Ctrl-F5", "Full speed execution")
         run_menu.Append(ID_KILL, "&Kill external process\tCtrl-K")
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
@@ -674,7 +674,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.debugger.SetBreakpoint(filename, lineno, temporary=1)
 
         # start debugger (if not running):
-        if event_id == ID_DEBUG or not self.executing:
+        if not self.executing:
             print "*** Execute!!!!"
             # should it open debugger inmediatelly or continue?            
             self.debugger.start_continue = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
