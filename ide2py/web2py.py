@@ -44,7 +44,8 @@ class Web2pyMixin(object):
         "start-up a web2py server instance"
 
         self.menu['run'].Append(ID_ATTACH, 
-                                "Attach to remote &webserver debugger\tCtrl-W")
+                                "Attach &webserver\tCtrl-W",
+                                "Connect to remote web2py debugger")
         self.Bind(wx.EVT_MENU, self.OnAttachWebserver, id=ID_ATTACH)
 
 

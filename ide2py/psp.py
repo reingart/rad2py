@@ -34,8 +34,8 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_DIFF, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN, ID_WIKI \
-    = [wx.NewId() for i in range(19)]
+ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN, ID_WIKI, ID_COMPILE, ID_TEST \
+    = [wx.NewId() for i in range(21)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -596,6 +596,12 @@ class PSPMixin(object):
         psp_menu.Append(ID_DIFF, "Diff && Count LOC")
         self.menubar.Insert(self.menubar.FindMenu("&Help")-1, psp_menu, "&PSP")
 
+        self.menu['run'].InsertSeparator(2)
+        self.menu['run'].Insert(3, ID_COMPILE, "Compile\tCtrl-F5", 
+                                   "Check syntax and PEP8 style")
+        self.menu['run'].Insert(4, ID_TEST, "Test\tAlt-F5", "Run doctests")
+        self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_COMPILE)
+        self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_TEST)
         
     def CreatePSPToolbar(self):
         # old version of wx, dont use text text
@@ -932,6 +938,11 @@ class PSPMixin(object):
 
     def OnCheckPSP(self, event):
         "Find defects and errors, if complete, change to the next phase"
+        evt_id = event.GetId()
+        if evt_id == ID_COMPILE:
+            self.SetPSPPhase('compile')
+        elif evt_id == ID_TEST:
+            self.SetPSPPhase('test')
         if self.active_child:
             phase = self.GetPSPPhase()
             defects = []    # static checks and failed tests
@@ -969,7 +980,7 @@ class PSPMixin(object):
             # show errors
             if errors:
                 dlg = wx.MessageDialog(self, "\n".join(errors), 
-                       "PSP Check Phase Errors", wx.ICON_EXCLAMATION)
+                       "PSP Check Phase Errors", wx.ICON_EXCLAMATION | wx.OK)
                 dlg.ShowModal()
                 dlg.Destroy()
 

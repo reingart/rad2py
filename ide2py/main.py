@@ -146,13 +146,18 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         edit_menu.Append(ID_GOTO, "&Goto Line/Regex\tCtrl-G", "")
 
         run_menu = self.menu['run'] = wx.Menu()
-        run_menu.Append(ID_DEBUG, "&Run under &Debugger\tShift-F5")
-        run_menu.Append(ID_EXEC, "&Execute\tShift-Ctrl-F5", "Full speed execution")
-        run_menu.Append(ID_KILL, "&Kill external process\tCtrl-K")
+        run_menu.Append(ID_DEBUG, "&Run and Debug\tShift-F5",
+                                 "Execute program under debugger")
+        run_menu.Append(ID_EXEC, "&Execute\tShift-Ctrl-F5", 
+                                 "Full speed execution (no debugger)")
         run_menu.AppendSeparator()
-        run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
+        run_menu.Append(ID_KILL, "&Terminate\tCtrl-T", 
+                                 "Kill external process")
         run_menu.AppendSeparator()
-        run_menu.Append(ID_ATTACH, "Attach to &remote debugger\tCtrl-R")
+        run_menu.Append(ID_SETARGS, "Set &Arguments\tCtrl-A", "sys.argv")
+        run_menu.AppendSeparator()
+        run_menu.Append(ID_ATTACH, "Attach debugge&r\tCtrl-R", 
+                                   "Connect to remote debugger")
 
         dbg_menu = self.menu['debug'] = wx.Menu()
         dbg_menu.Append(ID_STEPIN, "&Step In\tF8")
@@ -162,7 +167,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dbg_menu.Append(ID_CONTINUE, "&Continue\tF5")
         dbg_menu.Append(ID_JUMP, "&Jump to instruction\tCtrl-F9")
         dbg_menu.Append(ID_STOP, "Sto&p")
-        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-C")
+        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-Z")
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_INSPECT, "Quick &Inspection\tShift-F9", 
                         help="Evaluate selected text (expression) in context")
