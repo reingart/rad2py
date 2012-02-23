@@ -159,7 +159,7 @@ class Debugger(qdb.Frontend, Thread):
             self.push_actions()
 
             # clean current line
-            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None)))
+            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None)))
         finally:
             self.interacting.clear()
 
@@ -418,8 +418,10 @@ class EnvironmentPanel(wx.Panel):
         self.root = self.tree.AddRoot("The Root Item")
         # process locals and globals
         for key in sort_order:
-            vars = scopes[key]
+            vars = scopes.get(key)
             child = self.BuildItem(self.root, key)
+            if not vars:
+                continue
             for var_name, (var_repr, var_type) in vars.items():
                 self.BuildItem(child, var_name, (var_type, var_repr))
             self.tree.Expand(child)

@@ -147,7 +147,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         run_menu = self.menu['run'] = wx.Menu()
         run_menu.Append(ID_DEBUG, "Run in &Debugger\tF5")
-        run_menu.Append(ID_EXEC, "&Run\Shift-Ctrl-F5")
+        run_menu.Append(ID_EXEC, "&Run\tShift-Ctrl-F5")
         run_menu.Append(ID_KILL, "&Kill external process\tCtrl-K")
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments (sys.argv)\tCtrl-A")
@@ -632,10 +632,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if event and running:
             filename, lineno, context = event.data
             if context:
-                print "context", context
-                self.call_stack.BuildList(context['call_stack'])
-                self.environment.BuildTree(context['environment'],
-                                           sort_order=('locals', 'globals'))
+                call_stack = context['call_stack']
+                environment = context['environment']
+            else:
+                call_stack = environment = {}
+            print "GotoFileLine", filename, lineno, context
+            self.call_stack.BuildList(call_stack)
+            self.environment.BuildTree(environment,
+                                       sort_order=('locals', 'globals'))
         elif not running:
             filename, lineno, offset = event
         # first, clean all current debugging markers
