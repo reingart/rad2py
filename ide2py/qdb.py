@@ -28,7 +28,7 @@ class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
     def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False):
-        bdb.Bdb.__init__(self)
+        bdb.Bdb.__init__(self, skip=[__name__])
         self.frame = None
         self.i = 1  # sequential RPC call id
         self.waiting = False
