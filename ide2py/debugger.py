@@ -9,7 +9,7 @@ __license__ = "GPL 3.0"
 
 # based on idle, inspired by pythonwin implementation
 
-from threading import Thread, Event, Lock
+from threading import Thread, Event, Lock, Semaphore
 from Queue import Queue
 from multiprocessing.connection import Client
 import os
@@ -67,7 +67,8 @@ class Debugger(qdb.Frontend, Thread):
         self.rawinput = None
         self.setDaemon(1)           # do not join (kill on termination)
         self.actions = Queue()
-        self.mutex = Lock()         # critical section protection (comm chanel)
+        self.mutex = Lock()         # critical section protection (comm channel)
+        self.access = Semaphore()   # limit to 1 interaction command to use the channel
         self.start()                # creathe the new thread
 
     def run(self):
@@ -110,8 +111,10 @@ class Debugger(qdb.Frontend, Thread):
         ret = None
         while not self.actions.empty():
             action = self.actions.get()
-            ret = action()
-            self.actions.task_done()
+            try:
+                ret = action()
+            finally:
+                self.actions.task_done()
         return ret
 
     def check_interaction(fn):
@@ -120,9 +123,12 @@ class Debugger(qdb.Frontend, Thread):
             if not self.interacting.is_set() or self.done.is_set():
                 wx.Bell()
             else:
-                if self.mutex.acquire(False):                
+                if self.mutex.acquire(False):
                     try:
-                        fn(self, *args, **kwargs)
+                        if self.access.acquire(False):
+                            fn(self, *args, **kwargs)
+                        else:
+                            print "cannot interact, semaphore hold"
                     finally:
                         self.mutex.release()
         return check_fn
@@ -161,10 +167,12 @@ class Debugger(qdb.Frontend, Thread):
             self.push_actions()
 
             # clean current line
-            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None)))
+            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None)))            
+
         finally:
             self.interacting.clear()
-
+            self.access.release()
+            
     def write(self, text):
         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
 
@@ -231,6 +239,8 @@ class Debugger(qdb.Frontend, Thread):
                 self.push_actions()
 
     def async_push(self, action):
+        # wait any pending command
+        self.access.acquire()
         # if no interaction yet, send an interrupt (step on the next stmt)
         if not self.interacting.is_set():
             self.interrupt()
@@ -238,17 +248,19 @@ class Debugger(qdb.Frontend, Thread):
         else:
             cont = False
         # wait for interaction and send the method request (signal we are done)
-        self.interacting.wait()
+        self.interacting.wait()        
         action()
-        ret = self.push_actions()
-        self.interacting.clear()
-        self.done.set()
-        # if interrupted, send a continue to resume
-        if cont:
-            self.interacting.wait()
-            self.do_continue()
+        try:
+            ret = self.push_actions()
+            return ret
+        finally:
+            self.interacting.clear()
             self.done.set()
-        return ret
+            # if interrupted, send a continue to resume
+            if cont:
+                self.interacting.wait()
+                self.do_continue()
+                self.done.set()
 
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
         if not self.mutex.acquire(False):
@@ -295,7 +307,7 @@ class Debugger(qdb.Frontend, Thread):
     def Inspect(self, arg):
         if self.pipe and self.attached.is_set():
             if not self.mutex.acquire(False):
-                return
+                return u'*** debugger busy'
             try:
                 # we need the result right now:
                 return self.async_push(lambda: self.do_inspect(arg))
