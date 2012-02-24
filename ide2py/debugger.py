@@ -379,8 +379,8 @@ class Debugger(qdb.Frontend, Thread):
 
     # methods used by the shell:
     
-    def Run(self, statement, write=None, readline=None):
-        "Run source code statement in debugger context (returns string)"
+    def Exec(self, statement, write=None, readline=None):
+        "Exec source code statement in debugger context (returns string)"
         if self.pipe and self.attached.is_set():
             if self.mutex.acquire(False):
                 old_write = self.write
