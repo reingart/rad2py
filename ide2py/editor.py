@@ -762,6 +762,16 @@ class EditorCtrl(stc.StyledTextCtrl):
                 break
             self.ToggleBreakpoint(evt, lineno)
 
+    def GetBreakpoints(self):
+        lineno = 0
+        breakpoints = {}
+        while True:
+            lineno = self.MarkerNext(lineno+1, self.BREAKPOINT_MARKER_MASK)
+            if lineno<0:
+                break
+            breakpoints[lineno+1] = (None, None)
+        return breakpoints
+
     def FoldAll(self):
         lineCount = self.GetLineCount()
         expanding = True

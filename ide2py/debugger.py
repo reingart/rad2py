@@ -65,7 +65,6 @@ class Debugger(qdb.Frontend, Thread):
         self.gui = gui              # wx window for callbacks
         self.start_continue = True  # continue on first run
         self.rawinput = None
-        self.breakpoints = {}       # {filename: {lineno: (temp, cond)}
         self.setDaemon(1)           # do not join (kill on termination)
         self.actions = Queue()
         self.mutex = Lock()         # critical section protection (comm chanel)
@@ -224,14 +223,12 @@ class Debugger(qdb.Frontend, Thread):
         self.interrupt()
 
     def LoadBreakpoints(self):
-        for filename, bps in self.breakpoints.items():
+        # get a list of {filename: {lineno: (temp, cond)}
+        for filename, bps in self.gui.GetBreakpoints():
             for lineno, (temporary, cond) in bps.items():
                 print "loading breakpoint", filename, lineno
                 self.do_set_breakpoint(filename, lineno, temporary, cond)
                 self.push_actions()
-                # TODO: discard interaction message
-                self.pipe.recv()
-
 
     def async_push(self, action):
         # if no interaction yet, send an interrupt (step on the next stmt)
@@ -257,8 +254,6 @@ class Debugger(qdb.Frontend, Thread):
         if not self.mutex.acquire(False):
             return
         try:
-            # store breakpoint
-            self.breakpoints.setdefault(filename, {})[lineno] = (temporary, cond)
             # only send if debugger is connected and attached
             if self.pipe and self.attached.is_set():
                 action = lambda: self.do_set_breakpoint(filename, lineno, temporary, cond)
@@ -273,7 +268,6 @@ class Debugger(qdb.Frontend, Thread):
         if not self.mutex.acquire(False):
             return
         try:
-            del self.breakpoints[filename][lineno]
             # only send if debugger is connected and attached
             if self.pipe and self.attached.is_set():
                 action = lambda: self.do_clear_breakpoint(filename, lineno)
@@ -290,7 +284,6 @@ class Debugger(qdb.Frontend, Thread):
         if not self.mutex.acquire(False):
             return
         try:
-            del self.breakpoints[filename]
             action = self.do_clear_file_breakpoints(filename)
             self.async_push(action)
             return True

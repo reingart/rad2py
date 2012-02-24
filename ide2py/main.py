@@ -674,6 +674,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 else:
                     child.GotoLineOffset(lineno, offset)
 
+    def GetBreakpoints(self):   
+        for child in self.children:
+            yield child.GetFilename(), child.GetBreakpoints()
+        
     def OnReadline(self, event):
         text = self.console.readline()
         self.debugger.Readline(text)
@@ -930,6 +934,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     
     def NotifyRepo(self, *args, **kwargs):
         self.parent.NotifyRepo(*args, **kwargs)
+
+    def GetBreakpoints(self):
+        return self.editor.GetBreakpoints()
 
 
 # Configuration Helper to Encapsulate common config read scenarios:
