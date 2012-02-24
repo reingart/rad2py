@@ -1046,9 +1046,10 @@ class EditorCtrl(stc.StyledTextCtrl):
             if not expr:
                 expr = self.GetWord(whole=True, pos=evt.GetPosition())
             # Query qdb debugger to evaluate the expression
-            value = self.debugger.Eval(expr)
-            print "%s = %s" % (expr, value)
-            wx.CallAfter(self.SetToolTipString, "%s = %s" % (expr, value))
+            if expr:
+                value = self.debugger.Eval(expr)
+                print "%s = %s" % (expr, value)
+                wx.CallAfter(self.SetToolTipString, "%s = %s" % (expr, value))
         evt.Skip()
         
     def OnEndHover(self, evt):
