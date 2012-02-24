@@ -12,6 +12,7 @@ __license__ = "GPL 3.0"
 from threading import Thread, Event, Lock, Semaphore
 from Queue import Queue
 from multiprocessing.connection import Client
+import compiler
 import os
 import random
 import sys
@@ -154,11 +155,15 @@ class Debugger(qdb.Frontend, Thread):
                 return
                 
             #  sync_source_line()
+            self.filename = self.orig_line = self.lineno = None
             if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+                self.filename = filename
+                self.orig_line = line.strip().strip("\r").strip("\n")
+                self.lineno = lineno
                 if self.gui:
                     # we are in other thread so send the event to main thread
                     wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
-                                                      (filename, lineno, context)))
+                                                      (filename, lineno, context, line)))
 
             # wait user events: done is a threading.Event (set by the main thread)
             self.done.wait()
@@ -167,7 +172,7 @@ class Debugger(qdb.Frontend, Thread):
             self.push_actions()
 
             # clean current line
-            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None)))            
+            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))            
 
         finally:
             self.interacting.clear()
@@ -191,6 +196,37 @@ class Debugger(qdb.Frontend, Thread):
         "Notify that a user exception was raised in the backend"
         wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
 
+    def check_running_code(self):
+        "Edit and continue functionality"
+        if self.filename:
+            curr_line = self.gui.GetLineText(self.filename, self.lineno)
+            curr_line = curr_line.strip().strip("\r").strip("\n")
+        # check current text source code against running code
+        if self.lineno is not None and self.orig_line != curr_line:
+            print "edit_and_continue..."
+            try:
+                compiler.parse(curr_line)
+                self.set_burst(3)
+                self.do_exec(curr_line)
+                print "executed", curr_line
+                self.do_jump(self.lineno+1)
+                ret = self.push_actions()
+                print "jump", ret
+                if not ret:
+                    raise RuntimeError("Cannot jump to ignore modified line!")
+            except Exception, e:
+                dlg = wx.MessageDialog(self.gui, "Exception: %s\n\n"
+                       "Your changes requires restart (or undo to continue)." 
+                       % unicode(e), 
+                       "Unable to modify running code",
+                       wx.OK | wx.ICON_EXCLAMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
+                # free semaphore (no interaction command will be sent)
+                self.access.release()
+                return False
+        return True
+
     # Methods to handle user interaction by main thread bellow:
     
     def Readline(self, text):
@@ -199,23 +235,27 @@ class Debugger(qdb.Frontend, Thread):
 
     @check_interaction
     def Continue(self):
-        self.do_continue()
-        self.done.set()
+        if self.check_running_code():
+            self.do_continue()
+            self.done.set()
 
     @check_interaction
     def Step(self):
-        self.do_step()
-        self.done.set()
+        if self.check_running_code():
+            self.do_step()
+            self.done.set()
 
     @check_interaction
     def StepReturn(self):
-        self.do_return()
-        self.done.set()
+        if self.check_running_code():
+            self.do_return()
+            self.done.set()
 
     @check_interaction
     def Next(self):
-        self.do_next()
-        self.done.set()
+        if self.check_running_code():
+            self.do_next()
+            self.done.set()
 
     @check_interaction
     def Quit(self):

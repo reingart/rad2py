@@ -648,7 +648,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
            
     def GotoFileLine(self, event=None, running=True):
         if event and running:
-            filename, lineno, context = event.data
+            filename, lineno, context, orig_line = event.data
             if context:
                 call_stack = context['call_stack']
                 environment = context['environment']
@@ -678,6 +678,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         for child in self.children:
             yield child.GetFilename(), child.GetBreakpoints()
         
+    def GetLineText(self, filename, lineno):
+        "Returns source code"
+        # used by the debugger to detect modifications runtime
+        child = self.DoOpen(filename)
+        if child:
+            return child.GetLineText(lineno)
+
     def OnReadline(self, event):
         text = self.console.readline()
         self.debugger.Readline(text)
@@ -915,11 +922,14 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def GetCurrentLine(self):
         return self.editor.GetCurrentLine() + 1
+    
+    def GetLineText(self, lineno):
+        return self.editor.GetLineText(lineno)
         
     def SynchCurrentLine(self, lineno):
         if lineno:
             pass##self.SetFocus()
-        self.editor.SynchCurrentLine(lineno)
+        return self.editor.SynchCurrentLine(lineno)
 
     def GotoLineOffset(self, lineno, offset):
         if lineno:

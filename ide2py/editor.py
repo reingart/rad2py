@@ -855,7 +855,11 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.EnsureVisibleEnforcePolicy(linenum)
             self.GotoLine(linenum)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
-
+   
+    def GetLineText(self, linenum):
+        lstart = self.PositionFromLine(linenum - 1)
+        lend = self.GetLineEndPosition(linenum - 1)
+        return self.GetTextRange(lstart, lend)
 
     def ToggleComment(self, event=None):
         "Toggle the comment of the selected region"
