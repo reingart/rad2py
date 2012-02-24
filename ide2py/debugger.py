@@ -127,23 +127,26 @@ class Debugger(qdb.Frontend, Thread):
                     finally:
                         self.mutex.release()
         return check_fn
+    
+    def startup(self):
+        # notification sent by _runscript before Bdb.run
+        print "loading breakpoints...."
+        self.LoadBreakpoints()
+        print "enabling call_stack and environment at interaction"
+        self.set_params(dict(call_stack=True, environment=True))
+        # return control to the backend:
+        qdb.Frontend.startup(self)
 
     def interaction(self, filename, lineno, line, **context):
         self.done.clear()
         self.interacting.set()
         try:
-            if self.start_continue is not None:
-                print "loading breakpoints...."
-                self.LoadBreakpoints()
-                print "enabling call_stack and environment at interaction"
-                self.set_params(dict(call_stack=True, environment=True))
-                if self.start_continue:
-                    print "continuing..."
-                    self.Continue()
-                    self.push_actions()
-                    self.start_continue = None
-                    return
+            if self.start_continue:
+                print "continuing..."
+                self.Continue()
+                self.push_actions()
                 self.start_continue = None
+                return
                 
             #  sync_source_line()
             if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
