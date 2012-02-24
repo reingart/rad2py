@@ -6,6 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
+__version__ = "1.01a"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -49,7 +50,11 @@ class Qdb(bdb.Bdb):
 
     def pull_actions(self):
         # receive a remote procedure call from the frontend:
+        # returns True if action processed
+        #         None when 'run' notification is received (see 'startup')
         request = self.pipe.recv()
+        if request.get("method") == 'run':
+            return None
         response = {'version': '1.1', 'id': request.get('id'), 
                     'result': None, 
                     'error': None}
@@ -63,6 +68,7 @@ class Qdb(bdb.Bdb):
         # send the result for normal method calls, not for notifications
         if request.get('id'):
             self.pipe.send(response)
+        return True
 
     # Override Bdb methods
 
@@ -123,7 +129,6 @@ class Qdb(bdb.Bdb):
 
     def run(self, code, interp=None, *args, **kwargs):
         try:
-            self.interp = interp
             return bdb.Bdb.run(self, code, *args, **kwargs)
         finally:
             pass
@@ -151,6 +156,10 @@ class Qdb(bdb.Bdb):
         self.mainpyfile = self.canonic(filename)
         self._user_requested_quit = 0
         statement = 'imp.load_source("__main__", "%s")' % filename
+        # notify and wait frontend to set initial params and breakpoints
+        self.pipe.send({'method': 'startup', 'args': (__version__, )})
+        while self.pull_actions() is not None:
+            pass
         self.run(statement)
 
     # General interaction function
@@ -525,6 +534,9 @@ class Frontend(object):
         finally:
             self.write_lock.release()
 
+    def startup(self):
+        self.send({'method': 'run', 'args': (), 'id': None})
+
     def interaction(self, filename, lineno, line, *kwargs):
         raise NotImplementedError
     
@@ -560,6 +572,8 @@ class Frontend(object):
                 raise RPCError(res['error']['message'])
             elif request.get('method') == 'interaction':
                 self.interaction(*request.get("args"), **request.get("kwargs"))
+            elif request.get('method') == 'startup':
+                self.startup()
             elif request.get('method') == 'exception':
                 self.exception(*request['args'])
             elif request.get('method') == 'write':
