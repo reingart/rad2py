@@ -418,7 +418,6 @@ class Qdb(bdb.Bdb):
 
     def set_params(self, params):
         "Set parameters for interaction"
-        print "setting", params
         self.params.update(params)
 
     def displayhook(self, obj):
