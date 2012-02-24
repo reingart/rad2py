@@ -344,16 +344,38 @@ class Debugger(qdb.Frontend, Thread):
         finally:
             self.mutex.release()
 
+    # modal functions required by Eval (must not block):
+    
+    def modal_write(self, text):
+        dlg = wx.MessageDialog(self.gui, text, "Debugger console output", 
+               wx.OK | wx.ICON_INFORMATION)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def modal_readline(self):
+        dlg = wx.TextEntryDialog(self.gui, 'Input required',
+                'Debugger console input', '')
+        if dlg.ShowModal() == wx.ID_OK:
+            return dlg.GetValue() 
+        dlg.Destroy()
+        
     def Eval(self, arg):
         if self.pipe and self.attached.is_set():
             if not self.mutex.acquire(False):
                 return u'*** debugger busy'
             try:
+                old_write = self.write
+                old_readline = self.readline
+                # replace console functions
+                self.write = self.modal_write
+                self.readline = self.modal_readline
                 # we need the result right now:
                 return self.async_push(lambda: self.do_eval(arg))
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
             finally:
+                self.write = old_write
+                self.readline = old_readline
                 self.mutex.release()
 
     def ReadFile(self, filename):
@@ -401,7 +423,7 @@ class Debugger(qdb.Frontend, Thread):
                     return u'*** %s' % unicode(e)
                 finally:
                     self.write = old_write
-                    self.readline = readline
+                    self.readline = old_readline
                     self.mutex.release()
         return None
 
