@@ -225,6 +225,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         self.finddlg = None
         
+        # Mouse over "inspect" (eval):
+        self.SetMouseDwellTime(500)
+        self.Bind(stc.EVT_STC_DWELLSTART, self.OnHover)
+        self.Bind(wx.stc.EVT_STC_DWELLEND, self.OnEndHover)
+        
         self.OnOpen()
         self.SetFocus()
 
@@ -531,15 +536,18 @@ class EditorCtrl(stc.StyledTextCtrl):
         else:
             event.Skip()
 
-    def GetWord(self,whole=None):
+    def GetWord(self, whole=None, pos=None):
         for delta in (0,-1,1):
-            word    = self._GetWord(whole=whole,delta=delta)
+            word = self._GetWord(whole=whole, delta=delta, pos=pos)
             if word: return word
         return ''
 
-    def _GetWord(self,whole=None,delta=0):
-        pos = self.GetCurrentPos()+delta
-        line = self.GetCurrentLine()
+    def _GetWord(self, whole=None, delta=0, pos=None):
+        if pos is None:
+            pos = self.GetCurrentPos()+delta
+            line = self.GetCurrentLine()
+        else:
+            line = self.LineFromPosition(pos)
         linepos = self.PositionFromLine(line)
         txt = self.GetLine(line)
         start = self.WordStartPosition(pos,1)
@@ -1024,6 +1032,23 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.CmdKeyExecute(wx.stc.STC_CMD_CUT)
         elif evtid == wx.ID_DELETE:
             self.CmdKeyExecute(wx.stc.STC_CMD_CLEAR)
+    
+    def OnHover(self, evt):
+        # Abort if not debugging (cannot eval) or position is invalid
+        if self.debugger.attached.is_set() and evt.GetPosition() >= 0:
+            print "Hovering", evt.GetPosition()
+            # get selected text first:
+            expr = self.GetSelectedText()
+            if not expr:
+                expr = self.GetWord(whole=True, pos=evt.GetPosition())
+            # Query qdb debugger to evaluate the expression
+            value = self.debugger.Eval(expr)
+            print "%s = %s" % (expr, value)
+            wx.CallAfter(self.SetToolTipString, "%s = %s" % (expr, value))
+        evt.Skip()
+        
+    def OnEndHover(self, evt):
+        self.SetToolTipString("")
 
 
 class StandaloneEditor(wx.Frame):

@@ -304,13 +304,13 @@ class Debugger(qdb.Frontend, Thread):
         finally:
             self.mutex.release()
 
-    def Inspect(self, arg):
+    def Eval(self, arg):
         if self.pipe and self.attached.is_set():
             if not self.mutex.acquire(False):
                 return u'*** debugger busy'
             try:
                 # we need the result right now:
-                return self.async_push(lambda: self.do_inspect(arg))
+                return self.async_push(lambda: self.do_eval(arg))
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
             finally:

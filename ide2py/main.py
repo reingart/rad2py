@@ -82,7 +82,7 @@ ID_CONTINUE = wx.NewId()
 ID_CONTINUETO = wx.NewId()
 ID_STOP = wx.NewId()
 ID_INTERRUPT = wx.NewId()
-ID_INSPECT = wx.NewId()
+ID_EVAL = wx.NewId()
 
 
 
@@ -168,7 +168,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         dbg_menu.Append(ID_STOP, "Sto&p")
         dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-Z")
         dbg_menu.AppendSeparator()
-        dbg_menu.Append(ID_INSPECT, "Quick &Inspection\tShift-F9", 
+        dbg_menu.Append(ID_EVAL, "Quick &Eval\tShift-F9", 
                         help="Evaluate selected text (expression) in context")
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_BREAKPOINT, "Toggle &Breakpoint\tF9")
@@ -271,11 +271,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.toolbardbg.AddSimpleTool(ID_STEPNEXT, "Next", images.GetStepReturnBitmap())
         self.toolbardbg.AddSimpleTool(ID_CONTINUE, "Continue", images.GetContinueBitmap())
         self.toolbardbg.AddSimpleTool(ID_STOP, "Quit", images.GetStopBitmap())
-        self.toolbardbg.AddSimpleTool(ID_INSPECT, "Inspect", images.GetAddWatchBitmap())
+        self.toolbardbg.AddSimpleTool(ID_EVAL, "Eval", images.GetAddWatchBitmap())
         self.toolbardbg.Realize()
 
         for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT, ID_STEPRETURN,
-                        ID_CONTINUE, ID_STOP, ID_INSPECT, ID_JUMP, 
+                        ID_CONTINUE, ID_STOP, ID_EVAL, ID_JUMP, 
                         ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
@@ -715,12 +715,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.debugger.Quit()
         elif event_id == ID_INTERRUPT:
             self.debugger.Interrupt()
-        elif event_id == ID_INSPECT and self.active_child:
+        elif event_id == ID_EVAL and self.active_child:
             # Eval selected text (expression) in debugger running context
             arg = self.active_child.GetSelectedText()
-            val = self.debugger.Inspect(arg)
+            val = self.debugger.Eval(arg)
             dlg = wx.MessageDialog(self, "Expression: %s\nValue: %s" % (arg, val), 
-                                   "Debugger Quick Inspection",
+                                   "Debugger Quick Eval",
                                    wx.ICON_INFORMATION | wx.OK )
             dlg.ShowModal()
             dlg.Destroy()
