@@ -314,7 +314,7 @@ class Qdb(bdb.Bdb):
         if err:
             print '*** DO_CLEAR failed', err
 
-    def do_inspect(self, arg):
+    def do_eval(self, arg):
         return eval(arg, self.frame.f_globals,
                     self.frame_locals)
 
@@ -355,7 +355,7 @@ class Qdb(bdb.Bdb):
     def get_autocomplete_list(self, expression):
         "Return list of auto-completion options for expression"
         try:
-            obj = self.do_inspect(expression)
+            obj = self.do_eval(expression)
         except:
             return []
         else:
@@ -364,7 +364,7 @@ class Qdb(bdb.Bdb):
     def get_call_tip(self, expression):
         "Return list of auto-completion options for expression"
         try:
-            obj = self.do_inspect(expression)
+            obj = self.do_eval(expression)
         except Exception, e:
             return ('', '', str(e)) 
         else:
@@ -638,9 +638,9 @@ class Frontend(object):
         "Quit from the debugger. The program being executed is aborted."
         self.call('do_quit')
     
-    def do_inspect(self, expr):
+    def do_eval(self, expr):
         "Inspect the value of the expression"
-        return self.call('do_inspect', expr)
+        return self.call('do_eval', expr)
 
     def do_environment(self):
         "List all the locals and globals variables (string representation)"
@@ -740,9 +740,9 @@ class Cli(Frontend, cmd.Cmd):
     do_j = Frontend.do_jump
     do_q = Frontend.do_quit
 
-    def do_inspect(self, args):
+    def do_eval(self, args):
         "Inspect the value of the expression"
-        print Frontend.do_inspect(self, args)
+        print Frontend.do_eval(self, args)
  
     def do_list(self, args):
         "List source code for the current file"
@@ -784,7 +784,7 @@ class Cli(Frontend, cmd.Cmd):
 
     do_b = do_set_breakpoint
     do_l = do_list
-    do_p = do_inspect
+    do_p = do_eval
     do_w = do_where
     do_e = do_environment
 
