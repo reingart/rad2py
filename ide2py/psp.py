@@ -686,6 +686,10 @@ class PSPMixin(object):
 
     current_psp_phase = property(get_current_psp_phase, set_current_psp_phase)
 
+    def show_psp_plan_pane(self):
+        self._mgr.GetPane("psp_plan").Show(True)
+        self._mgr.Update()
+
     def SetPSPPhase(self, phase):
         if phase:
             self.psp_phase_choice.SetSelection(PSP_PHASES.index(phase))
@@ -721,6 +725,7 @@ class PSPMixin(object):
         self.psp_toolbar.EnableTool(ID_START, False)
         self.psp_toolbar.EnableTool(ID_PAUSE, True)
         self.psp_toolbar.EnableTool(ID_STOP, True)
+        self.show_psp_plan_pane()
 
     def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
@@ -740,6 +745,7 @@ class PSPMixin(object):
             # start interruption counter
             self.psp_interruption = 0
             self.psp_log_event("pausing!")
+        self.show_psp_plan_pane()
 
     def OnStopPSP(self, event):
         self.timer.Stop()
@@ -750,6 +756,7 @@ class PSPMixin(object):
         self.psp_toolbar.EnableTool(ID_START, True)
         self.psp_toolbar.EnableTool(ID_PAUSE, False)
         self.psp_toolbar.EnableTool(ID_STOP, False)
+        self.show_psp_plan_pane()
                     
     def TimerHandler(self, event):
         # increment interruption delta time counter (if any)
@@ -805,6 +812,8 @@ class PSPMixin(object):
             "filename": filename, "lineno": lineno, "offset": offset}
 
         self.psp_defect_list.AddItem(item)
+        self._mgr.GetPane("psp_defects").Show(True)
+        self._mgr.Update()
 
     def psp_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
@@ -983,6 +992,8 @@ class PSPMixin(object):
                        "PSP Check Phase Errors", wx.ICON_EXCLAMATION | wx.OK)
                 dlg.ShowModal()
                 dlg.Destroy()
+                self._mgr.GetPane("psp_defects").Show(True)
+                self._mgr.Update()
 
             # phase completed? project completed?
             if not defects and not errors:

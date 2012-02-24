@@ -95,7 +95,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.children = []
         self.debugging_child = None     # current debugged file
-        self.executing = False
         self.lastprogargs = ""
         self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
         self.pid = None      
@@ -286,13 +285,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.call_stack = StackListCtrl(self)
         self._mgr.AddPane(self.call_stack, aui.AuiPaneInfo().Name("stack").
               Caption("Call Stack").Float().FloatingSize(wx.Size(400, 100)).
-              FloatingPosition(self.GetStartPosition()).
+              FloatingPosition(self.GetStartPosition()).DestroyOnClose(False).PinButton(True).
               MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
 
         self.environment = EnvironmentPanel(self)
         self._mgr.AddPane(self.environment, aui.AuiPaneInfo().Name("environ").
               Caption("Environment").Float().FloatingSize(wx.Size(400, 100)).
-              FloatingPosition(self.GetStartPosition()).
+              FloatingPosition(self.GetStartPosition()).DestroyOnClose(False).PinButton(True).
               MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
 
 
@@ -381,6 +380,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # restore previuous open files
         wx.CallAfter(self.DoOpenFiles)
 
+        # set not executing (hide debug panes)
+        self.executing = False
+
     def GetStartPosition(self):
 
         self.x = self.x + 20
@@ -393,6 +395,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def active_child(self):
         return self.GetActiveChild()
 
+    def get_executing(self):
+        return self._executing
+
+    def set_executing(self, value=False):
+        self._executing = value
+        self._mgr.GetPane("environ").Show(self._executing)
+        self._mgr.GetPane("stack").Show(self._executing)
+        self._mgr.Update()
+    
+    executing = property(get_executing, set_executing)
+    
     def Cleanup(self, *args):
         if 'repo' in ADDONS:
             self.RepoMixinCleanup()
