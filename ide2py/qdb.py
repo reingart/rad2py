@@ -314,9 +314,12 @@ class Qdb(bdb.Bdb):
         if err:
             print '*** DO_CLEAR failed', err
 
-    def do_eval(self, arg):
-        return eval(arg, self.frame.f_globals,
+    def do_eval(self, arg, safe=True):
+        ret = eval(arg, self.frame.f_globals,
                     self.frame_locals)
+        if safe:
+            ret = pydoc.cram(repr(ret), 255)
+        return ret
 
     def do_exec(self, arg):
         locals = self.frame_locals
