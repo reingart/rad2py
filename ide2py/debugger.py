@@ -416,7 +416,6 @@ class EnvironmentPanel(wx.Panel):
         return child
         
     def BuildTree(self, scopes, sort_order):
-        print "scopes", scopes
         self.tree.DeleteAllItems()
         self.root = self.tree.AddRoot("The Root Item")
         # process locals and globals
@@ -430,21 +429,6 @@ class EnvironmentPanel(wx.Panel):
             if i == 0:
                 self.tree.Expand(child)
         self.tree.Expand(self.root)
-
-        self.tree.GetMainWindow().Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
-        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate)
-
-
-    def OnActivate(self, evt):
-        print('OnActivate: %s' % self.tree.GetItemText(evt.GetItem()))
-        
-
-    def OnRightUp(self, evt):
-        pos = evt.GetPosition()
-        item, flags, col = self.tree.HitTest(pos)
-        if item:
-            print('Flags: %s, Col:%s, Text: %s' %
-                           (flags, col, self.tree.GetItemText(item, col)))
 
     def OnSize(self, evt):
         self.tree.SetSize(self.GetSize())
