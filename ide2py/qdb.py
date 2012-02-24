@@ -41,6 +41,7 @@ class Qdb(bdb.Bdb):
         if redirect_stdio:
             sys.stdin = self
             sys.stdout = self
+            sys.stderr = self
         if allow_interruptions:
             # fake breakpoint to prevent removing trace_dispatch on set_continue
             self.breaks[None] = []
