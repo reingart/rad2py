@@ -235,8 +235,13 @@ class Debugger(qdb.Frontend, Thread):
         self.done.set()
 
     @check_interaction
-    def Continue(self):
+    def Continue(self, filename=None, lineno=None):
         if self.check_running_code():
+            if filename and lineno:
+                # set a temp breakpoint (continue to...)
+                self.set_burst(2)
+                self.do_set_breakpoint(filename, lineno, temporary=1)
+                self.push_actions()
             self.do_continue()
             self.done.set()
 

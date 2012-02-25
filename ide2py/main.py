@@ -95,6 +95,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.children = []
         self.debugging_child = None     # current debugged file
+        self.temp_breakpoint = None
         self.lastprogargs = ""
         self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
         self.pid = None      
@@ -683,7 +684,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                 else:
                     child.GotoLineOffset(lineno, offset)
 
-    def GetBreakpoints(self):   
+    def GetBreakpoints(self):
+        if self.temp_breakpoint:
+            yield self.temp_breakpoint
+            self.temp_breakpoint = None
         for child in self.children:
             yield child.GetFilename(), child.GetBreakpoints()
         
@@ -704,17 +708,16 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnDebugCommand(self, event):
         event_id = event.GetId()
 
-        # Not debbuging?, set temp breakpoint to be hit on first run!
-        if event_id == ID_CONTINUETO and not self.debugging_child and self.active_child:
-            lineno = self.active_child.GetCurrentLine()
-            filename = self.active_child.GetFilename()
-            self.debugger.SetBreakpoint(filename, lineno, temporary=1)
-
         # start debugger (if not running):
         if not self.executing:
             print "*** Execute!!!!"
-            # should it open debugger inmediatelly or continue?            
+            # should it open debugger inmediatelly or continue?
             self.debugger.start_continue = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
+            if event_id == ID_CONTINUETO and self.active_child:
+                # set temp breakpoint to be hit on first run!
+                lineno = self.active_child.GetCurrentLine()
+                filename = self.active_child.GetFilename()
+                self.temp_breakpoint = (filename, {lineno: (1, None)})
             self.OnExecute(event)
             # clean running indication
             self.GotoFileLine()
@@ -751,8 +754,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             # Continue execution until we reach selected line (temp breakpoint)
             lineno = self.debugging_child.GetCurrentLine()
             filename = self.debugging_child.GetFilename()
-            self.debugger.SetBreakpoint(filename, lineno, temporary=1)
-            self.debugger.Continue()
+            self.debugger.Continue(filename=filename, lineno=lineno)
 
     def OnHelp(self, event):
         "Show help on selected text"
