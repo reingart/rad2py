@@ -80,7 +80,7 @@ ID_STEPRETURN = wx.NewId()
 ID_JUMP = wx.NewId()
 ID_CONTINUE = wx.NewId()
 ID_CONTINUETO = wx.NewId()
-ID_STOP = wx.NewId()
+ID_QUIT = wx.NewId()
 ID_INTERRUPT = wx.NewId()
 ID_EVAL = wx.NewId()
 
@@ -159,19 +159,28 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                                    "Connect to remote debugger")
 
         dbg_menu = self.menu['debug'] = wx.Menu()
-        dbg_menu.Append(ID_STEPIN, "&Step In\tF8")
-        dbg_menu.Append(ID_STEPNEXT, "Step &Next\tShift-F8")
-        dbg_menu.Append(ID_STEPRETURN, "Step &Return\tCtrl-Shift-F8")
-        dbg_menu.Append(ID_CONTINUETO, "Continue &up to the cursor\tCtrl-F8")
-        dbg_menu.Append(ID_CONTINUE, "&Continue\tF5")
-        dbg_menu.Append(ID_JUMP, "&Jump to instruction\tCtrl-F9")
-        dbg_menu.Append(ID_STOP, "Sto&p")
-        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-Z")
+        dbg_menu.Append(ID_STEPIN, "&Step Into\tF8",
+                        help="Execute, stepping into functions")
+        dbg_menu.Append(ID_STEPNEXT, "Step &Next\tShift-F8",
+                        help="Execute until the next line (step over)")
+        dbg_menu.Append(ID_STEPRETURN, "Step &Return\tCtrl-Shift-F8",
+                        help="Execute until the current function returns")
+        dbg_menu.Append(ID_CONTINUETO, "Continue to\tCtrl-F8",
+                        help="Execute until the current line is reached")
+        dbg_menu.Append(ID_CONTINUE, "&Continue\tF5",
+                        help="Execute unitl a breakpoint is encountered.")
+        dbg_menu.Append(ID_JUMP, "&Jump to\tCtrl-F9",
+                        help="Set the next line that will be executed.")
+        dbg_menu.Append(ID_QUIT, "&Quit",
+                        help=" The program being executed is aborted.")
+        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-Z",
+                        help="Pause program and wait debug interaction")
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_EVAL, "Quick &Eval\tShift-F9", 
                         help="Evaluate selected text (expression) in context")
         dbg_menu.AppendSeparator()
-        dbg_menu.Append(ID_BREAKPOINT, "Toggle &Breakpoint\tF9")
+        dbg_menu.Append(ID_BREAKPOINT, "Toggle &Breakpoint\tF9",
+                        help="Set or remove a breakpoint in the current line")
         dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
         
         help_menu = self.menu['help'] = wx.Menu()
@@ -270,12 +279,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.toolbardbg.AddSimpleTool(ID_STEPIN, "Step", images.GetStepInBitmap())
         self.toolbardbg.AddSimpleTool(ID_STEPNEXT, "Next", images.GetStepReturnBitmap())
         self.toolbardbg.AddSimpleTool(ID_CONTINUE, "Continue", images.GetContinueBitmap())
-        self.toolbardbg.AddSimpleTool(ID_STOP, "Quit", images.GetStopBitmap())
+        self.toolbardbg.AddSimpleTool(ID_QUIT, "Quit", images.GetStopBitmap())
         self.toolbardbg.AddSimpleTool(ID_EVAL, "Eval", images.GetAddWatchBitmap())
         self.toolbardbg.Realize()
 
         for menu_id in [ID_STEPIN, ID_STEPRETURN, ID_STEPNEXT, ID_STEPRETURN,
-                        ID_CONTINUE, ID_STOP, ID_EVAL, ID_JUMP, 
+                        ID_CONTINUE, ID_QUIT, ID_EVAL, ID_JUMP, 
                         ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
@@ -718,7 +727,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         elif event_id == ID_CONTINUE:
             self.GotoFileLine()
             self.debugger.Continue()
-        elif event_id == ID_STOP:
+        elif event_id == ID_QUIT:
             self.debugger.Quit()
         elif event_id == ID_INTERRUPT:
             self.debugger.Interrupt()

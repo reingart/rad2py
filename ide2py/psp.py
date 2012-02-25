@@ -597,8 +597,8 @@ class PSPMixin(object):
         self.menubar.Insert(self.menubar.FindMenu("&Help")-1, psp_menu, "&PSP")
 
         self.menu['run'].InsertSeparator(2)
-        self.menu['run'].Insert(3, ID_COMPILE, "Compile\tCtrl-F5", 
-                                   "Check syntax and PEP8 style")
+        self.menu['run'].Insert(3, ID_COMPILE, "Compile && Check\tCtrl-F5", 
+                                   "Check syntax, PEP8 style and PyFlakes static analysis")
         self.menu['run'].Insert(4, ID_TEST, "Test\tAlt-F5", "Run doctests")
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_COMPILE)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_TEST)
