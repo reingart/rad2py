@@ -70,6 +70,7 @@ class Debugger(qdb.Frontend, Thread):
         self.actions = Queue()
         self.mutex = Lock()         # critical section protection (comm channel)
         self.access = Semaphore()   # limit to 1 interaction command to use the channel
+        self.filename = self.lineno = None
         self.start()                # creathe the new thread
 
     def run(self):
