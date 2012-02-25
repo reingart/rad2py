@@ -38,7 +38,7 @@ ADDONS = []
 try:
     from psp import PSPMixin
     ADDONS.append("psp")
-except:
+except ImportError:
     class PSPMixin(object):
         pass
 try:

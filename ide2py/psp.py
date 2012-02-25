@@ -599,7 +599,8 @@ class PSPMixin(object):
         self.menu['run'].InsertSeparator(2)
         self.menu['run'].Insert(3, ID_COMPILE, "Compile && Check\tCtrl-F5", 
                                    "Check syntax, PEP8 style and PyFlakes static analysis")
-        self.menu['run'].Insert(4, ID_TEST, "Test\tAlt-F5", "Run doctests")
+        self.menu['run'].Insert(4, ID_TEST, "Test\tAlt-F5", 
+                                   "Run doctests & unittests")
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_COMPILE)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_TEST)
         
@@ -969,7 +970,7 @@ class PSPMixin(object):
                 import checker
                 defects.extend(checker.check(self.active_child.GetFilename()))
             elif phase == "test":
-                # run doctests (TODO unittests, run program?) to find defects
+                # run doctests to find defects
                 import tester
                 defects.extend(tester.test(self.active_child.GetFilename()))
             elif phase == "postmortem":
@@ -983,7 +984,8 @@ class PSPMixin(object):
             for defect in defects:
                 self.NotifyDefect(**defect)
                 errors.append("Defect found: %(summary)s" % defect)
-                line_numbers.add(defect['lineno'])
+                if defect['lineno'] is not None:
+                    line_numbers.add(defect['lineno'])
             self.active_child.HighlightLines(line_numbers)
 
             # show errors

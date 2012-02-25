@@ -8,6 +8,7 @@ __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 import os
+import wx
 
 from doctest import DocTestParser, DocTestRunner
 
@@ -64,16 +65,59 @@ def doctestfile(filename, module_relative=True, name=None, package=None,
     
     count, fail = runner.run(tests)
 
+    if not count:
+        wx.MessageBox("No doc tests could be run from: %s module" % filename, "No doc tests found", wx.ICON_ERROR)
+
     for defect in defects:
         yield defect
 
-
+def unittestfile(filename):
+    # unit test using pytong: http://code.google.com/p/pytong
+    import pytong
+    pytong.filename = filename
+    frame = pytong.Frame("PyTong: %s" % filename)
+    if frame.Load():
+        # show and start all tests (get root)
+        frame.Show()
+        item = frame.tree.GetRootItem()
+        frame.RunItem(item)
+        while frame.running:
+            wx.YieldIfNeeded()
+        for result in frame.results:
+            if not result.wasSuccessful():
+                for error in result.errors:
+                    defect = dict(summary="ERROR IN " + error[0].__str__(), 
+                                  description=error[1],
+                                  type=60, filename=filename, lineno=None, offset=1)
+                    yield defect
+                for error in result.failures:
+                    defect = dict(summary="FAILURE IN " + error[0].__str__(), 
+                                  description=error[1],
+                                  type=60, filename=filename, lineno=None, offset=1)
+                    yield defect
+    else:
+        frame.Destroy()
+    
 def test(filename):
     "Try all available testers and return all defects founds"
-    for defect in doctestfile(filename):
-        yield defect
-    
+    cdir, filen = os.path.split(os.path.abspath(filename))
+    print cdir, filen, os.path.abspath(filename)
+    if not cdir: 
+        cdir = "."
+    cwd = os.getcwd()
+    try:
+        os.chdir(cdir)
+
+        for defect in doctestfile(filename):
+            yield defect
         
+        for defect in unittestfile(filename):
+            yield defect
+    
+    finally:
+        os.chdir(cwd)
+
+
 if __name__ == '__main__':
     for e in test("hola.py"):
         print e

@@ -505,3 +505,42 @@ gnome_help = PyEmbeddedImage(
     "JcUVc7fMOZu+CINTU5z+3m5Ojo6iAdoDdWMACYuFxKl9bE5J4buKwmIe4aPwPx//BQ095H9i"
     "BlmLAAAAAElFTkSuQmCC")
 
+#----------------------------------------------------------------------
+circle_gray = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABHNCSVQICAgIfAhkiAAAAAlw"
+    "SFlzAAAAugAAALoBTx5ghQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoA"
+    "AAHgSURBVDiNtZWxittAEEBnFqxl2cLiav3ACYFwYzUHLtSk19UpQv7AvY0+QH9gXKS228ON"
+    "EQY3cmMEQvkB1YdTLGJs0KRIBHcXc+fYulfPPmZnZ2eQmeEciGgDwIMQYqi1HhHRAABASrk3"
+    "xmyaptkBwJaZD2fPnxMj4qNlWXPHcdD3fel5Xs91XQAAKMsSiqI45XlOVVXx8Xj8xsyLd8WI"
+    "eKeUmkkpv8RxrIIgOHublizLYDqd1kS0quv6OzM//yNGxDsp5c8wDPvj8Vhqrd+VthhjIEkS"
+    "Wq/Xv4jovpWLNkApNQvDsD+ZTC6WAgBorWEymcgwDPtKqdmrjBHx0bbtH8vlUv2P9G3mURTV"
+    "h8PhKzMvBCLalmXN4zi+WtpmHsexsixrjoi2AIAHx3Hwo4e6hCAIwHEchD9tKoa+78ubrX/x"
+    "fV8KIYZCaz3yPK/XldjzvJ7WeiSIaNA2fxe4rgtENBAfh16HkFLuy7LsTFiWJUgp98IYsymK"
+    "4tSVuCiKkzFmI5qm2eV5Tl2J8zynpml2AgC2VVVxlmU3S7Msg6qqGAC2n/elAQCYeUFEqyRJ"
+    "ri5JkiRERKt2Nn/+2GTmZyK6T9P0KYqi+pKaZ1kGURTVaZo+vZS+yvglna+mN/KblulvESk7"
+    "rKnqYeIAAAAASUVORK5CYII=")
+
+#----------------------------------------------------------------------
+circle_green = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABHNCSVQICAgIfAhkiAAAAAlw"
+    "SFlzAAAAugAAALoBTx5ghQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoA"
+    "AAE5SURBVDiNtdW9aipRFMXx34yIE1CQgE9wy1QpIgiCL5DS2iIPlie42KcUBCEWVinzAOkS"
+    "B2REwk4R8+G9AzHJzF6c6nD+bNY5e50kIpRVkiRdDDX0dYwUzkFmJTfz7BbziHgsPV8GTpJk"
+    "LHPtj8RQy0DTxX5ziYWdua17oXAVEX//g0TE+8KptqmejRvxpW6Eno22KU4PWAfQEw8mCk9H"
+    "QN/0JEwUTjx8hn+A26Ymim8gDzVRaJsegDHWs/lWp2Wd92wwfru3rsz6KE+P8TyzRhcunckr"
+    "wL7qTI7LVEPfUKv0Mf+khloa+qmOkYFmZeCBpo4RmbW7yowId68+p5V1+k+lMivLColLZFap"
+    "3MzCrjLwwk5ulnp2a25bGXhuu0++mgaktpGuNYRqjc2qg762r6kUvIf/6jN9ASrFNh9k0/xW"
+    "AAAAAElFTkSuQmCC")
+
+#----------------------------------------------------------------------
+circle_red = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABHNCSVQICAgIfAhkiAAAAAlw"
+    "SFlzAAAAugAAALoBTx5ghQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoA"
+    "AAE5SURBVDiNtdW9SgNREMXx324IWSGBIOQJLK0sDAQCeQHL1Cl8MJ9A0lsGAgFTWFn6AHaa"
+    "hbAhyFiYiB8LRt0dONXl/hnOvXMmiQhllSRJF8MG/Q6jgjPIuMuZvXCLeUQ8ld4vAydJMs64"
+    "OiEZ0hrQPN+dLbFgO2fzQBRcRsT1N0hEvAvHbaY91jdE/KAbose6zRTHn1gfoUc8TiieD4Du"
+    "9UxMKI54/Ah/B7eZTigOBX7VhKLN9BMY4x7r33Ra1nmPNcb7d+tmrA7x9BDPM1bowsUp+X+h"
+    "e52S4yJt0B/SKv3Mf6ghrQb9tMNoQLMq8IBmh5GM1X1FNgRxv/M5rarTr5Vm3C0rBC695Uma"
+    "M1uwrQq8YJszS1+4nbOpCjxns0u+mgaktpGuNYRqjc2qg7621VQK3sH/tUxfAfdnNh8dUBXu"
+    "AAAAAElFTkSuQmCC")
+
