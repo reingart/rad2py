@@ -544,3 +544,61 @@ circle_red = PyEmbeddedImage(
     "M1uwrQq8YJszS1+4nbOpCjxns0u+mgaktpGuNYRqjc2qg7621VQK3sH/tUxfAfdnNh8dUBXu"
     "AAAAAElFTkSuQmCC")
 
+#----------------------------------------------------------------------
+class_ = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0"
+    "RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAALiSURBVHjaYvz//z8DJQAggJgY"
+    "KAQAAcSA7IIprKzJKzQ0bkkzMkYAuVzIFjwLlMm9ls9zz1CAGUUOIIDABrQyMLDPFRZuex4f"
+    "/+d/fv7/S/b2Pww4OCYA5YUmqklzvUyVmfR7F+u//3sZ/r9vZfoRosDYB5QTA2JmgABiBBmw"
+    "VVn5sEtqqg37r18MDM+fMzD8/cvw4917hoQN2zcVZ7JxmnZ+cGV4BnTpLaCWL0D8mYGhso9h"
+    "e8c1hkSAAAI7Q+P5cxv2PXsYGP78YWDg5AQq+srw7egpBn7xf66vJb85MNwFav4NVMgGxF+B"
+    "+BEDgwkPgz6QpQAQQCwgA359//6LYe9eNoZ79xj+aesyXN6zm2GxDQfD5wlmnFPuPGV4tfk+"
+    "Q4LWX6BCoOJzQPyDgeHjTwZQ4AkDBBDYgN8QsxkY7t9nOP/8IcPSMmcG4QYtBoFvdxgeMPAz"
+    "LGSUY7h1/QVD2avvDAIgL3AzMPz7BQ5EJoAAAnthHgND+UmI4xgOWAswCNe5MqgyCjD8/vmP"
+    "gfXfPwZZWR6G2fxyDIfeMjMwcDAwbDzO8Lb8JsNqoPLvAAEEdsFEBobpR4H2FzIwtP/9+1v5"
+    "5NWFDF8EZBi4+VgZPv5gYth55R/Du9dMDGzfmRga9/+91vSIYeE/BobrQK1PAQIIHAuMjIxA"
+    "oxl4RBkYlAQjBKaZlctaMPz4zfCHiYNh44W/DN9/AtV8/88g03pz7+NPf5ZBgpHhHhC/BAgg"
+    "WEIBhhDDp9cMDDfuMP+Y9+rRFwZublaGT19+MXz/BbSLg5Hh/8Wf3x5//rsPFFIMENufgOIE"
+    "IIAYsOQFLkY7lgzjPplXvkd0/jNO1P3PYC15H+jMJqCcDxArMsACHQgAAgibASBX8TNIc3gI"
+    "xcheY1IXBIYvQyYQewCxKiQOGBhhigECCBYG2AwBpXcJIJYE4j+gAAPiV0D8E4jhtgIEEC4D"
+    "GKC2gJzKCdXwDZJkUAFAgAEAv0UAkT3j1wsAAAAASUVORK5CYII=")
+
+#----------------------------------------------------------------------
+method = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAANBJ"
+    "REFUOI3tUssNgkAQnV2uGhrQQAkaCoACNDSgoQENDWhoQEMJlEADEA5wpATNVuI8DxMWSbxx"
+    "M24ymfey+958skpph+YcPUv9gwZcV+DjAbxegc8nycsF+H4D73dgfoG3G/DzAStS2rGBLANc"
+    "FyACggDIc8FEQJYBcSy4aTBoJgZKO2QNjAHKUnAYQmmHEIb27qsB+l4eJIkI0lR4UQj/MBti"
+    "usS2lRxFkrvOcq4rmdv3ia+XcQ+TDpJkbN8YwZ4n1Y2RvRABaTqO8f/K8w3eFM2V7a5pSDcA"
+    "AAAASUVORK5CYII=")
+
+#----------------------------------------------------------------------
+function = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAMlJ"
+    "REFUOI3Fk7FtwzAQRR8l78EVCKgVIG1AwHbPEbSA7RW0SBytoNZJI0ADcIHEHOG7cmPIhBUX"
+    "OeBXh/8OH3dnTFHyThVvuV8FfJ4/dDoetNg0RZlVCEGArLVa6mfNMUYB8t4rpbQOcDffFUJY"
+    "B0gpyXsvQH3fK8a4PkLTNAIWjS8BAFVVlQU8XeP310UAdV3/7Q7meQbAObcOcDoedP390TiO"
+    "ALRtmwUs5rbWClDXddn8pijZPAKHYWCaJpxzbHd7kx8P5t+/8QYArU14KfJRnwAAAABJRU5E"
+    "rkJggg==")
+
+#----------------------------------------------------------------------
+explore = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAACNFBMVEUAAAAFFpAEGZQLGo4K"
+    "G5EWHIMMIIoQI5UYI4kLKqIQKKAUK5QMLp0PLpkXLJoVLpcOMK8cLpUTMpkbOagjOZohQaIm"
+    "Q6sZTbUjSLgbTrMzRp8YUL08RZskU8gfWLwlU8cjW7kaXcslYb03WrUyXLggYtAiYdcjZMgv"
+    "XdMyYsA4YL0oZNUmZ9IyZ8ItZ9RXXqgyatEocNImcNo3bdA7cM5AccVDccUtd+NBed08euY0"
+    "f+JddbtDf+Q9gPE9fv5KgdRZfcQ3iPNHhOg1jPk1jfs+jO1Ihv5Ph+lMiv5ejc9Blv5Clv15"
+    "h8Rakedpj81ojd9Vkv5yi9VJm/t6i8xKnP5Knf5Lnf5Zlv5OoP5dmv5Qof5Rov5Sov5UpPxW"
+    "o/5loeJVpP5inv5Xpv5xoNpoou1no/5sp+Ndqv5eq/5rpv5xp+pgrP5hrf5irf6Co99+pOVt"
+    "qf6Io9Zuqf6OodJorf1xqv5msP52qvNpsv5yrv5qs/6Qp9h0r/93rv5stf57set4sP+Gr99x"
+    "tP9utv58s+x4s/9xuP96tP9yuf9zuv97tv90uv98t/uaruB9t/+AuPJ/u+14vf+Auv+Fvex8"
+    "wP+Jv+1/wv+Gv/+CxP+Jwv+Exv+IxP+Fxv+LxP+Mxf+cw+uLy/+exvKTy/+qxO2qxemrx+2X"
+    "z/+U0f+ryPWW0f+W0v+a0f+Y0/+f1v+z0/Om2v+l2/+90+6n3f+o3v/B3fa24/7O4fXK4/jS"
+    "4vTD6f/W6/oAAHKjMjGjAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMA"
+    "AAsTAQCanBgAAAAHdElNRQfUDAgAEzQFZIRQAAAA8ElEQVQY02NggAJJRXEGJCBn5OzlIi0E"
+    "5SmoWwXFREWEeqvygrhKhq6xGTm52elJ0SHmPEABnZKciuaOzra6soyEMEdOBgY1u8qJ02bN"
+    "mTGluyrOVkOAgUHbzaN25ao1yxc0Ofn3BjIxMOgFhEeWrt802zdvcb6lPCMDg0FiamZBQ/nS"
+    "dfW63BbCXAwMxkU1rV19KVsmp5kp+wSzMDCYtE+aPnNu1g4/h+oV7rLMDAyaPfMWLVvdUrhk"
+    "oT2/jQQ70CEq/Ws3bJ66fUK8qZYY326QW0WTt+6cv63RU0RwN9QzbNa7NhZLcSD7VkafFcoC"
+    "AJ4RRjoKw/mVAAAAAElFTkSuQmCC")
+
