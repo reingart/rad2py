@@ -274,7 +274,8 @@ class Debugger(qdb.Frontend, Thread):
         self.done.set()
 
     def Interrupt(self):
-        self.interrupt()
+        if self.pipe:
+            self.interrupt()
 
     def LoadBreakpoints(self):
         # get a list of {filename: {lineno: (temp, cond)}
