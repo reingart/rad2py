@@ -72,6 +72,7 @@ SPLASH_IMAGE = "splash.png"
 
 ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
+ID_GOTO_DEF = wx.NewId()
 
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
@@ -169,6 +170,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         edit_menu.AppendSeparator()
         edit_menu.Append(ID_COMMENT, 'Comment/Uncomment\tAlt-3', "")
         edit_menu.Append(ID_GOTO, "&Goto Line/Regex\tCtrl-G", "")
+        edit_menu.Append(ID_GOTO_DEF, "&Goto Definition\tShift-F2", 
+                         "Use Source Code Explorer to search a symbol def.")
 
         run_menu = self.menu['run'] = wx.Menu()
         run_menu.Append(ID_DEBUG, "&Run and Debug\tShift-F5",
@@ -289,6 +292,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (wx.ID_HELP, self.OnHelp),
             (ID_COMMENT, self.OnEditAction),
             (ID_GOTO, self.OnEditAction),
+            (ID_GOTO_DEF, self.OnGotoDefinition),
             (ID_BREAKPOINT, self.OnEditAction),
             (ID_CLEARBREAKPOINTS, self.OnEditAction),
          ]
@@ -853,6 +857,16 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.active_child:
             self.active_child.OnEditAction(event)
 
+    def OnGotoDefinition(self, event):
+        if self.active_child and self.explorer:
+            filename = self.active_child.GetFilename()
+            word = self.active_child.GetWord()
+            filename, lineno = self.explorer.FindSymbolDef(filename, word)
+            if filename:
+                child = self.DoOpen(filename)
+                if child:
+                    child.GotoLineOffset(lineno, 1)
+
     def ExceptHook(self, extype, exvalue, trace): 
         exc = traceback.format_exception(extype, exvalue, trace) 
         #for e in exc: wx.LogError(e) 
@@ -994,6 +1008,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     
     def GetLineText(self, lineno):
         return self.editor.GetLineText(lineno)
+
+    def GetWord(self):
+        return self.editor.GetWord(whole=True)
         
     def SynchCurrentLine(self, lineno):
         if lineno:

@@ -64,17 +64,18 @@ class ExplorerEvent(wx.PyEvent):
 class Explorer(Thread):
     "Worker thread to analyze a python source file"
 
-    def __init__(self, parent=None, modulename=None, filepath=None):
+    def __init__(self, parent, modulename, modulepath, filename):
         Thread.__init__(self)
         self.parent = parent
         self.modulename = modulename
-        self.filepath = filepath
+        self.modulepath = modulepath
+        self.filename = filename
         self.start()                # creathe the new thread
 
     def run(self):
-        items = find_functions_and_classes(self.modulename, self.filepath)
+        items = find_functions_and_classes(self.modulename, self.modulepath)
         event = ExplorerEvent(EVT_PARSED_ID, 
-                              (self.modulename, self.filepath, items))
+                              (self.modulename, self.filename, items))
         wx.PostEvent(self.parent, event)
 
 
@@ -99,8 +100,8 @@ class ExplorerPanel(wx.Panel):
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
         self.parent = parent
-        self.working = False
         self.modules = {}
+        self.symbols = {}
 
         tID = wx.NewId()
 
@@ -125,54 +126,77 @@ class ExplorerPanel(wx.Panel):
 
         self.Connect(-1, -1, EVT_PARSED_ID, self.OnParsed)
 
-    def ParseFile(self, fullpath, refresh=False):
-        if self.working:
-            wx.Bell()
+    def ParseFile(self, filename, refresh=False):
+        modulepath, basename = os.path.split(filename)
+        modulename, ext = os.path.splitext(basename)
+        # if module not already in the tree, add it
+        if filename not in self.modules:
+            if refresh:
+                # do not rebuild if user didn't "explored" it previously
+                return
+            module = self.tree.AppendItem(self.root, modulename)
+            self.modules[filename] = module
+            self.tree.SetPyData(module, (filename, 1))
+            self.tree.SetItemImage(module, self.images['module'])
         else:
-            self.working = True
-            filepath, filename = os.path.split(fullpath)
-            modulename, ext = os.path.splitext(filename)
-            self.filename = fullpath
-            # if module not already in the tree, add it
-            if (modulename, filepath) not in self.modules:
-                if refresh:
-                    # do not rebuild if user didn't "explored" it previously
-                    self.working = False
-                    return
-                module = self.tree.AppendItem(self.root, modulename)
-                self.modules[(modulename, filepath)] = module
-                self.tree.SetPyData(module, (self.filename, 1))
-                self.tree.SetItemImage(module, self.images['module'])
-            else:
-                module = self.modules[(modulename, filepath)]
-                self.tree.CollapseAndReset(module)
-            self.tree.SetItemText(module, "%s (loading...)" % modulename)
-            # Start worker thread
-            thread = Explorer(self, modulename, filepath)
+            module = self.modules[(modulename, filepath)]
+            self.tree.CollapseAndReset(module)
+        self.tree.SetItemText(module, "%s (loading...)" % modulename)
+        # Start worker thread
+        thread = Explorer(self, modulename, modulepath, filename)
+    
     
     def OnParsed(self, evt):
-        modulename, filepath, items = evt.data
-        module = self.modules[(modulename, filepath)]
+        modulename, filename, items = evt.data
+        module = self.modules[filename]
         self.tree.SetItemText(module, modulename)
         self.tree.SelectItem(module)
         classes = {}
         for lineno, class_name, function_name in items:
             if class_name is None:
                 child = self.tree.AppendItem(module, function_name)
-                self.tree.SetItemImage(child, self.images['function'])
+                self.AddSymbol(filename, function_name, 'function', lineno, child)
             elif function_name is None:
                 child = self.tree.AppendItem(module, class_name)
-                self.tree.SetItemImage(child, self.images['class'])
+                self.AddSymbol(filename, class_name, 'class', lineno, child)
                 classes[class_name] = child
             else:
                 child = self.tree.AppendItem(classes[class_name], function_name)
-                self.tree.SetItemImage(child, self.images['method'])
+                self.AddSymbol(filename, function_name, 'method', lineno, child)
 
-            self.tree.SetPyData(child, (self.filename, lineno))
+            self.tree.SetPyData(child, (filename, lineno))
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
         self.working = False
+
+    def AddSymbol(self, filename, symbol_name, symbol_type, lineno, child):
+        symbol_dict = self.symbols.setdefault(symbol_name, {})
+        symbol_dict.setdefault(filename, {})[symbol_type] = lineno
+        self.tree.SetItemImage(child, self.images[symbol_type])
+
+    def FindSymbolDef(self, filename, word):
+        # search all available symbols for the given word
+        symbols = self.symbols.get(word, {})
+        if not symbols:
+            wx.Bell()   # no match!
+            return None, None
+        elif len(symbols) ==1 and len(symbols.values()[0]) == 1:  # single?
+            return symbols.keys()[0], symbols.values()[0].values()[0]
+        else:
+            # multiple symbols, choose one:
+            choices = []
+            for filename, symbol in symbols.items():
+                for symbol_type, lineno in symbol.items():
+                    choices.append(((filename, lineno), 
+                                    '%s:%s (%s)' % (filename, lineno, symbol_type)))
+            dlg = wx.SingleChoiceDialog(self.parent, 'Pick a symbol', 
+                                        'Find Symbol', 
+                                        [choice[1] for choice in choices])
+            dlg.ShowModal()
+            choice = choices[dlg.GetSelection()][0]
+            dlg.Destroy()
+            return choice
 
     def OnItemExpanded(self, event):
         item = event.GetItem()
@@ -200,8 +224,12 @@ class TestFrame(wx.Frame):
         wx.Frame.__init__(self, None)
         self.Show()
         self.panel = ExplorerPanel(self)
-        self.panel.ParseFile(__file__)
-        self.panel.ParseFile(__file__)
+        self.panel.ParseFile(filename)
+        while 'main' not in self.panel.symbols:
+            wx.Yield()
+        print self.panel.symbols
+        filename, lineno = self.panel.FindSymbolDef(filename, "main")
+        print filename, lineno
         self.SendSizeEvent() 
 
 
@@ -209,7 +237,7 @@ if __name__ == '__main__':
     
     def main():
         app = wx.App()
-        frame = TestFrame()
+        frame = TestFrame(filename=os.path.abspath("hola.py"))
         app.MainLoop()
     
     main()
