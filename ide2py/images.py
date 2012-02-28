@@ -582,7 +582,7 @@ function = PyEmbeddedImage(
     "rkJggg==")
 
 #----------------------------------------------------------------------
-explore = PyEmbeddedImage(
+module = PyEmbeddedImage(
     "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAACNFBMVEUAAAAFFpAEGZQLGo4K"
     "G5EWHIMMIIoQI5UYI4kLKqIQKKAUK5QMLp0PLpkXLJoVLpcOMK8cLpUTMpkbOagjOZohQaIm"
     "Q6sZTbUjSLgbTrMzRp8YUL08RZskU8gfWLwlU8cjW7kaXcslYb03WrUyXLggYtAiYdcjZMgv"

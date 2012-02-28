@@ -11,6 +11,8 @@ import wx
 import os.path
 import pyclbr
 
+from threading import Thread, Event, Lock, Semaphore
+
 import images
 
 
@@ -45,6 +47,39 @@ def find_functions_and_classes(modulename, path):
     return result
 
 
+EVT_PARSED_ID = wx.NewId()
+EVT_GOTO_ID = wx.NewId()
+    
+
+class ExplorerEvent(wx.PyEvent):
+    """Simple event to carry arbitrary result data."""
+    def __init__(self, event_type, data=None):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(event_type)
+        self.data = data
+
+
+class Explorer(Thread):
+    "Worker thread to analyze a python source file"
+
+    def __init__(self, parent=None, modulename=None, filepath=None):
+        Thread.__init__(self)
+        self.parent = parent
+        self.modulename = modulename
+        self.filepath = filepath
+        self.start()                # creathe the new thread
+
+    def run(self):
+        import time
+        t0 = time.time()
+        items = find_functions_and_classes(self.modulename, self.filepath)
+        t1 = time.time()
+        print "Explore elapsed", t1-t0
+        event = ExplorerEvent(EVT_PARSED_ID, 
+                              (self.modulename, self.filepath, items))
+        wx.PostEvent(self.parent, event)
+
+
 class ExplorerTreeCtrl(wx.TreeCtrl):
 
     def __init__(self, parent, id, pos, size, style):
@@ -73,7 +108,7 @@ class ExplorerPanel(wx.Panel):
 
         il = wx.ImageList(16, 16)
         self.images = {
-            'explore': il.Add(images.explore.GetBitmap()),
+            'module': il.Add(images.module.GetBitmap()),
             'class': il.Add(images.class_.GetBitmap()),
             'function': il.Add(images.function.GetBitmap()),
             'method': il.Add(images.method.GetBitmap()),
@@ -84,16 +119,23 @@ class ExplorerPanel(wx.Panel):
         self.Bind(wx.EVT_TREE_ITEM_EXPANDED, self.OnItemExpanded, self.tree)
         self.tree.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
 
+        self.Connect(-1, -1, EVT_PARSED_ID, self.OnParsed)
+
     def ParseFile(self, fullpath):
-        self.tree.DeleteAllItems()
         filepath, filename = os.path.split(fullpath)
         modulename, ext = os.path.splitext(filename)
         print filepath, filename, modulename, ext
+        # Start worker thread
+        thread = Explorer(self, modulename, filepath)
+    
+    def OnParsed(self, evt):
+        modulename, filepath, items = evt.data
+        self.tree.DeleteAllItems()
         self.root = self.tree.AddRoot(modulename)
         self.tree.SetPyData(self.root, None)
-        self.tree.SetItemImage(self.root, self.images['explore'])
+        self.tree.SetItemImage(self.root, self.images['module'])
         classes = {}
-        for lineno, class_name, function_name in find_functions_and_classes(modulename, filepath):
+        for lineno, class_name, function_name in items:
             print lineno, class_name, function_name
             if class_name is None:
                 child = self.tree.AppendItem(self.root, function_name)
@@ -137,14 +179,8 @@ class TestFrame(wx.Frame):
         wx.Frame.__init__(self, None)
         self.Show()
         self.panel = ExplorerPanel(self)
-        import time
-        t0 = time.time()
         self.panel.ParseFile(__file__)
-        t1 = time.time()
         self.panel.ParseFile(__file__)
-        t2 = time.time()
-        print "t1-t0", t1-t0
-        print "t2-t1", t2-t1
         self.SendSizeEvent() 
 
 
