@@ -576,6 +576,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             child = AUIChildFrame(self, filename, title)
             child.Show()
             self.children.append(child)
+            if self.explorer:
+                wx.CallAfter(self.explorer.ParseFile, filename)
         else:
             child = found[0]
             # do not interfere with shell focus
@@ -607,6 +609,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def OnSaveAs(self, event):
         if self.active_child:
             self.active_child.OnSaveAs(event)
+
+    def DoClose(self, child, filename):
+        self.children.remove(child)
+        if self.explorer:
+            wx.CallAfter(self.explorer.RemoveFile, filename)
 
     def OnExplorer(self, event):
         if self.active_child:
@@ -970,8 +977,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         ctrl = event.GetEventObject()  
         result = self.editor.OnClose(event)
         if result is not None:
+            self.parent.DoClose(self, self.GetFilename())
             self.editor.Destroy()  # fix to re-paint correctly
-            self.parent.children.remove(self)
             aui.AuiMDIChildFrame.OnCloseWindow(self, event)
 
     def OnSave(self, event):

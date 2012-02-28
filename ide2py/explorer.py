@@ -11,7 +11,7 @@ import wx
 import os.path
 import pyclbr
 
-from threading import Thread, Event, Lock, Semaphore
+from threading import Thread, Lock
 
 import images
 
@@ -60,6 +60,7 @@ class ExplorerEvent(wx.PyEvent):
         self.SetEventType(event_type)
         self.data = data
 
+mutex = Lock()
 
 class Explorer(Thread):
     "Worker thread to analyze a python source file"
@@ -73,10 +74,11 @@ class Explorer(Thread):
         self.start()                # creathe the new thread
 
     def run(self):
-        items = find_functions_and_classes(self.modulename, self.modulepath)
-        event = ExplorerEvent(EVT_PARSED_ID, 
-                              (self.modulename, self.filename, items))
-        wx.PostEvent(self.parent, event)
+        with mutex:
+            items = find_functions_and_classes(self.modulename, self.modulepath)
+            event = ExplorerEvent(EVT_PARSED_ID, 
+                                  (self.modulename, self.filename, items))
+            wx.PostEvent(self.parent, event)
 
 
 class ExplorerTreeCtrl(wx.TreeCtrl):
@@ -144,7 +146,10 @@ class ExplorerPanel(wx.Panel):
         self.tree.SetItemText(module, "%s (loading...)" % modulename)
         # Start worker thread
         thread = Explorer(self, modulename, modulepath, filename)
-    
+
+    def RemoveFile(self, filename):
+        if filename in self.modules:
+            self.tree.Delete(self.modules[filename])        
     
     def OnParsed(self, evt):
         modulename, filename, items = evt.data
