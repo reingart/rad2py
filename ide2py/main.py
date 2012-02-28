@@ -25,6 +25,12 @@ import wx.html
 import wx.lib.agw.aui as aui
 import wx.lib.dialogs
 
+try:
+    import wx.lib.agw.advancedsplash as advancedsplash
+except ImportError:
+    # disable advanced splash screen
+    advancedsplash = None
+
 import images
 
 from editor import EditorCtrl
@@ -60,6 +66,8 @@ ADDONS.append("web2py")
 TITLE = "ide2py %s (rad2py) [%s]" % (__version__, ', '.join(ADDONS))
 CONFIG_FILE = "ide2py.ini"
 REDIRECT_STDIO = False
+RAD2PY_ICON = "rad2py.ico"
+SPLASH_IMAGE = "splash.png"
 
 ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
@@ -91,8 +99,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
 
-        sys.excepthook  = self.ExceptHook
+        wx.GetApp().SetSplashText("Creating Main Frame")
         
+        sys.excepthook  = self.ExceptHook
+    
+        # Set window title bar icon.
+        if sys.platform == 'win32' and hasattr(sys, "frozen"):
+            # On windows, load it from the executable (only if compiled to exe)
+            self.SetIcon(wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO ))
+        elif os.path.exists(RAD2PY_ICON):
+            self.SetIcon(wx.Icon(RAD2PY_ICON, wx.BITMAP_TYPE_ICO))
+            
         self.children = []
         self.debugging_child = None     # current debugged file
         self.temp_breakpoint = None
@@ -106,6 +123,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         ##self._mgr.SetManagedWindow(self)
         
         #self.SetIcon(images.GetMondrianIcon())
+
+        wx.GetApp().SetSplashText("Creating Menus...")
 
         # create menu
         self.menubar = wx.MenuBar()
@@ -289,6 +308,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                         ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
+        wx.GetApp().SetSplashText("Creating Panes...")
+
         self.debugger = Debugger(self)
 
         self.x = 0
@@ -357,10 +378,18 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         # Initialize secondary mixins
         
+        wx.GetApp().SetSplashText("Initializing Mixins...")
+        
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
 
+        # web2py initialization (on own thread to enable debugger)
+        Web2pyMixin.__init__(self)
+
         # Restore configuration
+
+        wx.GetApp().SetSplashText("Restoring previous Layout...")
+        
         cfg_aui = wx.GetApp().get_config("AUI")
         
         if cfg_aui.get('maximize', True):
@@ -384,15 +413,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if REDIRECT_STDIO:
             sys.stdin = sys.stdout = sys.stderr = self.console
 
-        # web2py initialization (on own thread to enable debugger)
-        Web2pyMixin.__init__(self)
+        wx.GetApp().SetSplashText("Opening previous files...")
         
         # restore previuous open files
         wx.CallAfter(self.DoOpenFiles)
 
         # set not executing (hide debug panes)
         self.executing = False
-
+        
     def GetStartPosition(self):
 
         self.x = self.x + 20
@@ -991,6 +1019,38 @@ class FancyConfigDict(object):
 class MainApp(wx.App):
 
     def OnInit(self):
+        if advancedsplash and os.path.exists(SPLASH_IMAGE):
+            bitmap = wx.Image(SPLASH_IMAGE, wx.BITMAP_TYPE_ANY).ConvertToBitmap()
+            self.splash_frame = advancedsplash.AdvancedSplash(
+                None, bitmap=bitmap, timeout=2000,
+                agwStyle=advancedsplash.AS_TIMEOUT | 
+                         advancedsplash.AS_CENTER_ON_SCREEN |
+                         advancedsplash.AS_SHADOW_BITMAP,
+                         shadowcolour=wx.YELLOW,
+                )
+            self.splash_frame.SetTextColour(wx.WHITE)
+            font = wx.Font(
+                    pointSize = 9, family = wx.DEFAULT, 
+                    style = wx.NORMAL, weight = wx.BOLD
+                    )
+            self.splash_frame.SetFont(font)
+            self.splash_frame.SetTextFont(font)
+            self.SetSplashText("Loading...")
+            # Draw splash screen first, then proceed with initialization
+            wx.CallAfter(self.InitApp)
+        else:
+            self.splash_frame = None
+            self.InitApp()
+        return True
+    
+    def SetSplashText(self, text):
+        "Draw centered text at Splash Screen"
+        if self.splash_frame:
+            w, h = self.splash_frame.GetTextExtent(text)
+            self.splash_frame.SetTextPosition((105 - w/2, 102))
+            self.splash_frame.SetText(text)
+            
+    def InitApp(self):
         self.config = ConfigParser.ConfigParser()
         # read default configuration
         self.config.read("ide2py.ini.dist")
@@ -1000,7 +1060,6 @@ class MainApp(wx.App):
             raise RuntimeError("No configuration found, use ide2py.ini.dist!")
         self.main_frame = PyAUIFrame(None)
         self.main_frame.Show()
-        return True
 
     def OnExit(self):
         self.write_config()
