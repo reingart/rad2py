@@ -1056,7 +1056,7 @@ class MainApp(wx.App):
                 agwStyle=advancedsplash.AS_TIMEOUT | 
                          advancedsplash.AS_CENTER_ON_SCREEN |
                          advancedsplash.AS_SHADOW_BITMAP,
-                         shadowcolour=wx.YELLOW,
+                         shadowcolour=wx.ColourDatabase().Find("yellow"),
                 )
             self.splash_frame.SetTextColour(wx.WHITE)
             font = wx.Font(
