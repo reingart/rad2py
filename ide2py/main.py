@@ -38,6 +38,7 @@ from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
                                EVT_EXCEPTION_ID, EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
+from explorer import ExplorerPanel, EVT_EXPLORE_ID 
 
 # optional extensions that may have special dependencies (disabled if not meet)
 ADDONS = []
@@ -92,6 +93,7 @@ ID_QUIT = wx.NewId()
 ID_INTERRUPT = wx.NewId()
 ID_EVAL = wx.NewId()
 
+ID_EXPLORER = wx.NewId()
 
 
 class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
@@ -136,6 +138,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         file_menu.Append(wx.ID_SAVE, "&Save\tCtrl-S")
         file_menu.Append(wx.ID_SAVEAS, "Save &As")
         file_menu.Append(wx.ID_CLOSE, "&Close\tCtrl-w")
+        file_menu.AppendSeparator()
+
+        file_menu.Append(ID_EXPLORER, "&Explorer\tCtrl-E",
+                         "Refresh class & function browser")
         file_menu.AppendSeparator()
         
         # and a file history
@@ -273,6 +279,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (ID_KILL, self.OnKill),
             (ID_ATTACH, self.OnAttachRemoteDebugger),
             (ID_DEBUG, self.OnDebugCommand),
+            (ID_EXPLORER, self.OnExplorer),
             #(wx.ID_PRINT, self.OnPrint),
             (wx.ID_FIND, self.OnEditAction),
             (wx.ID_REPLACE, self.OnEditAction),
@@ -347,6 +354,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                           Caption("Console (stdio)").
                           Bottom().Layer(1).Position(2).CloseButton(True))
 
+        self.explorer = ExplorerPanel(self)
+        self._mgr.AddPane(self.explorer, aui.AuiPaneInfo().Name("explorer").
+              Caption("Source Explorer").Float().FloatingSize(wx.Size(400, 100)).
+              FloatingPosition(self.GetStartPosition()).DestroyOnClose(False).PinButton(True).
+              MinSize((100, 100)).Left().Top().MinimizeButton(True))
+
         # "commit" all changes made to FrameManager   
         self._mgr.Update()
 
@@ -357,11 +370,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
 
-        # Connect to debugging events
+        # Connect to debugging and explorer events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
         self.Connect(-1, -1, EVT_READLINE_ID, self.OnReadline)
         self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
         self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
+        self.Connect(-1, -1, EVT_EXPLORE_ID, self.OnExplore)
 
         # key bindings (shortcuts). TODO: configuration
         # NOTE: wx.WXK_PAUSE doesn't work (at least in wxGTK -Ubuntu-)
@@ -590,6 +604,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.active_child:
             self.active_child.OnSaveAs(event)
 
+    def OnExplorer(self, event):
+        if self.active_child:
+            self.explorer.ParseFile(self.active_child.GetFilename())
+            self._mgr.GetPane("explorer").Show(True)
+            self._mgr.Update()
+            self.explorer.SetFocus()
+
     def OnSetArgs(self, event):
         dlg = wx.TextEntryDialog(self, 'Enter program arguments (sys.argv):', 
             'Set Arguments', self.lastprogargs)
@@ -683,7 +704,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.PopupMenu(menuPopup, pt)
             # make sure the button is "un-stuck"
             tb.SetToolSticky(event.GetId(), False)
-           
+
+    def OnExplore(self, event=None):
+        if event:
+            filename, lineno = event.data
+            child = self.DoOpen(filename)
+            if child:
+                child.GotoLineOffset(lineno, 1)
+
     def GotoFileLine(self, event=None, running=True):
         if event and running:
             filename, lineno, context, orig_line = event.data

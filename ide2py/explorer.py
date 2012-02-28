@@ -48,7 +48,7 @@ def find_functions_and_classes(modulename, path):
 
 
 EVT_PARSED_ID = wx.NewId()
-EVT_GOTO_ID = wx.NewId()
+EVT_EXPLORE_ID = wx.NewId()
     
 
 class ExplorerEvent(wx.PyEvent):
@@ -100,6 +100,9 @@ class ExplorerPanel(wx.Panel):
         wx.Panel.__init__(self, parent, -1, style=wx.WANTS_CHARS)
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
+        self.parent = parent
+        self.working = False
+
         tID = wx.NewId()
 
         self.tree = ExplorerTreeCtrl(self, tID, wx.DefaultPosition, wx.DefaultSize,
@@ -122,17 +125,21 @@ class ExplorerPanel(wx.Panel):
         self.Connect(-1, -1, EVT_PARSED_ID, self.OnParsed)
 
     def ParseFile(self, fullpath):
-        filepath, filename = os.path.split(fullpath)
-        modulename, ext = os.path.splitext(filename)
-        print filepath, filename, modulename, ext
-        # Start worker thread
-        thread = Explorer(self, modulename, filepath)
+        if self.working:
+            wx.Bell()
+        else:
+            self.working = True
+            self.tree.DeleteAllItems()
+            filepath, filename = os.path.split(fullpath)
+            modulename, ext = os.path.splitext(filename)
+            self.filename = fullpath
+            # Start worker thread
+            thread = Explorer(self, modulename, filepath)
     
     def OnParsed(self, evt):
         modulename, filepath, items = evt.data
-        self.tree.DeleteAllItems()
         self.root = self.tree.AddRoot(modulename)
-        self.tree.SetPyData(self.root, None)
+        self.tree.SetPyData(self.root, 1)
         self.tree.SetItemImage(self.root, self.images['module'])
         classes = {}
         for lineno, class_name, function_name in items:
@@ -152,6 +159,7 @@ class ExplorerPanel(wx.Panel):
 
         self.tree.SortChildren(self.root)    
         self.tree.Expand(self.root)
+        self.working = False
 
     def OnItemExpanded(self, event):
         item = event.GetItem()
@@ -162,10 +170,10 @@ class ExplorerPanel(wx.Panel):
         pt = event.GetPosition();
         item, flags = self.tree.HitTest(pt)
         if item:
-            print("OnLeftDClick: %s\n" % self.tree.GetItemText(item))
-            parent = self.tree.GetItemParent(item)
-            if parent.IsOk():
-                self.tree.SortChildren(parent)
+            lineno = self.tree.GetItemPyData(item)
+            event = ExplorerEvent(EVT_EXPLORE_ID, 
+                              (self.filename, lineno))
+            wx.PostEvent(self.parent, event)
         event.Skip()
 
     def OnSize(self, event):
