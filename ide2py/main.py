@@ -38,7 +38,7 @@ from shell import Shell
 from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
                                EVT_EXCEPTION_ID, EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
-from explorer import ExplorerPanel, EVT_EXPLORE_ID 
+from explorer import ExplorerPanel, EVT_EXPLORE_ID
 
 # optional extensions that may have special dependencies (disabled if not meet)
 ADDONS = []
@@ -928,7 +928,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
             wx.PostEvent(self, RepoEvent(filename, action, status))
-
+        # notify the explorer to refresh the module symbols
+        if self.explorer:
+            self.explorer.ParseFile(filename, refresh=True)
 
 class AUIChildFrame(aui.AuiMDIChildFrame):
 

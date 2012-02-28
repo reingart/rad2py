@@ -33,6 +33,9 @@ def find_functions_and_classes(modulename, path):
     #              inheritance clases from other modules is unhandled (super)doctest for results failed, exception NameError("name 'results' is not defined",)
 
     result = []
+    # delete the module if parsed previously:
+    if modulename in pyclbr._modules:
+        del pyclbr._modules[modulename]
     module = pyclbr.readmodule_ex(modulename, path=path and [path])
     for obj in module.values():
         print obj, obj.name
@@ -127,7 +130,7 @@ class ExplorerPanel(wx.Panel):
 
         self.Connect(-1, -1, EVT_PARSED_ID, self.OnParsed)
 
-    def ParseFile(self, fullpath):
+    def ParseFile(self, fullpath, refresh=False):
         if self.working:
             wx.Bell()
         else:
@@ -137,6 +140,10 @@ class ExplorerPanel(wx.Panel):
             self.filename = fullpath
             # if module not already in the tree, add it
             if (modulename, filepath) not in self.modules:
+                if refresh:
+                    # do not rebuild if user didn't "explored" it previously
+                    self.working = False
+                    return
                 module = self.tree.AppendItem(self.root, modulename)
                 self.modules[(modulename, filepath)] = module
                 self.tree.SetPyData(module, 1)
