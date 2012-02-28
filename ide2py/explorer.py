@@ -102,11 +102,12 @@ class ExplorerPanel(wx.Panel):
 
         self.parent = parent
         self.working = False
+        self.modules = {}
 
         tID = wx.NewId()
 
         self.tree = ExplorerTreeCtrl(self, tID, wx.DefaultPosition, wx.DefaultSize,
-                               wx.TR_HAS_BUTTONS
+                               wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT,
                                )
 
         il = wx.ImageList(16, 16)
@@ -121,6 +122,8 @@ class ExplorerPanel(wx.Panel):
         self.il = il
         self.Bind(wx.EVT_TREE_ITEM_EXPANDED, self.OnItemExpanded, self.tree)
         self.tree.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
+        self.root = self.tree.AddRoot("")
+        self.tree.SetPyData(self.root, None)
 
         self.Connect(-1, -1, EVT_PARSED_ID, self.OnParsed)
 
@@ -129,26 +132,35 @@ class ExplorerPanel(wx.Panel):
             wx.Bell()
         else:
             self.working = True
-            self.tree.DeleteAllItems()
             filepath, filename = os.path.split(fullpath)
             modulename, ext = os.path.splitext(filename)
             self.filename = fullpath
+            # if module not already in the tree, add it
+            if (modulename, filepath) not in self.modules:
+                module = self.tree.AppendItem(self.root, modulename)
+                self.modules[(modulename, filepath)] = module
+                self.tree.SetPyData(module, 1)
+                self.tree.SetItemImage(module, self.images['module'])
+            else:
+                module = self.modules[(modulename, filepath)]
+                self.tree.CollapseAndReset(module)
+            self.tree.SetItemText(module, "%s (loading...)" % modulename)
             # Start worker thread
             thread = Explorer(self, modulename, filepath)
     
     def OnParsed(self, evt):
         modulename, filepath, items = evt.data
-        self.root = self.tree.AddRoot(modulename)
-        self.tree.SetPyData(self.root, 1)
-        self.tree.SetItemImage(self.root, self.images['module'])
+        module = self.modules[(modulename, filepath)]
+        self.tree.SetItemText(module, modulename)
+        self.tree.SelectItem(module)
         classes = {}
         for lineno, class_name, function_name in items:
             print lineno, class_name, function_name
             if class_name is None:
-                child = self.tree.AppendItem(self.root, function_name)
+                child = self.tree.AppendItem(module, function_name)
                 self.tree.SetItemImage(child, self.images['function'])
             elif function_name is None:
-                child = self.tree.AppendItem(self.root, class_name)
+                child = self.tree.AppendItem(module, class_name)
                 self.tree.SetItemImage(child, self.images['class'])
                 classes[class_name] = child
             else:
@@ -157,8 +169,8 @@ class ExplorerPanel(wx.Panel):
 
             self.tree.SetPyData(child, lineno)
 
-        self.tree.SortChildren(self.root)    
-        self.tree.Expand(self.root)
+        self.tree.SortChildren(module)    
+        self.tree.Expand(module)
         self.working = False
 
     def OnItemExpanded(self, event):
