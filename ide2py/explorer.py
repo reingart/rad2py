@@ -38,7 +38,6 @@ def find_functions_and_classes(modulename, path):
         del pyclbr._modules[modulename]
     module = pyclbr.readmodule_ex(modulename, path=path and [path])
     for obj in module.values():
-        print obj, obj.name
         if isinstance(obj, pyclbr.Function) and obj.module == modulename:
             # it is a top-level global function (no class)
             result.append([obj.lineno, None, obj.name])
@@ -73,11 +72,7 @@ class Explorer(Thread):
         self.start()                # creathe the new thread
 
     def run(self):
-        import time
-        t0 = time.time()
         items = find_functions_and_classes(self.modulename, self.filepath)
-        t1 = time.time()
-        print "Explore elapsed", t1-t0
         event = ExplorerEvent(EVT_PARSED_ID, 
                               (self.modulename, self.filepath, items))
         wx.PostEvent(self.parent, event)
@@ -146,7 +141,7 @@ class ExplorerPanel(wx.Panel):
                     return
                 module = self.tree.AppendItem(self.root, modulename)
                 self.modules[(modulename, filepath)] = module
-                self.tree.SetPyData(module, 1)
+                self.tree.SetPyData(module, (self.filename, 1))
                 self.tree.SetItemImage(module, self.images['module'])
             else:
                 module = self.modules[(modulename, filepath)]
@@ -162,7 +157,6 @@ class ExplorerPanel(wx.Panel):
         self.tree.SelectItem(module)
         classes = {}
         for lineno, class_name, function_name in items:
-            print lineno, class_name, function_name
             if class_name is None:
                 child = self.tree.AppendItem(module, function_name)
                 self.tree.SetItemImage(child, self.images['function'])
@@ -174,7 +168,7 @@ class ExplorerPanel(wx.Panel):
                 child = self.tree.AppendItem(classes[class_name], function_name)
                 self.tree.SetItemImage(child, self.images['method'])
 
-            self.tree.SetPyData(child, lineno)
+            self.tree.SetPyData(child, (self.filename, lineno))
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
@@ -189,9 +183,9 @@ class ExplorerPanel(wx.Panel):
         pt = event.GetPosition();
         item, flags = self.tree.HitTest(pt)
         if item:
-            lineno = self.tree.GetItemPyData(item)
+            filename, lineno = self.tree.GetItemPyData(item)
             event = ExplorerEvent(EVT_EXPLORE_ID, 
-                              (self.filename, lineno))
+                              (filename, lineno))
             wx.PostEvent(self.parent, event)
         event.Skip()
 
