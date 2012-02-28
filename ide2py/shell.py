@@ -74,7 +74,10 @@ class Shell(wx.py.shell.Shell):
         wx.py.shell.Shell.__init__(self, parent, InterpClass=Interpreter,
                                    debugger=debugger)
         self.console = None
-     
+        self.has_focus = False
+        self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)
+        self.Bind(wx.EVT_KILL_FOCUS, self.OnFocus)
+        
     def onCut(self, event=None):
         self.Cut()
     def onCopy(self, event=None):
@@ -92,3 +95,11 @@ class Shell(wx.py.shell.Shell):
             return self.console.readline()
         else:
             return wx.py.shell.Shell.raw_input(self, prompt)
+    
+    def OnFocus(self, evt):
+        self.has_focus =  evt.GetId() == wx.EVT_SET_FOCUS
+
+    def HasFocus(self):
+        "emulate HasFocus for older wxpython versions"
+        return self.has_focus
+
