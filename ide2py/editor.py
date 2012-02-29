@@ -75,7 +75,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         EDGE_COLUMN = cfg.get("edge_column", 79)
         ENCODING = cfg.get("encoding", "utf_8")
         CALLTIPS = cfg.get("calltips", True)
-        AUTOCOMPLETE = cfg.get("autocomplete", False)
+        AUTOCOMPLETE = cfg.get("autocomplete", True)
         VIEW_WHITESPACE = cfg.get('view_white_space', False)
         VIEW_EOL = cfg.get('view_eol', False)
         self.eol = EOL_MODE = cfg.get('eol_mode', stc.STC_EOL_CRLF)
@@ -94,7 +94,10 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.filetimestamp = None
         self.modified = None
         self.calltip = 0
-        self.namespace = wx.GetApp().main_frame.web2py_namespace()
+        if hasattr(app, 'main_frame'):
+            self.namespace = app.main_frame.web2py_namespace()
+        else:
+            self.namespace = {}
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
         self.bom = codecs.BOM_UTF8
@@ -1039,7 +1042,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
-        if self.debugger.attached.is_set() and evt.GetPosition() >= 0:
+        if self.debugger and self.debugger.attached.is_set() and evt.GetPosition() >= 0:
             print "Hovering", evt.GetPosition()
             # get selected text first:
             expr = self.GetSelectedText()
@@ -1067,7 +1070,7 @@ class StandaloneEditor(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App()
-    editor = StandaloneEditor(filename="hola.py")
+    editor = StandaloneEditor(filename=os.path.abspath("hola.py"))
     editor.editor.SynchCurrentLine(4)
     app.MainLoop()
 
