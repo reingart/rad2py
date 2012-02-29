@@ -637,6 +637,9 @@ class EditorCtrl(stc.StyledTextCtrl):
                     obj = self.GetWordObject(word[:-dot-1])
                     if obj:
                         for attr in dir(obj):
+                            if attr.startswith("__"):
+                                # ignore internal and private attributes
+                                continue
                             o = getattr(obj, attr)
                             if inspect.ismodule(o):
                                 img = 1
