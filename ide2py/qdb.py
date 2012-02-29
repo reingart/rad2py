@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.01a"
+__version__ = "1.01b"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -27,8 +27,9 @@ import threading
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
-    def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False):
-        bdb.Bdb.__init__(self, skip=[__name__])
+    def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False,
+                 skip=[__name__]):
+        bdb.Bdb.__init__(self, skip=skip)
         self.frame = None
         self.i = 1  # sequential RPC call id
         self.waiting = False
