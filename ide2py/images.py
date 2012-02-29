@@ -610,3 +610,18 @@ variable = PyEmbeddedImage(
     "mSSksRHKkgTIcdT8E8EV2katpqnmVQU4BxxP6mb1Bt6/eZ4JlwUoilDllxW6joxjte1c2PoL"
     "/1feLvAE4hJKHXdfkCkAAAAASUVORK5CYII=")
 
+#----------------------------------------------------------------------
+quit = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAACEElE"
+    "QVQokZWSS0hUcRTGf+d/H9MoPlLHwiZiIsKghVAE0cLAAlsGJaRIoBhuJHFhGyUXRiCELYIg"
+    "JGjZuo2bQgSx2iS4SBISX3ccH3fGZhzv3Dv33haOEtXGszlncX7n4/B9sp1a4DilH7Tc1Exy"
+    "cMRdXv3vklZXW9/fW9PTWQJyUzOb3U8SbybM+Bn88J918W17qb3dT2dig32ynVpYvHY7du+R"
+    "lJXj+wBBiBKAA1ZAKQKsl0OXlr7pgLe8Cnpx2waCvGM21HtbNpoSpYAwCERETkSMoBxQBycA"
+    "RIJ9Lz7QnRjpN2I1oeMlRgcSowPKNMQ0EE15YemHTWgIivhF43R1tPG8mEbi6WMvnTFOVgNO"
+    "Ph98mK5ovZFWfklhBcTZp1Dw1q0vwyO+64ppmKdiwPs7dzcmxsLU59y7F5aXKSkkQf3awimo"
+    "MKydt3Y3kpUNccDJ7Z2bnKwHgQjsHvmwBsreoeCga5Wvxt1oRTqbdbI5M1qWWPspF5pNZ1H/"
+    "E0iCbFjiFgquv7S6HotEpu8/dL5+urnwwwdduWdBgX0EeKAsSxW9vZ3kx5bmqqbrTXOzcZhs"
+    "vGITtpP7OxpVdbXp1IoJebgK+txsJQi0kXWhAnzQ4PsR8KC/d2zo2RhcrMGNEtExNSIKUzu0"
+    "KGB8kZaujhLQ2tOZS2faXr+9bO/7ICCggToc5uFWV0f382FAjhvv36+x1Z3UpRc2AAAAAElF"
+    "TkSuQmCC")
+

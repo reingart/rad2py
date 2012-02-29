@@ -264,9 +264,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.toolbar.AddSimpleTool(wx.ID_REPLACE, "Replace", GetBmp(wx.ART_FIND_AND_REPLACE))
         self.toolbar.AddSeparator()
         self.toolbar.AddSimpleTool(wx.ID_ABOUT, "About", GetBmp(wx.ART_HELP))
-        self.toolbar.AddSeparator()               
-        self.toolbar.AddSimpleTool(ID_RUN, "Run", images.GetRunningManBitmap())
-        self.toolbar.SetToolDropDown(ID_RUN, True)
 
         self.toolbar.Realize()
 
@@ -299,18 +296,18 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         for menu_id, handler in menu_handlers:
             self.Bind(wx.EVT_MENU, handler, id=menu_id)
 
-        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnDropDownRun, id=ID_RUN)
-
         # debugging facilities:
 
         self.toolbardbg = aui.AuiToolBar(self, -1, 
                             style=wx.TB_FLAT | wx.TB_NODIVIDER)
         self.toolbardbg.SetToolBitmapSize(wx.Size(*tsize))
 
+        self.toolbardbg.AddSimpleTool(ID_RUN, "Run", images.GetRunningManBitmap())
+        self.toolbardbg.AddSeparator()
         self.toolbardbg.AddSimpleTool(ID_STEPIN, "Step", images.GetStepInBitmap())
         self.toolbardbg.AddSimpleTool(ID_STEPNEXT, "Next", images.GetStepReturnBitmap())
         self.toolbardbg.AddSimpleTool(ID_CONTINUE, "Continue", images.GetContinueBitmap())
-        self.toolbardbg.AddSimpleTool(ID_QUIT, "Quit", images.GetStopBitmap())
+        self.toolbardbg.AddSimpleTool(ID_QUIT, "Quit", images.quit.GetBitmap())
         self.toolbardbg.AddSimpleTool(ID_EVAL, "Eval", images.GetAddWatchBitmap())
         self.toolbardbg.Realize()
 
@@ -698,23 +695,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         console.process.redirectOut = redout
         console.process.redirectErr = rederr
         console.SetFocus()
-
-
-    def OnDropDownRun(self, event):
-        if event.IsDropDownClicked():
-            tb = event.GetEventObject()
-            tb.SetToolSticky(event.GetId(), True)
-
-            # create the popup menu
-            menuPopup = self.menu['run'] 
-
-            # line up our menu with the button
-            rect = tb.GetToolRect(event.GetId())
-            pt = tb.ClientToScreen(rect.GetBottomLeft())
-            pt = self.ScreenToClient(pt)
-            self.PopupMenu(menuPopup, pt)
-            # make sure the button is "un-stuck"
-            tb.SetToolSticky(event.GetId(), False)
 
     def OnExplore(self, event=None):
         if event:
