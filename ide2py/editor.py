@@ -173,14 +173,12 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.SetCaretForeground("BLUE")
 
 
-        # register some images for use in the AutoComplete box.
-        self.RegisterImage(1, 
-            wx.ArtProvider.GetBitmap(wx.ART_FOLDER, size=(16,16))
-            )
-        self.RegisterImage(2, 
-            wx.ArtProvider.GetBitmap(wx.ART_NEW, size=(16,16)))
-        self.RegisterImage(3, 
-            wx.ArtProvider.GetBitmap(wx.ART_COPY, size=(16,16)))
+        # register some images for use in the AutoComplete box appended "?type"
+        self.RegisterImage(1, images.module.GetBitmap())
+        self.RegisterImage(2, images.class_.GetBitmap())
+        self.RegisterImage(3, images.method.GetBitmap())
+        self.RegisterImage(4, images.function.GetBitmap())
+        self.RegisterImage(5, images.variable.GetBitmap())
 
         self.Bind(wx.EVT_MENU, self.OnSave, id = wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, self.OnSaveAs, id = wx.ID_SAVEAS)
@@ -638,8 +636,18 @@ class EditorCtrl(stc.StyledTextCtrl):
                     obj = self.GetWordObject(word[:-dot-1])
                     if obj:
                         for attr in dir(obj):
-                            #attr = '%s%s'%(word[:-dot],attr)
-                            attr = '%s%s'%(word,attr)
+                            o = getattr(obj, attr)
+                            if inspect.ismodule(o):
+                                img = 1
+                            elif inspect.isclass(o):
+                                img = 2
+                            elif inspect.ismethod(o):
+                                img = 3
+                            elif inspect.isfunction(o) or inspect.isbuiltin(o):
+                                img = 4
+                            else:
+                                img = 5
+                            attr = '%s%s?%s'%(word, attr, img)
                             if attr not in words: words.append(attr)
                 except:
                     pass

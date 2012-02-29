@@ -602,3 +602,11 @@ module = PyEmbeddedImage(
     "oT2/jQQ70CEq/Ws3bJ66fUK8qZYY326QW0WTt+6cv63RU0RwN9QzbNa7NhZLcSD7VkafFcoC"
     "AJ4RRjoKw/mVAAAAAElFTkSuQmCC")
 
+#----------------------------------------------------------------------
+variable = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAKlJ"
+    "REFUOI3tUssNglAQnPfwqvSghUC0DngVaAcaOoESaADyCqAFPi2QcNxkPGyiHp7hwM24ySSz"
+    "ye7s7GaNsRG2hN3U/cMCj7swz4SHvbBthLer8qEXrgoMvdB7oK6BeQbOl50BlE9TYJqxURAA"
+    "mSSksRHKkgTIcdT8E8EV2katpqnmVQU4BxxP6mb1Bt6/eZ4JlwUoilDllxW6joxjte1c2PoL"
+    "/1feLvAE4hJKHXdfkCkAAAAASUVORK5CYII=")
+
