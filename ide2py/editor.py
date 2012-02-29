@@ -94,6 +94,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.filetimestamp = None
         self.modified = None
         self.calltip = 0
+        app = wx.GetApp()
         if hasattr(app, 'main_frame'):
             self.namespace = app.main_frame.web2py_namespace()
         else:
