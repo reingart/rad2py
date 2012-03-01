@@ -141,7 +141,7 @@ class ExplorerPanel(wx.Panel):
             self.tree.SetPyData(module, (filename, 1))
             self.tree.SetItemImage(module, self.images['module'])
         else:
-            module = self.modules[(modulename, filepath)]
+            module = self.modules[filename]
             self.tree.CollapseAndReset(module)
         self.tree.SetItemText(module, "%s (loading...)" % modulename)
         # Start worker thread
