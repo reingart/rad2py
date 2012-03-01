@@ -96,7 +96,7 @@ class PyDiff(wx.Frame):
 
     def createSplitters(self):
         # Create the splitter window.
-        splitter = wx.SplitterWindow(self, style=wx.NO_3D|wx.SP_3D)
+        splitter = wx.SplitterWindow(self)
         splitter.SetMinimumPaneSize(1)
 
         font = wx.Font(16, wx.SWISS, wx.NORMAL, wx.NORMAL)
