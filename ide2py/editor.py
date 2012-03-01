@@ -874,7 +874,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     def GetLineText(self, linenum):
         lstart = self.PositionFromLine(linenum - 1)
         lend = self.GetLineEndPosition(linenum - 1)
-        return self.GetTextRange(lstart, lend)
+        return self.GetTextRange(lstart, lend).encode(self.encoding)
 
     def ToggleComment(self, event=None):
         "Toggle the comment of the selected region"
