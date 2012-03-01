@@ -98,6 +98,7 @@ class Shell(wx.py.shell.Shell):
     
     def OnFocus(self, evt):
         self.has_focus =  evt.GetId() == wx.EVT_SET_FOCUS
+        evt.Skip()
 
     def HasFocus(self):
         "emulate HasFocus for older wxpython versions"
