@@ -105,6 +105,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         self.CmdKeyAssign(ord('B'), stc.STC_SCMOD_CTRL, stc.STC_CMD_ZOOMIN)
         self.CmdKeyAssign(ord('N'), stc.STC_SCMOD_CTRL, stc.STC_CMD_ZOOMOUT)
+        self.CmdKeyAssign(ord('U'), stc.STC_SCMOD_CTRL, stc.STC_CMD_UNDO)
+        self.CmdKeyAssign(ord('Z'), stc.STC_SCMOD_CTRL, stc.STC_CMD_UNDO)
+        self.CmdKeyAssign(ord('Z'), stc.STC_SCMOD_CTRL | stc.STC_SCMOD_SHIFT, 
+                          stc.STC_CMD_REDO)
+        self.CmdKeyAssign(ord('Y'), stc.STC_SCMOD_CTRL, stc.STC_CMD_REDO)
 
         self.SetLexer(stc.STC_LEX_PYTHON)
         keywords=keyword.kwlist
@@ -1051,6 +1056,10 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.CmdKeyExecute(wx.stc.STC_CMD_CUT)
         elif evtid == wx.ID_DELETE:
             self.CmdKeyExecute(wx.stc.STC_CMD_CLEAR)
+        elif evtid == wx.ID_UNDO:
+            self.CmdKeyExecute(stc.STC_CMD_UNDO)  
+        elif evtid == wx.ID_REDO:
+            self.CmdKeyExecute(stc.STC_CMD_REDO)  
     
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid

@@ -276,6 +276,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             (ID_DEBUG, self.OnDebugCommand),
             (ID_EXPLORER, self.OnExplorer),
             #(wx.ID_PRINT, self.OnPrint),
+            (wx.ID_UNDO, self.OnEditAction),
+            (wx.ID_REDO, self.OnEditAction),
             (wx.ID_FIND, self.OnEditAction),
             (wx.ID_REPLACE, self.OnEditAction),
             (wx.ID_CUT, self.OnEditAction),
@@ -964,6 +966,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def OnEditAction(self, event):
         handlers = {
+            wx.ID_UNDO: self.editor.DoBuiltIn,
+            wx.ID_REDO: self.editor.DoBuiltIn,
             wx.ID_FIND: self.editor.DoFind,
             wx.ID_REPLACE: self.editor.DoReplace,
             wx.ID_COPY: self.editor.DoBuiltIn,
