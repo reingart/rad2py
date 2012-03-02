@@ -107,10 +107,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         sys.excepthook  = self.ExceptHook
     
         # Set window title bar icon.
-        if sys.platform == 'win32' and hasattr(sys, "frozen"):
-            # On windows, load it from the executable (only if compiled to exe)
-            self.SetIcon(wx.Icon(sys.executable, wx.BITMAP_TYPE_ICO ))
-        elif os.path.exists(RAD2PY_ICON):
+        if RAD2PY_ICON:
             self.SetIcon(wx.Icon(RAD2PY_ICON, wx.BITMAP_TYPE_ICO))
             
         self.children = []
@@ -125,8 +122,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.Show()
         ##self._mgr.SetManagedWindow(self)
         
-        #self.SetIcon(images.GetMondrianIcon())
-
         wx.GetApp().SetSplashText("Creating Menus...")
 
         # create menu
@@ -202,7 +197,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                         help="Set the next line that will be executed.")
         dbg_menu.Append(ID_QUIT, "&Quit",
                         help=" The program being executed is aborted.")
-        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-Z",
+        dbg_menu.Append(ID_INTERRUPT, "Interrupt\tCtrl-I",
                         help="Pause program and wait debug interaction")
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_EVAL, "Quick &Eval\tShift-F9", 
@@ -1062,6 +1057,9 @@ class MainApp(wx.App):
                          advancedsplash.AS_SHADOW_BITMAP,
                          shadowcolour=wx.ColourDatabase().Find("yellow"),
                 )
+            if RAD2PY_ICON:
+                self.splash_frame.SetIcon(wx.Icon(RAD2PY_ICON, 
+                                                  wx.BITMAP_TYPE_ICO))
             self.splash_frame.SetTextColour(wx.WHITE)
             font = wx.Font(
                     pointSize = 9, family = wx.DEFAULT, 
@@ -1111,6 +1109,13 @@ if not hasattr(sys, "frozen"):
 else:
     basepath = sys.executable
 INSTALL_DIR = os.path.dirname(os.path.abspath(basepath))
+
+if sys.platform == 'win32' and hasattr(sys, "frozen"):
+    # On windows, load it from the executable (only if compiled to exe)
+    RAD2PY_ICON = sys.executable
+elif not os.path.exists(RAD2PY_ICON):
+    # do not display the icon if not accessible
+    RAD2PY_ICON = None
 
 
 if __name__ == '__main__':
