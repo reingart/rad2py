@@ -29,7 +29,10 @@ class Qdb(bdb.Bdb):
 
     def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False,
                  skip=[__name__]):
-        bdb.Bdb.__init__(self, skip=skip)
+        kwargs = {}
+        if sys.version_info > (2, 7):
+            kwargs['skip'] = skip
+        bdb.Bdb.__init__(self, **kwargs)
         self.frame = None
         self.i = 1  # sequential RPC call id
         self.waiting = False
