@@ -514,9 +514,9 @@ class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         ListCtrlAutoWidthMixin.__init__(self)
         self.parent = parent
-        self.InsertColumn(0, "Filename", wx.LIST_FORMAT_LEFT) 
-        self.SetColumnWidth(0, 200)
-        self.InsertColumn(1, "LineNo", wx.LIST_FORMAT_RIGHT) 
+        self.InsertColumn(0, "Filename", wx.LIST_FORMAT_RIGHT) 
+        self.SetColumnWidth(0, 100)
+        self.InsertColumn(1, "LineNo", wx.LIST_FORMAT_RIGHT)
         self.SetColumnWidth(1, 50)
         self.InsertColumn(2, "Flags", wx.LIST_FORMAT_CENTER) 
         self.SetColumnWidth(2, 0)
