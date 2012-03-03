@@ -11,7 +11,25 @@ if __name__=='__main__':
 #
 from wx import ImageFromStream, BitmapFromImage
 from wx.lib.embeddedimage import PyEmbeddedImage
+import wx
 import cStringIO
+
+def merge_bitmaps(image1, image2):
+    #prepare blank bitmap
+    bmp = wx.EmptyBitmap(16, 16)
+    mem_dc = wx.MemoryDC()
+    mem_dc.SelectObject(bmp)
+    brush = wx.Brush('white', wx.SOLID)
+    mem_dc.SetBackground(brush)
+    mem_dc.Clear()
+    
+    mask = wx.Mask(image2, wx.WHITE)
+    image2.SetMask(mask)
+    
+    mem_dc.DrawBitmap(image1, 0, 0, True)
+    mem_dc.DrawBitmap(image2, 0, 0, True)
+    
+    return bmp
 
 #----------------------------------------------------------------------
 def GetBreakData():
@@ -624,4 +642,105 @@ quit = PyEmbeddedImage(
     "vGITtpP7OxpVdbXp1IoJebgK+txsJQi0kXWhAnzQ4PsR8KC/d2zo2RhcrMGNEtExNSIKUzu0"
     "KGB8kZaujhLQ2tOZS2faXr+9bO/7ICCggToc5uFWV0f382FAjhvv36+x1Z3UpRc2AAAAAElF"
     "TkSuQmCC")
+
+#----------------------------------------------------------------------
+added = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAAAvklE"
+    "QVQokeWSMQ6CQBBFd9kZYAlWxqtoLE28gZXGA2rpFTSx0MZj2LHGxB3YXcYOGoJQO9Uv/kv+"
+    "S0Yysxhz0aj2vwLQpMXuAqgrMvfjehCQ5jOMcyHk0EmAWqGWCnraQgg5357TfAaok2xah6q0"
+    "ht5P76wj8zhtOiYBaoxzhboOVXDEXANmzOyjuNuhohcLGSnAZMJcB/cpbRE8eWe7JzXPt9xf"
+    "AbPSFrfDqsehVfTOMnPw1C/dAo6Mj/An8AWwXVQcLUEAxwAAAABJRU5ErkJggg==")
+
+#----------------------------------------------------------------------
+conflict = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAAA/ElE"
+    "QVQokWP8//8/AymAiSTVw1LD/78M//6QoOH/ydl/D04gWsPn5/+/nmH4cfH/23tEafh/ZcnE"
+    "wx+nnvrz7+x8BgbcsfkfAj48+ns4WVhIQFhI4O/uvP9vH/zHAaA2/L++gEFeHsJmVNT+e2EG"
+    "LkuYGBgYGN7d+c98i4GTHaqZ+wTj75P/X13FqoHx398//082Mki/ZWD6dv7OOTaOD9oqPxnu"
+    "8f//YsHsMI+BiRlNA8vv+0dYP1/7/46H8c9t9+BHDAwMr48xMfxgZnh/6/+zs4wyZhg23Dvw"
+    "e0MBw5d3DAw/GZh+MTD8Y/jHwvCHjeEvA6NWAGvUNDQNAO5ih0C0Yx4nAAAAAElFTkSuQmCC")
+
+#----------------------------------------------------------------------
+deleted = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAABAElE"
+    "QVQokWP8//8/AymAiSTVoxpI0PDv378DHR3HZs2CsF88evTmxQucOv7//399//4zAgKHbW2f"
+    "3bmzp6joqKTkIVXVuxcv/scGWBgYGH58/871+zfv6dNnwsMVr1zh//PnhYgIw5s3OG349OHD"
+    "bkfHB0xMDxgZH7KwHAwIeHb/Plbj////z8TAwMDLz88eEPCRlZWVgeErCwujuTmfsDBOP3x8"
+    "9erovHn7ZGQeMzLeYGN7xMR0hZNzr4vL5aVLsdtwbflyjsxM9adPP/PyvqqsvG1iwv3nj9zx"
+    "439xpeJfP38eKi09a219etasP3/+fHj79sSCBec3bPj37x9WGwB//MpPQd5LqAAAAABJRU5E"
+    "rkJggg==")
+
+#----------------------------------------------------------------------
+clean = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAABOUlE"
+    "QVQokeWQvUtCYRTGz+tHcSGEGmpIcDAIAm/RXhBBkBUEQpCRY0FEjYZTEEFzEEajWFSgyQVX"
+    "oSGohkAIojvZUlcNSu/3h+f0B/Q2OPfMz49zfg8jIugmvq7a/xUIAAABVV5L2fu9tvXFvNDO"
+    "9FE8lgACxthvgCHhYWVdVsuGhYaJpkm6SXe730F/kP9SRS7JatnrECIQASLcbjduqjmpWuAC"
+    "LJkX7UANEVyXyBOKqbemVp8/EQU29JCRORdUq3WeUDYmj/t7I4VU7VOvL52KhmUrLYUvHe6b"
+    "8DH/THRldmS1qX0sn40btuN6MCAM8h3iY2tpKRnw9eiOtpgV24Zt2eQ4mFk44Dsg4WY+0SGr"
+    "oTVe3p9djxwHpqJzV1sSA86sQERIWHy6jO2HI+nQaGb4+vECCemP/AB+87MoJ2v9wQAAAABJ"
+    "RU5ErkJggg==")
+
+#----------------------------------------------------------------------
+modified = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAABH0lE"
+    "QVQokWP8//8/AymAiSTVI1UDC4T6fP/+y1WrPl2/zqWuLhUezqekhFPH////Hy1f/szb+1VQ"
+    "0Ndjx255eJy2tr69aNF/HIDh0717z7y9vwQG/j5z5t+/f1+OH79oa3vY1PTDnTtYNTC92bCB"
+    "5f9/JkZGRjY2BgYGRjY2RgYGxv//H6xcid0P7y9eZP37l/H3b+YfP5gYGP79/Pn337+/DAyv"
+    "z53DHkq8Ojrffv78/P37i+ZmBgaGh/X1P37//v37t5CBAXYN4kFBn37//vzz539j4+/nz/NY"
+    "W//48+f7nz9KERHYNfApKQmkp3/68YNfUZHT0JBfUfHLz59KxcUCKipYNTBCkvfHu3fvLl78"
+    "7vJlfm1t1bg4XKoZGBgAQCGtSqvWRUAAAAAASUVORK5CYII=")
+
+#----------------------------------------------------------------------
+py_16 = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAAAk0lE"
+    "QVQokY2S4Q2FIBCDi3GjOhPOBDMdM/H+IB4FnzbGQK7lvkNDrRWXjjNjkqXot9tcFoecooFX"
+    "7bJfUmmgmx5hytEWtMCYXjEsZoBAwecZmvtTwGLpbsjQJBKH8txn6JCYLzfdu+vfDMVzuw7Y"
+    "5CrvGhNo7emn0IL/l+77HrldZoHkuGmgfiUJzNyqEWlNBY/0A6SYONywxRs0AAAAAElFTkSu"
+    "QmCC")
+
+#----------------------------------------------------------------------
+file_txt = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAL1J"
+    "REFUOI2tkt0OgjAMhc/ZViGK7/+aXhDCHKPeSNyfAonnamna06/tSGOha1TsSEQQQgCNZRp3"
+    "20P1twdJqCpIampi9jqXUtWM2JUJYqUqCjFUJmJFI5SVQZmcivyM74xrEwzXAQDgvc9Myx1t"
+    "pNyusLfEUmIFzRFaBADQdR2899WI/ydoXSGlGKcxi526QkuZwbwCd/lOAADzkjfIDHoDPJ4B"
+    "N3ucoPrKR4r90iDoLz1ijMdbv0WaE7wNvQByFlhRq54zJAAAAABJRU5ErkJggg==")
+
+#----------------------------------------------------------------------
+file_py = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAANhJ"
+    "REFUOI2lkVEOgjAQRGdbqiZ6m+VMeKZypnIcEw2W8QMtUCqY+JJNmkl3OrsVMRYcIrGDcw59"
+    "30OMlblefQ7ktoeIgCREhHMTs/dyDslF4qp0qb62uybOOkZQviYIvllpIpJqEo19m45o45mj"
+    "jSeDjvWmMhXFWMjnF0huRg9NC0ABdIAGOOuwOUKZbqUUl6gKeO2KDTnFBF7bWbNuGix2MCWt"
+    "80yA+oVS3MF9yJrS0SfTyLG+JrhF4GxLKQBoWCUoj7DD4wlcjqNB+oXT4YQY488mixH+4QUP"
+    "+IyaBWdMewAAAABJRU5ErkJggg==")
+
+#----------------------------------------------------------------------
+file_xml = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAABAElE"
+    "QVQokb1RO27CQBB9i6iHY+QAJhyANgcgcAA4QYqtYhq7SEFtS2kdaNLRRq6N3JsLRLLkgt0L"
+    "PIqN/EmMkyqj1dNqNO+jGVWVRfz6jt9Ka/31q8oiCAIOVpqm9cxoQNVaW6PWOgzD7w7GmF5s"
+    "q4zaesczrbUiorbbyW433UBErLVJdmmYtUOSXYCIJHyfpEd6EQGfJBA5TuPwdjKr2YFcu8RT"
+    "ADkA5ZzJ9Wp2OJ7ZEJb3kyRbKBWLiPf5jBjIVb4hABFRKk6yxcOd6kQyxrSy+u796P9tSzUC"
+    "GLe3NH/a37rJx8ujiHQIIuK6brO9+C8OnUsPTzsHVGVxK0ZvXQH5az1fWQ36SgAAAABJRU5E"
+    "rkJggg==")
+
+#----------------------------------------------------------------------
+file_new = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAF1J"
+    "REFUOI3tkzEOwDAIA22S//84cYe2QxGJqFg61BMDOhsBpDVU1O9Cc2jXSGvcAgBAihkkoTkU"
+    "QSyV84JHKdMA8jT3kB52B+4e9DrBSj/gC4DHHfgdZ8TqN5ZHOACokRkohSNQfwAAAABJRU5E"
+    "rkJggg==")
+
+#----------------------------------------------------------------------
+folder = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAA3NCSVQICAjb4U/gAAABYklE"
+    "QVQokZWRP0gCcRTHv786OA8amjwdXRoiiMgSGhoCJzepNWhxawkaa2htEBoCXWv0KGwUGiLK"
+    "yJYbGloOhAid9Xfnn/dewyWpqOBneb/hfX7vnxIRzMPCXNkAjDB8FLdEhJmZOZa5t23bsqzJ"
+    "hojUCkkZ4im/Wq1WtdYyCVUrJDdz70Bx6JPc4+UKERERM7MwEa0fvcZisUgkYogIgisQDQn5"
+    "vdOv4S7uzmzHcbLZbCKRUG/XG9sH++j1X0qlsW57vV5/gEAArB0+G8yMtn4pl3eO3amr+blA"
+    "/Pz2ZMlxHIOZ0WqZpjk6xggdzzPjRSKq1+sGESEI/s4XBBMF3/dNgJlFicHMALrdLgC0WtOE"
+    "ZYCZsQiDiP6Ftp4oaK0xJnQ6ndkVAIiIUkp5nvd5sxteh5lpQPjmASLy8J1JpVJKa+26bqVS"
+    "aTab07YUEo1G0+m0EhHf9xuNRlh3BpZl2bb9C0HSDSnLMEHhAAAAAElFTkSuQmCC")
 

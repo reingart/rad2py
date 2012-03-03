@@ -20,6 +20,7 @@ from urlparse import urlparse
 from repo_hg import MercurialRepo
 from repo_w2p import Web2pyRepo
 import fileutil
+import images
 
 # Define notification event for repository refresh
 EVT_REPO_ID = wx.NewId()
@@ -128,20 +129,35 @@ class RepoMixin(object):
                            wx.TR_DEFAULT_STYLE | wx.NO_BORDER)
         
         imglist = wx.ImageList(16, 16, True, 2)
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_ADD_BOOKMARK, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_DEL_BOOKMARK, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_TICK_MARK, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_CROSS_MARK, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_ERROR, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_WARNING, wx.ART_OTHER, wx.Size(16,16)))
-        imglist.Add(wx.ArtProvider_GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16,16)))
+        imglist.Add(images.folder.GetBitmap())
+        imglist.Add(images.file_new.GetBitmap())
+        
+        # create a icon for each file type / status:
+        
+        bmp_stat = {'modified': images.modified, 'added': images.added, 
+                       'deleted': images.deleted, 'clean': images.clean,
+                       'unknown': images.conflict, 
+                       'missing': None, 'ignored': None}
+        bmp_exts = {'txt': images.file_txt, 'xml': images.file_xml, 
+                     'py': images.file_py, '': images.file_new}
+        self.repo_icons = {}
+        i = 2
+        for f_ex, f_st in [(ex, st) for ex in bmp_exts for st in bmp_stat]:
+            b_ex = bmp_exts[f_ex]
+            b_st = bmp_stat[f_st]
+            if b_st:
+                bmp = images.merge_bitmaps(b_ex.GetBitmap(), 
+                                             b_st.GetBitmap())
+            else:
+                bmp = b_ex.GetBitmap()
+            imglist.Add(bmp)
+            self.repo_icons['%s_%s' % (f_ex, f_st)] = i
+            i += 1
+
         tree.AssignImageList(imglist)
 
         # icon status mapping
-        self.repo_icons = {'modified': 5, 'added': 2, 'deleted': 3, 'clean': 4,
-                           'missing': 7, 'unknown': 8, 'ignored': 6}
+        
 
         self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.repo_filter.Bind(wx.EVT_TEXT_ENTER, self.OnSearchRepo)
@@ -157,7 +173,8 @@ class RepoMixin(object):
         #self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
         #item = menu.AppendRadioItem(-1, "Search Content")
         #self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
-        for st in self.repo_icons:
+        for st in ('modified', 'added', 'deleted', 'clean', 'unknown', 
+                   'missing', 'ignored'):
             item = menu.AppendCheckItem(-1, "%s" % st, "Show %s files" % st)
             item.Check((st not in ('ignored', )))
             self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
@@ -267,15 +284,27 @@ class RepoMixin(object):
                         current[folder] = {None: node}
                     current = current[folder] # chdir
             # create or update file node
+            ext = os.path.splitext(fn)[1]
+            if ext and ext.startswith("."):
+                ext = ext[1:]
+            if ext in ('pyw', ):
+                ext = 'py'
+            elif ext in ('xml', 'html', 'xhtml'):
+                ext = 'xml'
+            elif ext not in ('py', 'txt', 'html', 'xml'):
+                ext = ""
+            icon = self.repo_icons.get('%s_%s' % (ext, st))
+            if not icon:
+                icon = 1
             if not basename in current:
-                node = tree.AppendItem(current[None], basename, self.repo_icons[st])
+                node = tree.AppendItem(current[None], basename, icon)
                 tree.SetPyData(node, os.path.join(self.path, fn))
                 current[basename] = node
                 if search:
                     tree.EnsureVisible(node)
             else:
                 node = current[basename]
-                tree.SetItemImage(node, self.repo_icons[st], wx.TreeItemIcon_Normal)
+                tree.SetItemImage(node, icon, wx.TreeItemIcon_Normal)
 
         wx.EndBusyCursor()
 
