@@ -83,6 +83,7 @@ class ExplorerPanel(wx.Panel):
             'class': il.Add(images.class_.GetBitmap()),
             'function': il.Add(images.function.GetBitmap()),
             'method': il.Add(images.method.GetBitmap()),
+            'variable': il.Add(images.variable  .GetBitmap()),
             }
     
         self.tree.SetImageList(il)
@@ -124,47 +125,71 @@ class ExplorerPanel(wx.Panel):
         self.tree.SelectItem(module)
         classes = {}
 
-        print "parsed!"
-        print nodes
         imports = nodes.get_imports(1)
         for i, v in enumerate(imports):
             import_line, lineno = v
-            child = self.tree.AppendItem(module, import_line)
-            self.AddSymbol(filename, import_line, 'module', lineno, child)
-            print "import", import_line
-        functions = nodes.find('function')
+            self.AddSymbol(filename, import_line, 'module', lineno, module)
         #process locals
-        #addlocals(win, nodes, nodes, None)
-        if functions:
-            funcs = [(x.name, x.info, x.lineno, x.docstring) for x in functions.values]
-            for i, v in enumerate(funcs):
-                print "function", v
-                name, info, lineno, docstring = v
-                child = self.tree.AppendItem(module, name)
-                self.AddSymbol(filename, name, 'function', lineno, child)
-        # for lineno, class_name, function_name in items:
-            # if class_name is None:
-                # child = self.tree.AppendItem(module, function_name)
-                # self.AddSymbol(filename, function_name, 'function', lineno, child)
-            # elif function_name is None:
-                # child = self.tree.AppendItem(module, class_name)
-                # self.AddSymbol(filename, class_name, 'class', lineno, child)
-                # classes[class_name] = child
-            # else:
-                # child = self.tree.AppendItem(classes[class_name], function_name)
-                # self.AddSymbol(filename, function_name, 'method', lineno, child)
-
-            # self.tree.SetPyData(child, (filename, lineno))
+        self.AddLocals(filename, nodes, nodes, module)
+        # process functions
+        for f in nodes.find('function').values:
+            self.AddSymbol(filename, f.name, 'function', f.lineno, module)
+        #process classes
+        for c in nodes.find('class').values:
+            child = self.AddSymbol(filename, c.name, 'class', c.lineno, module)
+            self.AddLocals(filename, nodes, c, child)
+            for o in c.values:
+                if o.type == 'class' or o.type == 'function':
+                    self.AddSymbol(filename, o.name, 'method', o.lineno, child)
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
         self.working = False
 
-    def AddSymbol(self, filename, symbol_name, symbol_type, lineno, child):
+    def AddSymbol(self, filename, symbol_name, symbol_type, lineno, parent):
+        child = self.tree.AppendItem(parent, symbol_name)
         symbol_dict = self.symbols.setdefault(symbol_name, {})
         symbol_dict.setdefault(filename, {})[symbol_type] = lineno
         self.tree.SetItemImage(child, self.images[symbol_type])
+        self.tree.SetPyData(child, (filename, lineno))
+        return child
 
+    def AddLocals(self, filename, root, node, parent):
+        s = []
+        names = []
+        for i in range(len(node.locals)):
+            name = node.locals[i]
+            t, v, lineno = node.local_types[i]
+            if t not in ('class', 'function', 'import'):
+                info = name + ' : ' + 'unknow'
+                if t == 'reference':
+                    if v:
+                        if node.type == 'class':
+                            result = root.guess_type(lineno, 'self.' + name)
+                        else:
+                            result = root.guess_type(lineno, name)
+                        if result:
+                            
+                            if result[0] not in ('reference', 'class', 'function', 'import'):
+                                info = name + ' : ' + result[0]
+                            else:
+                                if result[1]:
+                                    if result[0] in ('class', 'function'):
+                                        info = name + ' : ' + result[1].info
+                                    else:
+                                        info = name + ' : ' + result[1]
+                                else:
+                                    info = name + ' : ' + result[0]
+                        else:
+                            info = name + ' : ' + v
+                else:
+                    info = name + ' : ' + t
+                s.append((info, lineno))
+                
+        for i, (info, lineno) in enumerate(s):
+            self.AddSymbol(filename, info, 'variable', lineno, parent)
+
+        
     def FindSymbolDef(self, filename, word):
         # search all available symbols for the given word
         symbols = self.symbols.get(word, {})
