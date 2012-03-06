@@ -9,45 +9,11 @@ __license__ = "GPL 3.0"
 
 import wx
 import os.path
-import pyclbr
 
 from threading import Thread, Lock
 
 import images
-
-
-def find_functions_and_classes(modulename, path):
-    """Parse the file and return [('lineno', 'class name', 'function')]
-    
-    >>> with open("test1.py", "w") as f:
-    ...  f.write("def hola():\n pass\n#\ndef chau(): pass\n")
-    ...  f.write("class Test:\n def __init__():\n\n  pass\n")
-    >>> results = find_functions_and_classes("test1", ".")
-    >>> results
-    [[1, None, 'hola'], [3, None, 'chau'], [5, 'Test', '__init__']]
-    
-    """
-    # Assumptions: there is only one function/class per line (syntax)
-    #              class attributes & decorators are ignored
-    #              imported functions should be ignored
-    #              inheritance clases from other modules is unhandled (super)doctest for results failed, exception NameError("name 'results' is not defined",)
-
-    result = []
-    # delete the module if parsed previously:
-    if modulename in pyclbr._modules:
-        del pyclbr._modules[modulename]
-    module = pyclbr.readmodule_ex(modulename, path=path and [path])
-    for obj in module.values():
-        if isinstance(obj, pyclbr.Function) and obj.module == modulename:
-            # it is a top-level global function (no class)
-            result.append([obj.lineno, None, obj.name])
-        elif isinstance(obj, pyclbr.Class) and obj.module == modulename:
-            # it is a class, look for the methods:
-            result.append([obj.lineno, obj.name, None])
-            for method, lineno in obj.methods.items():
-                result.append([lineno, obj.name, method])
-    return result
-
+import pyparse
 
 EVT_PARSED_ID = wx.NewId()
 EVT_EXPLORE_ID = wx.NewId()
@@ -75,9 +41,9 @@ class Explorer(Thread):
 
     def run(self):
         with mutex:
-            items = find_functions_and_classes(self.modulename, self.modulepath)
+            nodes = pyparse.parseFile(self.filename)
             event = ExplorerEvent(EVT_PARSED_ID, 
-                                  (self.modulename, self.filename, items))
+                                  (self.modulename, self.filename, nodes))
             wx.PostEvent(self.parent, event)
 
 
@@ -152,24 +118,43 @@ class ExplorerPanel(wx.Panel):
             self.tree.Delete(self.modules[filename])        
     
     def OnParsed(self, evt):
-        modulename, filename, items = evt.data
+        modulename, filename, nodes = evt.data
         module = self.modules[filename]
         self.tree.SetItemText(module, modulename)
         self.tree.SelectItem(module)
         classes = {}
-        for lineno, class_name, function_name in items:
-            if class_name is None:
-                child = self.tree.AppendItem(module, function_name)
-                self.AddSymbol(filename, function_name, 'function', lineno, child)
-            elif function_name is None:
-                child = self.tree.AppendItem(module, class_name)
-                self.AddSymbol(filename, class_name, 'class', lineno, child)
-                classes[class_name] = child
-            else:
-                child = self.tree.AppendItem(classes[class_name], function_name)
-                self.AddSymbol(filename, function_name, 'method', lineno, child)
 
-            self.tree.SetPyData(child, (filename, lineno))
+        print "parsed!"
+        print nodes
+        imports = nodes.get_imports(1)
+        for i, v in enumerate(imports):
+            import_line, lineno = v
+            child = self.tree.AppendItem(module, import_line)
+            self.AddSymbol(filename, import_line, 'module', lineno, child)
+            print "import", import_line
+        functions = nodes.find('function')
+        #process locals
+        #addlocals(win, nodes, nodes, None)
+        if functions:
+            funcs = [(x.name, x.info, x.lineno, x.docstring) for x in functions.values]
+            for i, v in enumerate(funcs):
+                print "function", v
+                name, info, lineno, docstring = v
+                child = self.tree.AppendItem(module, name)
+                self.AddSymbol(filename, name, 'function', lineno, child)
+        # for lineno, class_name, function_name in items:
+            # if class_name is None:
+                # child = self.tree.AppendItem(module, function_name)
+                # self.AddSymbol(filename, function_name, 'function', lineno, child)
+            # elif function_name is None:
+                # child = self.tree.AppendItem(module, class_name)
+                # self.AddSymbol(filename, class_name, 'class', lineno, child)
+                # classes[class_name] = child
+            # else:
+                # child = self.tree.AppendItem(classes[class_name], function_name)
+                # self.AddSymbol(filename, function_name, 'method', lineno, child)
+
+            # self.tree.SetPyData(child, (filename, lineno))
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
@@ -230,11 +215,11 @@ class TestFrame(wx.Frame):
         self.Show()
         self.panel = ExplorerPanel(self)
         self.panel.ParseFile(filename)
-        while 'main' not in self.panel.symbols:
-            wx.Yield()
-        print self.panel.symbols
-        filename, lineno = self.panel.FindSymbolDef(filename, "main")
-        print filename, lineno
+        #while 'main' not in self.panel.symbols:
+        #    wx.Yield()
+        #print self.panel.symbols
+        #filename, lineno = self.panel.FindSymbolDef(filename, "main")
+        #print filename, lineno
         self.SendSizeEvent() 
 
 
@@ -242,7 +227,7 @@ if __name__ == '__main__':
     
     def main():
         app = wx.App()
-        frame = TestFrame(filename=os.path.abspath("hola.py"))
+        frame = TestFrame(filename=os.path.abspath("pyparse.py"))
         app.MainLoop()
     
     main()
