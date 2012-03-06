@@ -64,6 +64,7 @@ class Debugger(qdb.Frontend, Thread):
         self.done = Event()         # flag to block for user interaction
         self.attached = Event()     # flag to block waiting for remote side
         self.gui = gui              # wx window for callbacks
+        self.post_event = True      # send event to the GUI
         self.start_continue = True  # continue on first run
         self.rawinput = None
         self.setDaemon(1)           # do not join (kill on termination)
@@ -161,10 +162,13 @@ class Debugger(qdb.Frontend, Thread):
                 self.filename = filename
                 self.orig_line = line.strip().strip("\r").strip("\n")
                 self.lineno = lineno
-                if self.gui:
+                if self.gui and self.post_event:
                     # we are in other thread so send the event to main thread
                     wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
                                                       (filename, lineno, context, line)))
+                else:
+                    # ignore this (async command) and reenable notifications
+                    self.post_event = True
 
             # wait user events: done is a threading.Event (set by the main thread)
             self.done.wait()
@@ -173,7 +177,8 @@ class Debugger(qdb.Frontend, Thread):
             self.push_actions()
 
             # clean current line
-            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))            
+            if self.gui and self.post_event:
+                wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))            
 
         finally:
             self.interacting.clear()
@@ -288,6 +293,8 @@ class Debugger(qdb.Frontend, Thread):
     def async_push(self, action):
         # wait any pending command
         self.access.acquire()
+        # do not send GUI notifications (to not alter the focus)
+        self.post_event = False
         # if no interaction yet, send an interrupt (step on the next stmt)
         if not self.interacting.is_set():
             self.interrupt()
