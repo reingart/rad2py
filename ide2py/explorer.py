@@ -166,7 +166,7 @@ class ExplorerPanel(wx.Panel):
             name = node.locals[i]
             t, v, lineno = node.local_types[i]
             if t not in ('class', 'function', 'import'):
-                info = name + ' : ' + 'unknow'
+                info = name + ': ' + 'unknow'
                 if t == 'reference':
                     if v:
                         if node.type == 'class':
@@ -176,23 +176,23 @@ class ExplorerPanel(wx.Panel):
                         if result:
                             
                             if result[0] not in ('reference', 'class', 'function', 'import'):
-                                info = name + ' : ' + result[0]
+                                info = name + ': ' + result[0]
                             else:
                                 if result[1]:
                                     if result[0] in ('class', 'function'):
-                                        info = name + ' : ' + result[1].info
+                                        info = name + ': ' + result[1].info
                                     else:
-                                        info = name + ' : ' + result[1]
+                                        info = name + ': ' + result[1]
                                 else:
-                                    info = name + ' : ' + result[0]
+                                    info = name + ': ' + result[0]
                         else:
-                            info = name + ' : ' + v
+                            info = name + ': ' + v
                 else:
-                    info = name + ' : ' + t
-                s.append((info, lineno))
+                    info = name + ': ' + t
+                s.append((name, info, lineno))
                 
-        for i, (info, lineno) in enumerate(s):
-            self.AddSymbol(filename, info, 'variable', None, lineno, parent)
+        for (name, info, lineno) in s:
+            self.AddSymbol(filename, info, 'variable', info, lineno, parent)
 
         
     def FindSymbolDef(self, filename, word):
