@@ -128,26 +128,31 @@ class ExplorerPanel(wx.Panel):
         imports = nodes.get_imports(1)
         for i, v in enumerate(imports):
             import_line, lineno = v
-            self.AddSymbol(filename, import_line, 'module', lineno, module)
+            self.AddSymbol(filename, import_line, 'module', None, lineno, module)
         #process locals
         self.AddLocals(filename, nodes, nodes, module)
         # process functions
         for f in nodes.find('function').values:
-            self.AddSymbol(filename, f.name, 'function', f.lineno, module)
+            self.AddSymbol(filename, f.name, 'function', f.info, f.lineno, module)
         #process classes
         for c in nodes.find('class').values:
-            child = self.AddSymbol(filename, c.name, 'class', c.lineno, module)
+            child = self.AddSymbol(filename, c.name, 'class', None, c.lineno, module)
             self.AddLocals(filename, nodes, c, child)
             for o in c.values:
                 if o.type == 'class' or o.type == 'function':
-                    self.AddSymbol(filename, o.name, 'method', o.lineno, child)
+                    self.AddSymbol(filename, o.name, 'method', o.info, o.lineno, child)
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
         self.working = False
 
-    def AddSymbol(self, filename, symbol_name, symbol_type, lineno, parent):
-        child = self.tree.AppendItem(parent, symbol_name)
+    def AddSymbol(self, filename, symbol_name, symbol_type, symbol_info, 
+                        lineno, parent):
+        if symbol_info:
+            signature = symbol_info
+        else:
+            signature = symbol_name
+        child = self.tree.AppendItem(parent, signature)
         symbol_dict = self.symbols.setdefault(symbol_name, {})
         symbol_dict.setdefault(filename, {})[symbol_type] = lineno
         self.tree.SetItemImage(child, self.images[symbol_type])
@@ -187,7 +192,7 @@ class ExplorerPanel(wx.Panel):
                 s.append((info, lineno))
                 
         for i, (info, lineno) in enumerate(s):
-            self.AddSymbol(filename, info, 'variable', lineno, parent)
+            self.AddSymbol(filename, info, 'variable', None, lineno, parent)
 
         
     def FindSymbolDef(self, filename, word):
