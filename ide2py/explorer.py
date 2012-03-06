@@ -133,14 +133,16 @@ class ExplorerPanel(wx.Panel):
         self.AddLocals(filename, nodes, nodes, module)
         # process functions
         for f in nodes.find('function').values:
-            self.AddSymbol(filename, f.name, 'function', f.info, f.lineno, module)
+            child = self.AddSymbol(filename, f.name, 'function', f.info, f.lineno, module)
+            self.AddLocals(filename, nodes, f, child)
         #process classes
         for c in nodes.find('class').values:
             child = self.AddSymbol(filename, c.name, 'class', None, c.lineno, module)
             self.AddLocals(filename, nodes, c, child)
             for o in c.values:
                 if o.type == 'class' or o.type == 'function':
-                    self.AddSymbol(filename, o.name, 'method', o.info, o.lineno, child)
+                    meth = self.AddSymbol(filename, o.name, 'method', o.info, o.lineno, child)
+                    self.AddLocals(filename, nodes, o, meth)
 
         self.tree.SortChildren(module)    
         self.tree.Expand(module)
@@ -187,7 +189,7 @@ class ExplorerPanel(wx.Panel):
                                     info = name + ': ' + result[0]
                         else:
                             info = name + ': ' + v
-                else:
+                elif t is not None:
                     info = name + ': ' + t
                 s.append((name, info, lineno))
                 
