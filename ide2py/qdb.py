@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.01b"
+__version__ = "1.01c"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -362,7 +362,7 @@ class Qdb(bdb.Bdb):
     def get_autocomplete_list(self, expression):
         "Return list of auto-completion options for expression"
         try:
-            obj = self.do_eval(expression)
+            obj = self.do_eval(expression, safe=False)
         except:
             return []
         else:
