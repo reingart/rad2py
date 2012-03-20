@@ -69,6 +69,7 @@ stc_p_commentblock = face:%(mono)s,fore:#990000,back:#C0C0C0,italic,size:%(size)
 stc_p_classname = face:%(mono)s,fore:#0000FF,bold,underline,size:%(size)d
 stc_p_operator = face:%(mono)s,bold,size:%(size)d
 stc_p_defname = face:%(mono)s,fore:#007F7F,bold,size:%(size)d
+stc_p_decorator = face:%(mono)s,fore:#007F7F,bold,size:%(size)d
 
 [HISTORY]
 
