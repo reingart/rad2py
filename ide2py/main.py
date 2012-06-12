@@ -145,7 +145,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.filehistory = wx.FileHistory()
         self.filehistory.UseMenu(recent_files_submenu)
         file_menu.AppendMenu(wx.ID_FILE, "Recent &Files", recent_files_submenu)
-        self.Bind(wx.EVT_WINDOW_DESTROY, self.Cleanup)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.Cleanup, self)
         self.Bind(wx.EVT_MENU_RANGE, self.OnFileHistory, 
                     id=wx.ID_FILE1, id2=wx.ID_FILE9)
         
@@ -456,7 +456,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     
     executing = property(get_executing, set_executing)
     
-    def Cleanup(self, *args):
+    def Cleanup(self, event):
         if 'repo' in ADDONS:
             self.RepoMixinCleanup()
         # A little extra cleanup is required for the FileHistory control
