@@ -1062,8 +1062,11 @@ class MainApp(wx.App):
                          shadowcolour=wx.ColourDatabase().Find("yellow"),
                 )
             if RAD2PY_ICON:
-                self.splash_frame.SetIcon(wx.Icon(RAD2PY_ICON, 
-                                                  wx.BITMAP_TYPE_ICO))
+                ib = wx.IconBundle()
+                ib.AddIconFromFile(RAD2PY_ICON, wx.BITMAP_TYPE_ANY)
+                self.splash_frame.SetIcons(ib)
+                ##self.splash_frame.SetIcon(wx.Icon(RAD2PY_ICON, 
+                ##                                  wx.BITMAP_TYPE_ICO))
             self.splash_frame.SetTextColour(wx.WHITE)
             font = wx.Font(
                     pointSize = 9, family = wx.DEFAULT, 
