@@ -13,7 +13,7 @@ __version__ = "0.09"
 #      pythonwin, drpython, idle
 
 import ConfigParser
-
+import imp
 import os
 import shlex
 import sys
@@ -73,6 +73,7 @@ SPLASH_IMAGE = "splash.png"
 ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
 ID_GOTO_DEF = wx.NewId()
+ID_OPEN_MODULE = wx.NewId()
 
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
@@ -131,6 +132,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         file_menu = self.menu['file'] = wx.Menu()
         file_menu.Append(wx.ID_NEW, "&New\tCtrl-N")
         file_menu.Append(wx.ID_OPEN, "&Open File\tCtrl-O")
+        file_menu.Append(ID_OPEN_MODULE, "Open &Module\tCtrl-M")
         file_menu.Append(wx.ID_SAVE, "&Save\tCtrl-S")
         file_menu.Append(wx.ID_SAVEAS, "Save &As")
         file_menu.Append(wx.ID_CLOSE, "&Close\tCtrl-w")
@@ -277,6 +279,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         menu_handlers = [
             (wx.ID_NEW, self.OnNew),
             (wx.ID_OPEN, self.OnOpen),
+            (ID_OPEN_MODULE, self.OnOpenModule),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
             (wx.ID_CLOSE, self.OnCloseChild),
@@ -594,6 +597,34 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         dlg.Destroy()
 
+    def OnOpenModule(self, event=None):
+        name = arg = self.active_child.GetSelectedText().strip()
+        dlg = wx.TextEntryDialog(self,
+             "Enter the name of a Python module\n"
+             "to search on sys.path and open:",            
+             'Open Module', name)
+        if dlg.ShowModal() == wx.ID_OK:
+            name = dlg.GetValue()
+        dlg.Destroy()
+        if name:
+            name = name.strip()
+        if not name:
+            return
+        # XXX Ought to insert current file's directory in front of path
+        try:
+            (f, file, (suffix, mode, type)) = imp.find_module(name)
+            if type != imp.PY_SOURCE:
+                raise RuntimeError("Unsupported type: "
+                    "%s is not a source module" % name)
+            if f:
+                f.close()
+            self.DoOpen(file)
+        except (NameError, ImportError, RuntimeError), msg:
+            dlg = wx.MessageDialog(self, unicode(msg), "Import error",
+                       wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+            
     def OnFileHistory(self, evt):
         # get the file based on the menu ID
         filenum = evt.GetId() - wx.ID_FILE1
