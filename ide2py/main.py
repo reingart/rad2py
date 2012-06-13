@@ -215,6 +215,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         win_menu = self.menu['window'] = wx.Menu()
         self.windows = {}
+        # Default window menu to select a editor tab
+        self.AppendWindowMenuItem("Editor tabs...", (), self.OnWindowMenu)
+        win_menu.AppendSeparator()
         for win_name, win_panes in [('Shell', ('shell', )), 
             ('Explorer', ('explorer', )),
             ('Debugging', ('environ', 'stack', 'debug', 'console', )),
@@ -441,7 +444,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # set not executing (hide debug panes)
         self.executing = False
-        
+                
     def GetStartPosition(self):
 
         self.x = self.x + 20
@@ -474,10 +477,23 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
     def OnWindowMenu(self, event):
         menu_id = event.GetId()
-        for pane in self.windows[menu_id]:
-            self._mgr.GetPane(pane).Show()
-        self._mgr.Update()
-
+        panes = self.windows[menu_id]
+        if panes:
+            # show al panes related to the menu item
+            for pane in panes:
+                self._mgr.GetPane(pane).Show()
+            self._mgr.Update()
+        else:
+            # show a children window list
+            dlg = wx.SingleChoiceDialog(
+                self, 'Select the tab to activate', 'Windows',
+                sorted([child.GetFilename() for child in self.children]),
+                wx.CHOICEDLG_STYLE
+                )
+            if dlg.ShowModal() == wx.ID_OK:
+                self.DoOpen(dlg.GetStringSelection())
+            dlg.Destroy()
+            
     def Cleanup(self, event):
         if 'repo' in ADDONS:
             self.RepoMixinCleanup()
