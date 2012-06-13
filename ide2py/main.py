@@ -565,6 +565,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self.filehistory.AddFileToHistory(filepath)
 
     def DoOpen(self, filename, title=""):
+        if not (self.debugger and self.debugger.is_remote()):
+            # normalize filename for local files! (mostly fix path separator)
+            filename = os.path.abspath(filename)
         found = [child for child in self.children if child.GetFilename()==filename]
         if not found:
             child = AUIChildFrame(self, filename, title)
