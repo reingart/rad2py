@@ -70,18 +70,24 @@ class Web2pyRepo(object):
 if __name__ == '__main__':
     import sys
     
-    url = "http://admin:a@localhost:8000/psp2py/webservices/call/jsonrpc"
-    r = Web2pyRepo(url)
-    if '--status' in sys.argv:
-        for st, fn in r.status():
-            print st, fn
-    if '--cat' in sys.argv:
-        print r.cat(url+"/welcome/controllers/default.py")
-    if '--commit' in sys.argv:
-        ret = r.commit(["hola.py"], "test commit!")
-        print "result", ret
-    if '--add' in sys.argv:
-        print r.add(["pyi25.py"])
-
+    url = "http://admin:a@localhost:8000/admin/webservices/call/jsonrpc"
+    try:
+        r = Web2pyRepo(url)
+        if '--status' in sys.argv:
+            for st, fn in r.status():
+                print st, fn
+        if '--cat' in sys.argv:
+            print r.cat(url+"/welcome/controllers/default.py")
+        if '--commit' in sys.argv:
+            ret = r.commit(["hola.py"], "test commit!")
+            print "result", ret
+        if '--add' in sys.argv:
+            print r.add(["pyi25.py"])
+    except simplejsonrpc.JSONRPCError, e:
+        print "=" * 80
+        print str(e)
+        print "-" * 80
+        print e.data
+        print "-" * 80
 
 
