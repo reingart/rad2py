@@ -27,7 +27,7 @@ import fileutil
 
 
 # Some configuration constants 
-WORDCHARS = "_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+WORDCHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono', 
          'helv' : 'DejaVu Serif', 'other': 'DejaVu',
          'size' : 10, 'size2': 8}
