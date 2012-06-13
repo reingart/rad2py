@@ -233,11 +233,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.SetMenuBar(self.menubar)
 
-        self.statusbar = self.CreateStatusBar(3, wx.ST_SIZEGRIP)
-        self.statusbar.SetStatusWidths([-2, -3, -3])
+        self.statusbar = self.CreateStatusBar(4, wx.ST_SIZEGRIP)
+        self.statusbar.SetStatusWidths([-2, -2, -5, -2])
         self.statusbar.SetStatusText("Ready", 0)
         self.statusbar.SetStatusText("Welcome To ide2py!", 1)
-        self.statusbar.SetStatusText(__copyright__, 2)
+        self.statusbar.SetStatusText(__copyright__, 3)
 
         # min size for the frame itself isn't completely done.
         # see the end up FrameManager::Update() for the test
@@ -988,7 +988,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         sizer.Add(self.editor, 1, wx.EXPAND)
         self.SetSizer(sizer)        
         wx.CallAfter(self.Layout)
-
+        self.filename = filename
         self.parent = parent
 
     def OnCloseWindow(self, event):
@@ -1060,6 +1060,10 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def GetBreakpoints(self):
         return self.editor.GetBreakpoints()
+
+    def UpdateStatusBar(self, statustext):
+        self.parent.statusbar.SetStatusText(statustext, 1)
+        self.parent.statusbar.SetStatusText(self.filename, 2)
 
 
 # Configuration Helper to Encapsulate common config read scenarios:

@@ -740,6 +740,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             #self.Refresh(True, wxRect(pt.x, pt.y, 5,5))
             #print pt
             #self.Refresh(False)
+        
+        # update status bar
+        self.OnPositionChanged(evt)
 
     def OnMarginClick(self, evt):
         # fold and unfold as needed
@@ -1078,6 +1081,25 @@ class EditorCtrl(stc.StyledTextCtrl):
         
     def OnEndHover(self, evt):
         self.SetToolTipString("")
+
+    def OnPositionChanged(self, event):
+        eolmodestr = ''
+        emode = self.GetEOLMode()
+        if emode == wx.stc.STC_EOL_CR:
+            eolmodestr += "MAC"
+        elif emode == wx.stc.STC_EOL_CRLF:
+            eolmodestr += "WIN"
+        else:
+            eolmodestr += "UNIX"
+
+        if self.GetOvertype():
+            ovrstring = "OVR"
+        else:
+            ovrstring = "INS"
+        statustext = "Line: %(line)s, Col: %(col)s   %(mode)s   %(ovrstring)s" \
+        % {"line": self.GetCurrentLine()+1, "col": self.GetColumn(self.GetCurrentPos()), \
+        "mode": eolmodestr, "ovrstring": ovrstring}
+        self.parent.UpdateStatusBar(statustext)
 
 
 class StandaloneEditor(wx.Frame):
