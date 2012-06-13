@@ -549,6 +549,9 @@ class PSPMixin(object):
         # flag for time not spent on psp task
         self.psp_interruption = None
 
+        self.AppendWindowMenuItem('PSP', 
+            ('psp_plan', 'psp_defects', 'psp_toolbar', ), self.OnWindowMenu)
+        
         # web2py json rpc client
         self.psp_rpc_client = simplejsonrpc.ServiceProxy(cfg.get("server_url"))
         self.psp_wiki_url = cfg.get("wiki_url")

@@ -78,6 +78,8 @@ class RepoMixin(object):
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
 
+        self.AppendWindowMenuItem('Repository', ('repo', ), self.OnWindowMenu)
+
         self.repo_tree.Bind(wx.EVT_LEFT_DCLICK, self.OnRepoLeftDClick)
         self.repo_tree.Bind(wx.EVT_CONTEXT_MENU, self.OnRepoContextMenu)
 

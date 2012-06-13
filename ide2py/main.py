@@ -210,13 +210,22 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         help_menu = self.menu['help'] = wx.Menu()
         help_menu.Append(wx.ID_HELP, "Quick &Help\tF1",
                         help="help() on selected expression")
-        dbg_menu.AppendSeparator()
+        help_menu.AppendSeparator()
         help_menu.Append(wx.ID_ABOUT, "&About...")
         
+        win_menu = self.menu['window'] = wx.Menu()
+        self.windows = {}
+        for win_name, win_panes in [('Shell', ('shell', )), 
+            ('Explorer', ('explorer', )),
+            ('Debugging', ('environ', 'stack', 'debug', 'console', )),
+            ]:
+            self.AppendWindowMenuItem(win_name, win_panes, self.OnWindowMenu)
+
         self.menubar.Append(file_menu, "&File")
         self.menubar.Append(edit_menu, "&Edit")
         self.menubar.Append(run_menu, "&Run")
         self.menubar.Append(dbg_menu, "&Debug")
+        self.menubar.Append(win_menu, "&Window")
         self.menubar.Append(help_menu, "&Help")
         
         self.SetMenuBar(self.menubar)
@@ -455,7 +464,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         self._mgr.Update()
     
     executing = property(get_executing, set_executing)
-    
+
+    def AppendWindowMenuItem(self, win_name, win_panes, evt_handler):
+        menu_id = wx.NewId()
+        win_menu = self.menu['window']
+        win_menu.Append(menu_id, win_name, )
+        self.windows[menu_id] = win_panes
+        self.Bind(wx.EVT_MENU, evt_handler, id=menu_id)
+
+    def OnWindowMenu(self, event):
+        menu_id = event.GetId()
+        for pane in self.windows[menu_id]:
+            self._mgr.GetPane(pane).Show()
+        self._mgr.Update()
+
     def Cleanup(self, event):
         if 'repo' in ADDONS:
             self.RepoMixinCleanup()
