@@ -610,8 +610,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             name = name.strip()
         if not name:
             return
-        # XXX Ought to insert current file's directory in front of path
+        cwd = os.getcwd()
         try:
+            # set the path to current active editing file
+            if self.active_child and self.active_child.GetFilename():
+                os.chdir(os.path.dirname(self.active_child.GetFilename()))
             (f, file, (suffix, mode, type)) = imp.find_module(name)
             if type != imp.PY_SOURCE:
                 raise RuntimeError("Unsupported type: "
@@ -624,6 +627,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                        wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
             dlg.Destroy()
+        finally:
+            os.chdir(cwd)
             
     def OnFileHistory(self, evt):
         # get the file based on the menu ID
