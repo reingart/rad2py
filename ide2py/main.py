@@ -100,7 +100,7 @@ ID_EXPLORER = wx.NewId()
 class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
     def __init__(self, parent):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
-            size=(800,600), style=wx.DEFAULT_FRAME_STYLE)
+            size=(800,600), style=wx.DEFAULT_FRAME_STYLE | wx.FRAME_NO_WINDOW_MENU)
 
         wx.GetApp().SetSplashText("Creating Main Frame")
         
