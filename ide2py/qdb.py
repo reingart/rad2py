@@ -130,7 +130,7 @@ class Qdb(bdb.Bdb):
                'args': (title, extype.__name__, exvalue, trace, msg), 
                'id': None}
         self.pipe.send(msg)
-        self.interaction(frame, info)
+        self.interaction(frame)
 
     def run(self, code, interp=None, *args, **kwargs):
         try:
@@ -207,7 +207,6 @@ class Qdb(bdb.Bdb):
                                 'kwargs': kwargs})
 
                 self.pull_actions()
-
         finally:
             self.waiting = False
         self.frame = None
