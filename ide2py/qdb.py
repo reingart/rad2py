@@ -160,7 +160,10 @@ class Qdb(bdb.Bdb):
         self._wait_for_mainpyfile = 1
         self.mainpyfile = self.canonic(filename)
         self._user_requested_quit = 0
-        statement = 'imp.load_source("__main__", "%s")' % filename
+        if sys.version_info>(3,0):
+            statement = 'imp.load_source("__main__", "%s")' % filename
+        else:
+            statement = 'execfile(%r)' % filename
         # notify and wait frontend to set initial params and breakpoints
         self.pipe.send({'method': 'startup', 'args': (__version__, )})
         while self.pull_actions() is not None:
