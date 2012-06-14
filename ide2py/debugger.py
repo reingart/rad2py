@@ -72,6 +72,7 @@ class Debugger(qdb.Frontend, Thread):
         self.mutex = Lock()         # critical section protection (comm channel)
         self.access = Semaphore()   # limit to 1 interaction command to use the channel
         self.filename = self.lineno = None
+        self.unrecoverable_error = False
         self.start()                # creathe the new thread
 
     def run(self):
@@ -93,6 +94,10 @@ class Debugger(qdb.Frontend, Thread):
                 if self.pipe:
                     self.pipe.close()
 
+    def init(self, cont=False):
+        self.start_continue = cont
+        self.unrecoverable_error = None
+        
     def attach(self, host='localhost', port=6000, authkey='secret password'):
         self.address = (host, port)
         self.authkey = authkey
@@ -201,12 +206,29 @@ class Debugger(qdb.Frontend, Thread):
     def exception(self, *args):
         "Notify that a user exception was raised in the backend"
         wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
+        self.unrecoverable_error = u"%s" % args[0]
 
     def check_running_code(self):
         "Edit and continue functionality"
         if self.filename:
             curr_line = self.gui.GetLineText(self.filename, self.lineno)
             curr_line = curr_line.strip().strip("\r").strip("\n")
+        # check if no exception raised
+        if self.unrecoverable_error:
+            dlg = wx.MessageDialog(self.gui, 
+                   "Unrecoverable error: %s\n\n"
+                   "Do you want to RESTART the program?"
+                   % unicode(self.unrecoverable_error), 
+                   "Unable to interact (Post-Mortem)",
+                   wx.YES_NO | wx.ICON_EXCLAMATION)
+            restart = dlg.ShowModal() == wx.ID_YES              
+            dlg.Destroy()
+            if not restart:
+                # free semaphore (no interaction command will be sent)
+                self.access.release()
+                return False
+            else:
+                self.init()
         # check current text source code against running code
         if self.lineno is not None and self.orig_line != curr_line:
             print "edit_and_continue..."

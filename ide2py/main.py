@@ -833,7 +833,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if not self.executing:
             print "*** Execute!!!!"
             # should it open debugger inmediatelly or continue?
-            self.debugger.start_continue = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
+            cont = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
+            self.debugger.init(cont)
             if event_id == ID_CONTINUETO and self.active_child:
                 # set temp breakpoint to be hit on first run!
                 lineno = self.active_child.GetCurrentLine()
