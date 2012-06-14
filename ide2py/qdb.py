@@ -169,7 +169,7 @@ class Qdb(bdb.Bdb):
 
     # General interaction function
 
-    def interaction(self, frame, info=None):
+    def interaction(self, frame):
         # chache frame locals to ensure that modifications are not overwritten
         self.frame_locals = frame and frame.f_locals or {}
         # extract current filename and line number
@@ -282,7 +282,7 @@ class Qdb(bdb.Bdb):
             line = linecache.getline(filename, lineno,
                                      self.frame.f_globals)
             if not line:
-                lines.append((filename, lineno, '', current, "<EOF>\n"))
+                lines.append((filename, lineno, '', "", "<EOF>\n"))
                 break
             else:
                 breakpoint = "B" if lineno in breaklist else ""
@@ -905,11 +905,14 @@ def main(host='localhost', port=6000, authkey='secret password'):
         print "The program exited via sys.exit(). Exit status: ",
         print sys.exc_info()[1]
         raise
-    except:
-        raise
-
+    except Exception:
+        traceback.print_exc()
+        print "Uncaught exception. Entering post mortem debugging"
+        t = sys.exc_info()[2]
+        qdb.post_mortem(t)
     conn.close()
     listener.close()
+    print "qdb debbuger backend: connection closed"
 
 
 qdb = None
