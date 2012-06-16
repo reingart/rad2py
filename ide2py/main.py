@@ -239,11 +239,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         self.SetMenuBar(self.menubar)
 
-        self.statusbar = self.CreateStatusBar(4, wx.ST_SIZEGRIP)
-        self.statusbar.SetStatusWidths([-2, -2, -5, -2])
-        self.statusbar.SetStatusText("Ready", 0)
-        self.statusbar.SetStatusText("Welcome To ide2py!", 1)
-        self.statusbar.SetStatusText(__copyright__, 3)
+        self.statusbar = CustomStatusBar(self)
+        self.SetStatusBar(self.statusbar)
 
         # min size for the frame itself isn't completely done.
         # see the end up FrameManager::Update() for the test
@@ -1004,13 +1001,66 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
             self.executing = True
         dlg.Destroy()
 
-
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
             wx.PostEvent(self, RepoEvent(filename, action, status))
         # notify the explorer to refresh the module symbols
         if self.explorer:
             self.explorer.ParseFile(filename, refresh=True)
+
+
+class CustomStatusBar(wx.StatusBar):
+    def __init__(self, parent):
+        wx.StatusBar.__init__(self, parent, -1)
+        self.parent = parent
+        self.SetFieldsCount(5)
+        # Sets the three fields to be relative widths to each other.
+        self.SetStatusWidths([-2, -2, -5, 100, -2])
+        self.SetStatusText("Ready", 0)
+        self.SetStatusText("Welcome To ide2py!", 1)
+        self.SetStatusText(__copyright__, 4)
+        self.eol_choice = wx.Choice(self, wx.ID_ANY,
+                                             choices = ["win", "mac", "unix",])
+        # set the initial position of the choice
+        self.Reposition()
+        self.Bind(wx.EVT_CHOICE, self.OnToggleEOL, self.eol_choice)
+        ##self.Bind(wx.EVT_SIZE, self.OnSize)
+        ##self.Bind(wx.EVT_IDLE, self.OnIdle)
+        self.size_changed = False
+        self.Bind(wx.EVT_SIZE, self.OnSize)
+        self.Bind(wx.EVT_IDLE, self.OnIdle)
+
+
+    def OnToggleEOL(self, event):
+        self.parent.active_child.ChangeEOL(self.eol_choice.GetSelection())
+
+    # the checkbox was clicked
+    def OnToggleClock(self, event):
+        if self.cb.GetValue():
+            self.timer.Start(1000)
+            self.Notify()
+        else:
+            self.timer.Stop()
+
+    def OnSize(self, evt):
+        self.Reposition()  # for normal size events
+        # Set a flag so the idle time handler will also do the repositioning.
+        # It is done this way to get around a buglet where GetFieldRect is not
+        # accurate during the EVT_SIZE resulting from a frame maximize.
+        self.size_changed = True
+
+    def OnIdle(self, evt):
+        if self.size_changed:
+            self.Reposition()
+
+    # reposition the checkbox
+    def Reposition(self):
+        rect = self.GetFieldRect(3)
+        self.eol_choice.SetPosition((rect.x, rect.y))
+        self.eol_choice.SetSize((rect.width, rect.height))
+        self.size_changed = False
+
+
 
 class AUIChildFrame(aui.AuiMDIChildFrame):
 
@@ -1102,9 +1152,13 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def GetBreakpoints(self):
         return self.editor.GetBreakpoints()
 
-    def UpdateStatusBar(self, statustext):
+    def UpdateStatusBar(self, statustext, eolmode, ):
         self.parent.statusbar.SetStatusText(statustext, 1)
         self.parent.statusbar.SetStatusText(self.filename, 2)
+        self.parent.statusbar.eol_choice.SetSelection(eolmode)
+
+    def ChangeEOL(self, eol):
+        self.editor.ChangeEOL(eol)
 
 
 # Configuration Helper to Encapsulate common config read scenarios:

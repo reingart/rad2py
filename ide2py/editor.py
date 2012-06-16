@@ -1083,23 +1083,24 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.SetToolTipString("")
 
     def OnPositionChanged(self, event):
-        eolmodestr = ''
-        emode = self.GetEOLMode()
-        if emode == wx.stc.STC_EOL_CR:
-            eolmodestr += "MAC"
-        elif emode == wx.stc.STC_EOL_CRLF:
-            eolmodestr += "WIN"
-        else:
-            eolmodestr += "UNIX"
+        eolmode = self.GetEOLMode()
 
         if self.GetOvertype():
             ovrstring = "OVR"
         else:
             ovrstring = "INS"
-        statustext = "Line: %(line)s, Col: %(col)s   %(mode)s   %(ovrstring)s" \
-        % {"line": self.GetCurrentLine()+1, "col": self.GetColumn(self.GetCurrentPos()), \
-        "mode": eolmodestr, "ovrstring": ovrstring}
-        self.parent.UpdateStatusBar(statustext)
+        linestr = self.GetCurrentLine()+1
+        colstr = self.GetColumn(self.GetCurrentPos())
+        statustext = "Line: %(line)s, Col: %(col)s  %(ovrstring)s" % {
+            "line": linestr, "col": colstr, 
+            "ovrstring": ovrstring }
+        self.parent.UpdateStatusBar(statustext, eolmode)
+
+    def ChangeEOL(self, eolmode=None):
+        self.eol = eolmode
+        self.ConvertEOLs(self.eol)
+        self.SetEOLMode(self.eol)
+
 
 
 class StandaloneEditor(wx.Frame):
