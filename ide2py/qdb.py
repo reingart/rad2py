@@ -321,24 +321,33 @@ class Qdb(bdb.Bdb):
             print '*** DO_CLEAR failed', err
 
     def do_eval(self, arg, safe=True):
-        ret = eval(arg, self.frame.f_globals,
-                    self.frame_locals)
+        if self.frame:
+            ret = eval(arg, self.frame.f_globals,
+                        self.frame_locals)
+        else:
+            ret = RPCError("No current frame available to eval")
         if safe:
             ret = pydoc.cram(repr(ret), 255)
         return ret
 
-    def do_exec(self, arg):
-        locals = self.frame_locals
-        globals = self.frame.f_globals
-        code = compile(arg + '\n', '<stdin>', 'single')
-        save_displayhook = sys.displayhook
-        self.displayhook_value = None
-        try:
-            sys.displayhook = self.displayhook
-            exec code in globals, locals
-        finally:
-            sys.displayhook = save_displayhook
-        return self.displayhook_value
+    def do_exec(self, arg, safe=True):
+        if not self.frame:
+            ret = RPCError("No current frame available to exec")
+        else:
+            locals = self.frame_locals
+            globals = self.frame.f_globals
+            code = compile(arg + '\n', '<stdin>', 'single')
+            save_displayhook = sys.displayhook
+            self.displayhook_value = None
+            try:
+                sys.displayhook = self.displayhook
+                exec code in globals, locals
+                ret = self.displayhook_value
+            finally:
+                sys.displayhook = save_displayhook
+        if safe:
+            ret = pydoc.cram(repr(ret), 255)
+        return ret
 
     def do_where(self):
         "print_stack_trace"
