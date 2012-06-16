@@ -1013,14 +1013,16 @@ class CustomStatusBar(wx.StatusBar):
     def __init__(self, parent):
         wx.StatusBar.__init__(self, parent, -1)
         self.parent = parent
-        self.SetFieldsCount(5)
+        self.SetFieldsCount(6)
         # Sets the three fields to be relative widths to each other.
-        self.SetStatusWidths([-2, -2, -5, 100, -2])
+        self.SetStatusWidths([-2, -2, -5, 100, 85, -2])
         self.SetStatusText("Ready", 0)
         self.SetStatusText("Welcome To ide2py!", 1)
-        self.SetStatusText(__copyright__, 4)
+        self.SetStatusText(__copyright__, 5)
         self.eol_choice = wx.Choice(self, wx.ID_ANY,
                                              choices = ["win", "mac", "unix",])
+        self.blank_check = wx.CheckBox(self, 1001, "blanks")
+        self.Bind(wx.EVT_CHECKBOX, self.OnToggleBlanks, self.blank_check)
         # set the initial position of the choice
         self.Reposition()
         self.Bind(wx.EVT_CHOICE, self.OnToggleEOL, self.eol_choice)
@@ -1029,18 +1031,12 @@ class CustomStatusBar(wx.StatusBar):
         self.size_changed = False
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
-
-
+    
     def OnToggleEOL(self, event):
         self.parent.active_child.ChangeEOL(self.eol_choice.GetSelection())
 
-    # the checkbox was clicked
-    def OnToggleClock(self, event):
-        if self.cb.GetValue():
-            self.timer.Start(1000)
-            self.Notify()
-        else:
-            self.timer.Stop()
+    def OnToggleBlanks(self, event):
+        self.parent.active_child.ToggleBlanks(self.blank_check.GetValue())
 
     def OnSize(self, evt):
         self.Reposition()  # for normal size events
@@ -1058,6 +1054,9 @@ class CustomStatusBar(wx.StatusBar):
         rect = self.GetFieldRect(3)
         self.eol_choice.SetPosition((rect.x, rect.y))
         self.eol_choice.SetSize((rect.width, rect.height))
+        rect = self.GetFieldRect(4)
+        self.blank_check.SetPosition((rect.x + 2, rect.y + 2))
+        self.blank_check.SetSize((rect.width - 4, rect.height - 4))
         self.size_changed = False
 
 
@@ -1159,6 +1158,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def ChangeEOL(self, eol):
         self.editor.ChangeEOL(eol)
+    
+    def ToggleBlanks(self, visible):
+        self.editor.ToggleBlanks(visible)
 
 
 # Configuration Helper to Encapsulate common config read scenarios:

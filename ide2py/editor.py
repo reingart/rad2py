@@ -1101,6 +1101,15 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.ConvertEOLs(self.eol)
         self.SetEOLMode(self.eol)
 
+    def ToggleBlanks(self, visible=False):
+        if visible:
+            ws = wx.stc.STC_WS_VISIBLEALWAYS
+            eol = 1
+        else:
+            ws = wx.stc.STC_WS_INVISIBLE
+            eol = 0
+        self.SetViewWhiteSpace(ws)
+        self.SetViewEOL(eol)
 
 
 class StandaloneEditor(wx.Frame):
