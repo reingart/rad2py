@@ -112,7 +112,11 @@ class Debugger(qdb.Frontend, Thread):
 
     def call(self, method, *args):
         "Schedule a call for further execution by the thread"
-        self.actions.put(lambda: qdb.Frontend.call(self, method, *args))
+        try:
+            self.actions.put(lambda: qdb.Frontend.call(self, method, *args))
+        except Exception, e:
+            # TODO: proper notification
+            print e
 
     def push_actions(self):
         "Execute scheduled actions"
