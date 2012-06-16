@@ -100,7 +100,7 @@ class Qdb(bdb.Bdb):
         if self._wait_for_mainpyfile or self._wait_for_breakpoint:
             return
         if self.stop_here(frame):
-            self.interaction(frame, None)
+            self.interaction(frame)
    
     def user_line(self, frame):
         """This function is called when we stop or break at this line."""
