@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.01c"
+__version__ = "1.01d"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -440,15 +440,21 @@ class Qdb(bdb.Bdb):
         self.waiting = False
         self.frame = None
 
-    def post_mortem(self, t=None):
+    def post_mortem(self, info=None):
+        "Debug an un-handled python exception"
+        # check if post mortem mode is enabled:
+        if not self.params.get('postmortem', True): 
+            return
         # handling the default
-        if t is None:
+        if info is None:
             # sys.exc_info() returns (type, value, traceback) if an exception is
             # being handled, otherwise it returns None
-            t = sys.exc_info()[2]
-            if t is None:
-                raise ValueError("A valid traceback must be passed if no "
-                                 "exception is being handled")
+            info = sys.exc_info()
+        # extract the traceback object:
+        t = info[2]
+        if t is None:
+            raise ValueError("A valid traceback must be passed if no "
+                             "exception is being handled")
         self.reset()
         # get last frame:
         while t is not None:
@@ -458,8 +464,8 @@ class Qdb(bdb.Bdb):
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
             #(filename, lineno, "", current, line, )}
-
-        self.interaction(frame)
+        # send exception information & request interaction
+        self.user_exception(frame, info)
 
     # console file-like object emulation
     def readline(self):
@@ -910,11 +916,13 @@ def main(host='localhost', port=6000, authkey='secret password'):
     except Exception:
         traceback.print_exc()
         print "Uncaught exception. Entering post mortem debugging"
-        t = sys.exc_info()[2]
-        qdb.post_mortem(t)
-    conn.close()
-    listener.close()
-    print "qdb debbuger backend: connection closed"
+        info = sys.exc_info()
+        qdb.post_mortem(info)
+        print "Program terminated!"
+    finally:
+        conn.close()
+        listener.close()
+        print "qdb debbuger backend: connection closed"
 
 
 qdb = None
