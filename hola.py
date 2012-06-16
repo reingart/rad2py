@@ -1,5 +1,9 @@
 # sample file to test shell & debugger
 
+a = 1
+a = 1/0
+a = 1/3
+
 def factorial(n):
     """This is the "factorial" function
     >>> factorial(5)

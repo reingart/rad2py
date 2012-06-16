@@ -146,7 +146,7 @@ class Debugger(qdb.Frontend, Thread):
         print "loading breakpoints...."
         self.LoadBreakpoints()
         print "enabling call_stack and environment at interaction"
-        self.set_params(dict(call_stack=True, environment=True))
+        self.set_params(dict(call_stack=True, environment=True, postmortem=True))
         # return control to the backend:
         qdb.Frontend.startup(self)
 
@@ -205,8 +205,9 @@ class Debugger(qdb.Frontend, Thread):
 
     def exception(self, *args):
         "Notify that a user exception was raised in the backend"
-        wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
-        self.unrecoverable_error = u"%s" % args[0]
+        if not self.unrecoverable_error:
+            wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
+            self.unrecoverable_error = u"%s" % args[0]
 
     def check_running_code(self):
         "Edit and continue functionality"
@@ -217,18 +218,18 @@ class Debugger(qdb.Frontend, Thread):
         if self.unrecoverable_error:
             dlg = wx.MessageDialog(self.gui, 
                    "Unrecoverable error: %s\n\n"
-                   "Do you want to RESTART the program?"
+                   "Do you want to QUIT the program?"
                    % unicode(self.unrecoverable_error), 
                    "Unable to interact (Post-Mortem)",
                    wx.YES_NO | wx.ICON_EXCLAMATION)
-            restart = dlg.ShowModal() == wx.ID_YES              
+            quit = dlg.ShowModal() == wx.ID_YES              
             dlg.Destroy()
-            if not restart:
-                # free semaphore (no interaction command will be sent)
-                self.access.release()
-                return False
-            else:
-                self.init()
+            if quit:
+                self.do_quit()
+                self.done.set()
+            # free semaphore (no interaction command will be sent)
+            self.access.release()
+            return False
         # check current text source code against running code
         if self.lineno is not None and self.orig_line != curr_line:
             print "edit_and_continue..."
