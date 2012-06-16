@@ -1013,12 +1013,12 @@ class CustomStatusBar(wx.StatusBar):
     def __init__(self, parent):
         wx.StatusBar.__init__(self, parent, -1)
         self.parent = parent
-        self.SetFieldsCount(6)
+        self.SetFieldsCount(7)
         # Sets the three fields to be relative widths to each other.
-        self.SetStatusWidths([-2, -2, -5, 100, 85, -2])
+        self.SetStatusWidths([-2, -2, -5, 100, 85, 65, -2])
         self.SetStatusText("Ready", 0)
         self.SetStatusText("Welcome To ide2py!", 1)
-        self.SetStatusText(__copyright__, 5)
+        self.SetStatusText(__copyright__, 6)
         self.eol_choice = wx.Choice(self, wx.ID_ANY,
                                              choices = ["win", "mac", "unix",])
         self.blank_check = wx.CheckBox(self, 1001, "blanks")
@@ -1151,10 +1151,11 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def GetBreakpoints(self):
         return self.editor.GetBreakpoints()
 
-    def UpdateStatusBar(self, statustext, eolmode, ):
+    def UpdateStatusBar(self, statustext, eolmode, encoding):
         self.parent.statusbar.SetStatusText(statustext, 1)
         self.parent.statusbar.SetStatusText(self.filename, 2)
         self.parent.statusbar.eol_choice.SetSelection(eolmode)
+        self.parent.statusbar.SetStatusText(encoding, 5)
 
     def ChangeEOL(self, eol):
         self.editor.ChangeEOL(eol)

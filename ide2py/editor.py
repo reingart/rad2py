@@ -1094,7 +1094,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         statustext = "Line: %(line)s, Col: %(col)s  %(ovrstring)s" % {
             "line": linestr, "col": colstr, 
             "ovrstring": ovrstring }
-        self.parent.UpdateStatusBar(statustext, eolmode)
+        self.parent.UpdateStatusBar(statustext, eolmode, self.encoding)
 
     def ChangeEOL(self, eolmode=None):
         self.eol = eolmode
