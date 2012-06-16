@@ -19,6 +19,10 @@ import shlex
 import sys
 import traceback
 
+# prevent import error in wx multiversion installs:
+import wxversion
+wxversion.select("2.8")
+   
 import wx
 import wx.grid
 import wx.html
