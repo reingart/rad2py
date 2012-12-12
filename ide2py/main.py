@@ -1011,8 +1011,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
 class CustomStatusBar(wx.StatusBar):
     def __init__(self, parent):
-        wx.StatusBar.__init__(self, parent, -1)
         self.parent = parent
+        wx.StatusBar.__init__(self, parent, -1)
         self.SetFieldsCount(7)
         # Sets the three fields to be relative widths to each other.
         self.SetStatusWidths([-2, -2, -5, 100, 85, 65, -2])
@@ -1064,6 +1064,8 @@ class CustomStatusBar(wx.StatusBar):
 class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def __init__(self, parent, filename, title=""):
+        self.filename = filename
+        self.parent = parent
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
         app = wx.GetApp()
@@ -1078,8 +1080,6 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         sizer.Add(self.editor, 1, wx.EXPAND)
         self.SetSizer(sizer)        
         wx.CallAfter(self.Layout)
-        self.filename = filename
-        self.parent = parent
 
     def OnCloseWindow(self, event):
         ctrl = event.GetEventObject()  
