@@ -43,6 +43,8 @@ class Web2pyMixin(object):
     def __init__(self, path="../web2py", port=8006, password="a"):
         "start-up a web2py server instance"
 
+        self.web2py_environment = {}
+        
         self.menu['run'].Append(ID_ATTACH, 
                                 "Attach &webserver\tCtrl-W",
                                 "Connect to remote web2py debugger")
