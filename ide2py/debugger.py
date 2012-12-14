@@ -52,13 +52,15 @@ class LoggingPipeWrapper(object):
     
     def close(self):
         self.__pipe.close()
+    
+    def poll(self):
+        return self.__pipe.poll()
 
         
-class Debugger(qdb.Frontend, Thread):
+class Debugger(qdb.Frontend):
     "Frontend Visual interface to qdb"
 
     def __init__(self, gui=None, pipe=None):
-        Thread.__init__(self)
         qdb.Frontend.__init__(self, pipe)
         self.interacting = Event()  # flag to 
         self.done = Event()         # flag to block for user interaction
@@ -67,32 +69,34 @@ class Debugger(qdb.Frontend, Thread):
         self.post_event = True      # send event to the GUI
         self.start_continue = True  # continue on first run
         self.rawinput = None
-        self.setDaemon(1)           # do not join (kill on termination)
         self.actions = Queue()
         self.mutex = Lock()         # critical section protection (comm channel)
         self.access = Semaphore()   # limit to 1 interaction command to use the channel
         self.filename = self.lineno = None
         self.unrecoverable_error = False
-        self.start()                # creathe the new thread
+        self.pipe = None
+        wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
+        print "Binded!"
 
-    def run(self):
-        while 1:
-            self.pipe = None
-            try:
-                self.attached.wait()
-                print "DEBUGGER waiting for connection to", self.address
-                self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
-                print "DEBUGGER connected!"
-                while self.attached.is_set():
-                    qdb.Frontend.run(self)
-            except EOFError:
-                print "DEBUGGER disconnected..."
-            except IOError, e:
-                print "DEBUGGER connection exception:", e
-            finally:
-                self.detach()
-                if self.pipe:
-                    self.pipe.close()
+
+    def OnIdle(self, event):
+        try:
+            if self.attached.is_set():
+                while self.pipe.poll():
+                    self.run()
+                self.push_actions()
+
+        except EOFError:
+            print "DEBUGGER disconnected..."
+            self.detach()
+        except IOError, e:
+            print "DEBUGGER connection exception:", e
+        except:
+            print "DEBUGGER exception", e
+            import sys;
+            sys.exit()
+        #finally:
+            #self.detach()
 
     def init(self, cont=False):
         self.start_continue = cont
@@ -101,10 +105,15 @@ class Debugger(qdb.Frontend, Thread):
     def attach(self, host='localhost', port=6000, authkey='secret password'):
         self.address = (host, port)
         self.authkey = authkey
+        print "DEBUGGER waiting for connection to", self.address
+        self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
+        print "DEBUGGER connected!"
         self.attached.set()
     
     def detach(self):
         self.attached.clear()
+        if self.pipe:
+            self.pipe.close()
 
     def is_remote(self):
         return (self.attached.is_set() and 
@@ -122,6 +131,11 @@ class Debugger(qdb.Frontend, Thread):
         "Execute scheduled actions"
         ret = None
         while not self.actions.empty():
+            if self.interacting.is_set():
+                self.interacting.clear()
+                # clean current line
+                if self.gui and self.post_event:
+                    wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
             action = self.actions.get()
             try:
                 ret = action()
@@ -132,7 +146,7 @@ class Debugger(qdb.Frontend, Thread):
     def check_interaction(fn):
         "Decorator for mutually exclusive functions"
         def check_fn(self, *args, **kwargs):
-            if not self.interacting.is_set() or self.done.is_set():
+            if not self.interacting.is_set():
                 wx.Bell()
             else:
                 if self.mutex.acquire(False):
@@ -180,17 +194,14 @@ class Debugger(qdb.Frontend, Thread):
                     self.post_event = True
 
             # wait user events: done is a threading.Event (set by the main thread)
-            self.done.wait()
+            ##self.done.wait()
             
             # execute user action scheduled by main thread
-            self.push_actions()
+            ##self.push_actions()
 
-            # clean current line
-            if self.gui and self.post_event:
-                wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))            
 
         finally:
-            self.interacting.clear()
+            #self.interacting.clear()
             self.access.release()
             
     def write(self, text):
@@ -200,10 +211,7 @@ class Debugger(qdb.Frontend, Thread):
         # "raw_input" should be atomic and uninterrupted
         self.mutex.acquire()
         try:
-            self.done.clear()
-            wx.PostEvent(self.gui, DebugEvent(EVT_READLINE_ID))
-            self.done.wait()
-            return self.rawinput
+            return self.gui.Readline()
         finally:
             self.mutex.release()
 
@@ -262,10 +270,6 @@ class Debugger(qdb.Frontend, Thread):
 
     # Methods to handle user interaction by main thread bellow:
     
-    def Readline(self, text):
-        self.rawinput = text
-        self.done.set()
-
     @check_interaction
     def Continue(self, filename=None, lineno=None):
         if self.check_running_code():

@@ -386,7 +386,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # Connect to debugging and explorer events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
-        self.Connect(-1, -1, EVT_READLINE_ID, self.OnReadline)
         self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
         self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
         self.Connect(-1, -1, EVT_EXPLORE_ID, self.OnExplore)
@@ -820,9 +819,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if child:
             return child.GetLineText(lineno)
 
-    def OnReadline(self, event):
-        text = self.console.readline()
-        self.debugger.Readline(text)
+    def Readline(self):
+        # ensure "console" pane is visible
+        self._mgr.GetPane("console").Show()
+        self._mgr.Update()
+        # read user input and return it
+        return self.console.readline()
 
     def OnWrite(self, event):
         self.console.write(event.data)
