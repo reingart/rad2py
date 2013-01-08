@@ -120,7 +120,7 @@ class Debugger(qdb.Frontend):
                 wx.Bell()
                 self.gui.ShowInfoBar("not interacting! reach a breakpoint "
                                      "or interrupt the running code (CTRL+I)", 
-                                     flags=wx.ICON_INFORMATION, key="debugger") 
+                                     flags=wx.ICON_INFORMATION, key="debugger")
             else:
                 # do not execute if edited (code editions must be checked)
                 if self.check_running_code(fn.func_name):
@@ -326,9 +326,9 @@ class Debugger(qdb.Frontend):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def modal_readline(self):
-        dlg = wx.TextEntryDialog(self.gui, 'Input required',
-                'Debugger console input', '')
+    def modal_readline(self, msg='Input required', default=''):
+        dlg = wx.TextEntryDialog(self.gui, msg,
+                'Debugger console input', default)
         if dlg.ShowModal() == wx.ID_OK:
             return dlg.GetValue() 
         dlg.Destroy()
@@ -424,7 +424,7 @@ class EnvironmentPanel(wx.Panel):
     def __init__(self, parent=None):
         wx.Panel.__init__(self, parent, -1)
         self.Bind(wx.EVT_SIZE, self.OnSize)
-
+        self.debugger = parent.debugger
         self.tree = wx.gizmos.TreeListCtrl(self, -1, style =
                                         wx.TR_DEFAULT_STYLE
                                         #| wx.TR_HAS_BUTTONS
@@ -442,6 +442,7 @@ class EnvironmentPanel(wx.Panel):
         self.tree.AddColumn("Repr")
         self.tree.SetMainColumn(0) # the one with the tree in it...
         self.tree.SetColumnWidth(0, 175)
+        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate)
 
     def BuildItem(self, item, txt, cols=None):
         child = self.tree.AppendItem(item, txt)
@@ -467,6 +468,21 @@ class EnvironmentPanel(wx.Panel):
 
     def OnSize(self, evt):
         self.tree.SetSize(self.GetSize())
+
+    def OnActivate(self, evt):
+        "When a item is clicked, ask for a new value and try to update it"
+        # get name of activated item:
+        var = self.tree.GetItemText(evt.GetItem())
+        if var:
+            # get current value (default) and open a dialog asking the new one
+            val = self.tree.GetItemText(evt.GetItem(), 2)
+            val = self.debugger.modal_readline("New value for %s" % var, val)
+            # only edit if user has input text
+            if val:
+                ret = self.debugger.Exec("%s = %s" % (var, val))
+                # return value should be None, if not, show error message:
+                if ret != 'None':
+                    self.debugger.modal_write(ret)
 
 
 class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
