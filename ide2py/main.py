@@ -41,7 +41,7 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, \
+from debugger import Debugger, EVT_DEBUG_ID, EVT_WRITE_ID, \
                                EVT_EXCEPTION_ID, EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID

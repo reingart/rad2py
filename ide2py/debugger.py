@@ -23,8 +23,8 @@ from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import qdb
 
 # Define notification event for thread completion
-EVT_DEBUG_ID, EVT_READLINE_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
-    for i in range(4)]
+EVT_DEBUG_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
+    for i in range(3)]
 
 
 class DebugEvent(wx.PyEvent):
@@ -118,8 +118,9 @@ class Debugger(qdb.Frontend):
         def check_fn(self, *args, **kwargs):
             if not self.interacting or not self.pipe or not self.attached:
                 wx.Bell()
-                self.gui.ShowInfoBar("not interacting!", 
-                                     flags=wx.ICON_WARNING, key="debugger") 
+                self.gui.ShowInfoBar("not interacting! reach a breakpoint "
+                                     "or interrupt the running code (CTRL+I)", 
+                                     flags=wx.ICON_INFORMATION, key="debugger") 
             else:
                 self.interacting = False
                 # interaction is done, clean current line marker
@@ -127,17 +128,21 @@ class Debugger(qdb.Frontend):
                 return fn(self, *args, **kwargs)
         return check_fn
     
+    def is_waiting(self):
+        # check if interaction is banned (i.e. readline!)
+        if self.interacting is None:
+            self.gui.ShowInfoBar("cannot interrupt now (readline): "
+                "debugger is waiting your user input at the Console window",
+                flags=wx.ICON_INFORMATION, key="debugger")
+            wx.Bell()
+            return True
+
     def force_interaction(fn):
         "Decorator for functions that need to break immediately"
         def check_fn(self, *args, **kwargs):
-            print "force interaction!!", fn.func_name, args, kwargs
             # only send if debugger is connected and attached
-            if not self.pipe or not self.attached:
+            if not self.pipe or not self.attached or self.is_waiting():
                 return False
-            # check if interaction is banned (i.e. readline!)
-            if self.interacting is None:
-                wx.Bell()
-                return
             # do not send GUI notifications (to not alter the focus)
             self.post_event = False
             # if no interaction yet, send an interrupt (step on the next stmt)
@@ -287,7 +292,7 @@ class Debugger(qdb.Frontend):
         self.do_jump(lineno)
 
     def Interrupt(self):
-        if self.attached and self.interacting == False:
+        if self.attached and not self.is_waiting():
             self.interrupt()
 
     def LoadBreakpoints(self):
