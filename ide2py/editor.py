@@ -1073,7 +1073,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             if not expr:
                 expr = self.GetWord(whole=True, pos=evt.GetPosition())
             # Query qdb debugger to evaluate the expression
-            if expr:
+            if expr and self.debugger.interacting:
                 value = self.debugger.Eval(expr)
                 if value is not None:
                     expr_value = "%s = %s" % (expr, value)
