@@ -1030,8 +1030,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
                                           CloseButton(False).
                                           MaximizeButton(False).
                                           MinimizeButton(False))
+        # workaround: show infobar to layout it correctly
+        self.infobars[key].DoShow()
         # show message when this event finish
         wx.CallAfter(self.infobars[key].ShowMessage, message, flags)
+        # workaround: size event to correctly wrap text if window is resized
+        evt = wx.SizeEvent(self.infobars[key].GetClientSize())
+        wx.CallAfter(self.infobars[key]._text.OnSize, evt)
     
 
 class CustomStatusBar(wx.StatusBar):
