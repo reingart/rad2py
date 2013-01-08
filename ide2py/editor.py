@@ -398,7 +398,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         except Exception, e:
             offset = e.offset or 0  # sometimes these are None
             lineno = e.lineno or 0
-            wx.MessageBox('You have a syntax error on line' + ' ' + str(lineno) + ', ' + 'column' + ' ' + str(offset) + '.', 'Syntax Error')
+            self.parent.ShowInfoBar('You have a syntax error on line' + ' ' + str(lineno) + ', ' + 'column' + ' ' + str(offset) + '.', 
+                     flags=wx.ICON_WARNING)
             # line with a caret indicating the approximate error position:
             desc = e.text + " " * offset + "^"
             self.parent.NotifyDefect(summary=str(e), description=desc, type="20", filename=self.filename, lineno=lineno, offset=offset)

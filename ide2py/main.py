@@ -1014,7 +1014,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.explorer:
             self.explorer.ParseFile(filename, refresh=True)
 
-    def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None):
+    def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, 
+                    auto_dismiss=False):
         "Show message in a information bar (between menu and toolbar)"
         if key not in self.infobars:
             # create a new InfoBar if not exists
@@ -1037,6 +1038,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # workaround: size event to correctly wrap text if window is resized
         evt = wx.SizeEvent(self.infobars[key].GetClientSize())
         wx.CallAfter(self.infobars[key]._text.OnSize, evt)
+        if auto_dismiss:
+            wx.CallLater(5000, self.infobars[key].Dismiss)
     
 
 class CustomStatusBar(wx.StatusBar):
@@ -1187,6 +1190,11 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.parent.statusbar.eol_choice.SetSelection(eolmode)
         self.parent.statusbar.SetStatusText(encoding, 5)
 
+    def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, parent=None):
+        # TODO: add the infobar to the notebook
+        self.parent.ShowInfoBar(message, flags=flags, key="editor", 
+                                auto_dismiss=True)
+        
     def ChangeEOL(self, eol):
         self.editor.ChangeEOL(eol)
     
