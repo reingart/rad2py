@@ -103,10 +103,8 @@ class Web2pyMixin(object):
                     p.start()                
                 
             except Exception, e:
-                dlg = wx.MessageDialog(self, unicode(e),
-                           'cannot start web2py!', wx.OK | wx.ICON_EXCLAMATION)
-                dlg.ShowModal()
-                dlg.Destroy()
+                self.ShowInfoBar(u"cannot start web2py!: %s" % unicode(e), 
+                                 flags=wx.ICON_ERROR, key="web2py")
                 web2py_env = {}
             finally:
                 # recover original directory

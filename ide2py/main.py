@@ -31,9 +31,11 @@ import wx.lib.dialogs
 
 try:
     import wx.lib.agw.advancedsplash as advancedsplash
+    import wx.lib.agw.infobar as infobar
 except ImportError:
     # disable advanced splash screen
     advancedsplash = None
+    infobar = wx
 
 import images
 
@@ -115,12 +117,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if RAD2PY_ICON:
             self.SetIcon(wx.Icon(RAD2PY_ICON, wx.BITMAP_TYPE_ICO))
             
-        self.children = []
+        self.children = []              # editors (notebooks)
+        self.infobars = {}              # notifications (stackable panes)
         self.debugging_child = None     # current debugged file
         self.temp_breakpoint = None
         self.lastprogargs = ""
         self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
-        self.pid = None      
+        self.pid = None
         
         # tell FrameManager to manage this frame        
         self._mgr = aui.AuiManager(self)
@@ -447,6 +450,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # set not executing (hide debug panes)
         self.executing = False
+        
                 
     def GetStartPosition(self):
 
@@ -1010,6 +1014,25 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         if self.explorer:
             self.explorer.ParseFile(filename, refresh=True)
 
+    def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None):
+        "Show message in a information bar (between menu and toolbar)"
+        if key not in self.infobars:
+            # create a new InfoBar if not exists
+            self.infobars[key] = infobar.InfoBar(self)
+            # "veto" resize event (spurious AUI OnSize event workaround)
+            self.infobars[key].Bind(wx.EVT_SIZE, lambda e: None)
+            # create the AUI Pane 
+            # (do not set name to override be hidden by LoadPerspective)
+            self._mgr.AddPane(self.infobars[key], aui.AuiPaneInfo().
+                                          Top().Layer(100 - len(self.infobars)).
+                                          BestSize((300, 30)).
+                                          CaptionVisible(False).
+                                          CloseButton(False).
+                                          MaximizeButton(False).
+                                          MinimizeButton(False))
+        # show message when this event finish
+        wx.CallAfter(self.infobars[key].ShowMessage, message, flags)
+    
 
 class CustomStatusBar(wx.StatusBar):
     def __init__(self, parent):
