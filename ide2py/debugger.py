@@ -122,10 +122,12 @@ class Debugger(qdb.Frontend):
                                      "or interrupt the running code (CTRL+I)", 
                                      flags=wx.ICON_INFORMATION, key="debugger") 
             else:
-                self.interacting = False
-                # interaction is done, clean current line marker
-                wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
-                return fn(self, *args, **kwargs)
+                # do not execute if edited (code editions must be checked)
+                if self.check_running_code(fn.func_name):
+                    self.interacting = False
+                    # interaction is done, clean current line marker
+                    wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
+                    return fn(self, *args, **kwargs)
         return check_fn
     
     def is_waiting(self):
@@ -216,8 +218,11 @@ class Debugger(qdb.Frontend):
             wx.PostEvent(self.gui, DebugEvent(EVT_EXCEPTION_ID, args))
             self.unrecoverable_error = u"%s" % args[0]
 
-    def check_running_code(self):
-        "Edit and continue functionality"
+    def check_running_code(self, func_name):
+        "Edit and continue functionality -> True=ok or False=restart"
+        # only check edited code for the following methods:
+        if func_name not in ("Continue", "Step", "StepReturn", "Next"):
+            return True
         if self.filename:
             curr_line = self.gui.GetLineText(self.filename, self.lineno)
             curr_line = curr_line.strip().strip("\r").strip("\n")
@@ -242,9 +247,9 @@ class Debugger(qdb.Frontend):
                 self.set_burst(3)
                 self.do_exec(curr_line)
                 print "executed", curr_line
-                self.do_jump(self.lineno+1)
+                ret = self.do_jump(self.lineno+1)
                 print "jump", ret
-                if not ret:
+                if ret:
                     raise RuntimeError("Cannot jump to ignore modified line!")
             except Exception, e:
                 dlg = wx.MessageDialog(self.gui, "Exception: %s\n\n"
@@ -261,27 +266,23 @@ class Debugger(qdb.Frontend):
     
     @check_interaction
     def Continue(self, filename=None, lineno=None):
-        if self.check_running_code():
-            if filename and lineno:
-                # set a temp breakpoint (continue to...)
-                self.set_burst(2)
-                self.do_set_breakpoint(filename, lineno, temporary=1)
-            self.do_continue()
+        if filename and lineno:
+            # set a temp breakpoint (continue to...)
+            self.set_burst(2)
+            self.do_set_breakpoint(filename, lineno, temporary=1)
+        self.do_continue()
 
     @check_interaction
     def Step(self):
-        if self.check_running_code():
-            self.do_step()
+        self.do_step()
 
     @check_interaction
     def StepReturn(self):
-        if self.check_running_code():
-            self.do_return()
+        self.do_return()
 
     @check_interaction
     def Next(self):
-        if self.check_running_code():
-            self.do_next()
+        self.do_next()
 
     @force_interaction
     def Quit(self):
@@ -289,7 +290,10 @@ class Debugger(qdb.Frontend):
 
     @check_interaction
     def Jump(self, lineno):
-        self.do_jump(lineno)
+        ret = self.do_jump(lineno)
+        if ret:
+            self.gui.ShowInfoBar("cannot jump: %s" % ret,
+                         flags=wx.ICON_INFORMATION, key="debugger")
 
     def Interrupt(self):
         if self.attached and not self.is_waiting():
