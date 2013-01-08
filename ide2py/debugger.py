@@ -23,8 +23,7 @@ from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import qdb
 
 # Define notification event for thread completion
-EVT_DEBUG_ID, EVT_WRITE_ID, EVT_EXCEPTION_ID = [wx.NewId() 
-    for i in range(3)]
+EVT_DEBUG_ID, EVT_EXCEPTION_ID = [wx.NewId() for i in range(2)]
 
 
 class DebugEvent(wx.PyEvent):
@@ -206,7 +205,7 @@ class Debugger(qdb.Frontend):
             
     def write(self, text):
         "ouputs a message (called by the backend)"
-        wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
+        self.gui.Write(text)
 
     def readline(self):
         "returns a user input (called by the backend)"

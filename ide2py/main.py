@@ -41,8 +41,8 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID, EVT_WRITE_ID, \
-                               EVT_EXCEPTION_ID, EnvironmentPanel, StackListCtrl
+from debugger import Debugger, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
+                     EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
 
@@ -389,7 +389,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
 
         # Connect to debugging and explorer events
         self.Connect(-1, -1, EVT_DEBUG_ID, self.GotoFileLine)
-        self.Connect(-1, -1, EVT_WRITE_ID, self.OnWrite)
         self.Connect(-1, -1, EVT_EXCEPTION_ID, self.OnException)
         self.Connect(-1, -1, EVT_EXPLORE_ID, self.OnExplore)
 
@@ -830,8 +829,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         # read user input and return it
         return self.console.readline()
 
-    def OnWrite(self, event):
-        self.console.write(event.data)
+    def Write(self, text):
+        self.console.write(text)
                     
     def OnDebugCommand(self, event):
         event_id = event.GetId()
