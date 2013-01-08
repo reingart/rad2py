@@ -7,15 +7,12 @@ __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
-# based on idle, inspired by pythonwin implementation
+# initally based on idle, inspired by pythonwin implementation
 
-from Queue import Queue
 from multiprocessing.connection import Client
 import compiler
 import os
-import random
 import sys
-import time
 import wx
 import wx.gizmos
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
