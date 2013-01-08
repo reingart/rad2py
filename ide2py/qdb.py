@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.01d"
+__version__ = "1.02a"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -259,10 +259,8 @@ class Qdb(bdb.Bdb):
         arg = int(lineno)
         try:
             self.frame.f_lineno = arg
-            return arg
         except ValueError, e:
-            print '*** Jump failed:', e
-            return False
+            return unicode(e)
 
     def do_list(self, arg):
         last = None
@@ -650,9 +648,9 @@ class Frontend(object):
         self.call('do_return')
 
     def do_jump(self, arg): 
-        "Set the next line that will be executed."
+        "Set the next line that will be executed (None if sucess or message)"
         res = self.call('do_jump', arg)
-        print res
+        return res
 
     def do_where(self, arg=None):
         "Print a stack trace, with the most recent frame at the bottom."
@@ -761,7 +759,6 @@ class Cli(Frontend, cmd.Cmd):
     do_n = Frontend.do_next
     do_c = Frontend.do_continue        
     do_r = Frontend.do_return
-    do_j = Frontend.do_jump
     do_q = Frontend.do_quit
 
     def do_eval(self, args):
@@ -806,11 +803,18 @@ class Cli(Frontend, cmd.Cmd):
         else:
             self.do_list_breakpoint()
 
+    def do_jump(self, args):
+        "Jump to the selected line"
+        ret = Frontend.do_jump(self, args)
+        if ret:     # show error message if failed
+            print "cannot jump:", ret
+
     do_b = do_set_breakpoint
     do_l = do_list
     do_p = do_eval
     do_w = do_where
     do_e = do_environment
+    do_j = do_jump
 
     def default(self, line):
         "Default command"
