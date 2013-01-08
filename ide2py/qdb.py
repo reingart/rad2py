@@ -829,21 +829,25 @@ class Cli(Frontend, cmd.Cmd):
         print
 
 
+def f(pipe):
+    "test function to be debugged"
+    print "creating debugger"
+    qdb_test = Qdb(pipe=pipe, redirect_stdio=False, allow_interruptions=True)
+    print "set trace"
+
+    my_var = "Mariano!"
+    qdb_test.set_trace()
+    print "hello world!"
+    for i in xrange(100000):
+        pass
+    print "good by!"
+    
+
 def test():
-    def f(pipe):
-        print "creating debugger"
-        qdb = Qdb(pipe=pipe, redirect_stdio=False)
-        print "set trace"
-
-        my_var = "Mariano!"
-        qdb.set_trace()
-        print "hello world!"
-        print "good by!"
-        saraza
-
+    "Create a backend/frontend and time it"
     if '--process' in sys.argv:
         from multiprocessing import Process, Pipe
-        pipe, child_conn = Pipe()
+        front_conn, child_conn = Pipe()
         p = Process(target=f, args=(child_conn,))
     else:
         from threading import Thread
@@ -859,20 +863,22 @@ def test():
     class Test(Frontend):
         def interaction(self, *args):
             print "interaction!", args
+            ##self.do_next()
         def exception(self, *args):
             print "exception", args
-            #raise RuntimeError("exception %s" % repr(args))
 
-    qdb = Test(front_conn)
-    time.sleep(5)
-    
-    while 1:
-        print "running..."
-        Frontend.run(qdb)
-        time.sleep(1)
-        print "do_next"
-        qdb.do_next()
+    qdb_test = Test(front_conn)
+    time.sleep(1)
+    t0 = time.time()
+        
+    print "running..."
+    while front_conn.poll():
+        Frontend.run(qdb_test)
+    qdb_test.do_continue()
     p.join()
+    t1 = time.time()
+    print "took", t1 - t0, "seconds"
+    sys.exit(0)
 
 
 def connect(host="localhost", port=6000, authkey='secret password'):
