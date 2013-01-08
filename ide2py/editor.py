@@ -1066,8 +1066,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
-        if self.debugger and self.debugger.attached.is_set() and evt.GetPosition() >= 0:
-            print "Hovering", evt.GetPosition()
+        if self.debugger and self.debugger.attached and evt.GetPosition() >= 0:
             # get selected text first:
             expr = self.GetSelectedText()
             if not expr:
@@ -1075,8 +1074,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             # Query qdb debugger to evaluate the expression
             if expr:
                 value = self.debugger.Eval(expr)
-                print "%s = %s" % (expr, value)
-                wx.CallAfter(self.SetToolTipString, "%s = %s" % (expr, value))
+                if value is not None:
+                    expr_value = "%s = %s" % (expr, value)
+                    wx.CallAfter(self.SetToolTipString, expr_value)
         evt.Skip()
         
     def OnEndHover(self, evt):
