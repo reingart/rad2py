@@ -74,6 +74,7 @@ class Debugger(qdb.Frontend):
 
 
     def OnIdle(self, event):
+        "Debugger main loop: read and execute remote methods"
         try:
             if self.attached:
                 while self.pipe.poll():
@@ -169,6 +170,7 @@ class Debugger(qdb.Frontend):
         return check_fn
 
     def startup(self):
+        "Initialization procedures (called by the backend)"
         # notification sent by _runscript before Bdb.run
         print "loading breakpoints...."
         self.LoadBreakpoints()
@@ -178,6 +180,7 @@ class Debugger(qdb.Frontend):
         qdb.Frontend.startup(self)
 
     def interaction(self, filename, lineno, line, **context):
+        "Start user interaction -show current line- (called by the backend)"
         self.interacting = True
         try:
             if self.start_continue:
@@ -202,9 +205,11 @@ class Debugger(qdb.Frontend):
             pass
             
     def write(self, text):
+        "ouputs a message (called by the backend)"
         wx.PostEvent(self.gui, DebugEvent(EVT_WRITE_ID, text))
 
     def readline(self):
+        "returns a user input (called by the backend)"
         # "raw_input" should be atomic and uninterrupted
         try:
             self.interacting = None
@@ -266,6 +271,7 @@ class Debugger(qdb.Frontend):
     
     @check_interaction
     def Continue(self, filename=None, lineno=None):
+        "Execute until the program ends, a breakpoint is hit or interrupted"
         if filename and lineno:
             # set a temp breakpoint (continue to...)
             self.set_burst(2)
@@ -274,32 +280,39 @@ class Debugger(qdb.Frontend):
 
     @check_interaction
     def Step(self):
+        "Execute until the next instruction (entering to functions)"
         self.do_step()
 
     @check_interaction
     def StepReturn(self):
+        "Execute until the end of the current function"
         self.do_return()
 
     @check_interaction
     def Next(self):
+        "Execute until the next line (not entering to functions)"
         self.do_next()
 
     @force_interaction
     def Quit(self):
+        "Terminate the program being debugged"
         self.do_quit()
 
     @check_interaction
     def Jump(self, lineno):
+        "Set next line to be executed"
         ret = self.do_jump(lineno)
         if ret:
             self.gui.ShowInfoBar("cannot jump: %s" % ret,
                          flags=wx.ICON_INFORMATION, key="debugger")
 
     def Interrupt(self):
+        "Stop immediatelly (similar to Ctrl+C but program con be resumed)"
         if self.attached and not self.is_waiting():
             self.interrupt()
 
     def LoadBreakpoints(self):
+        "Set all breakpoints (remotelly, used at initialization)"
         # get a list of {filename: {lineno: (temp, cond)}
         for filename, bps in self.gui.GetBreakpoints():
             for lineno, (temporary, cond) in bps.items():
@@ -308,25 +321,30 @@ class Debugger(qdb.Frontend):
 
     @force_interaction
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
+        "Set the specified breakpoint (remotelly)"
         self.do_set_breakpoint(filename, lineno, temporary, cond)
 
     @force_interaction
     def ClearBreakpoint(self, filename, lineno):
+        "Remove the specified breakpoint (remotelly)"
         self.do_clear_breakpoint(filename, lineno)
             
     @force_interaction
     def ClearFileBreakpoints(self, filename):
+        "Remove all breakpoints set for a file (remotelly)"
         self.do_clear_file_breakpoints(filename)
 
     # modal functions required by Eval (must not block):
     
     def modal_write(self, text):
+        "Aux dialog to show output (modal for Exec/Eval)"
         dlg = wx.MessageDialog(self.gui, text, "Debugger console output", 
                wx.OK | wx.ICON_INFORMATION)
         dlg.ShowModal()
         dlg.Destroy()
 
     def modal_readline(self, msg='Input required', default=''):
+        "Aux dialog to request user input (modal for Exec/Eval)"
         dlg = wx.TextEntryDialog(self.gui, msg,
                 'Debugger console input', default)
         if dlg.ShowModal() == wx.ID_OK:
@@ -335,6 +353,7 @@ class Debugger(qdb.Frontend):
         
     @check_interaction
     def Eval(self, arg):
+        "Returns the evaluation of an expression in the debugger context"
         if self.pipe and self.attached:
             try:
                 old_write = self.write
@@ -359,6 +378,7 @@ class Debugger(qdb.Frontend):
 
     @check_interaction
     def GetContext(self):
+        "Request call stack and environment (locals/globals)"
         self.set_burst(3)
         w = self.do_where()
         ret = []
@@ -427,11 +447,6 @@ class EnvironmentPanel(wx.Panel):
         self.debugger = parent.debugger
         self.tree = wx.gizmos.TreeListCtrl(self, -1, style =
                                         wx.TR_DEFAULT_STYLE
-                                        #| wx.TR_HAS_BUTTONS
-                                        #| wx.TR_TWIST_BUTTONS
-                                        #| wx.TR_ROW_LINES
-                                        #| wx.TR_COLUMN_LINES
-                                        #| wx.TR_NO_LINES 
                                         | wx.TR_HIDE_ROOT
                                         | wx.TR_FULL_ROW_HIGHLIGHT
                                    )
