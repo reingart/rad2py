@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.02a"
+__version__ = "1.03a"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -24,11 +24,23 @@ import cmd
 import pydoc
 import threading
 
+
+# Speed Ups: cython (where available) and global variables
+try:
+    import qdb_cython
+except ImportError:
+    print "cython speedups cannot be imported!"
+    qdb_cython = None
+breaks = []
+poll = None
+
+
 class Qdb(bdb.Bdb):
     "Qdb Debugger Backend"
 
     def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False,
-                 skip=[__name__]):
+                 use_speedups=True, skip=[__name__]):
+        global breaks, poll
         kwargs = {}
         if sys.version_info > (2, 7):
             kwargs['skip'] = skip
@@ -52,6 +64,18 @@ class Qdb(bdb.Bdb):
         self.allow_interruptions = allow_interruptions
         self.burst = 0          # do not send notifications ("burst" mode)
         self.params = {}        # optional parameters for interaction
+        
+        # if available and enabled, enable cython speedups:
+        if qdb_cython and use_speedups:
+            qdb_cython.self = self
+            qdb_cython.poll = self.pipe.poll
+            breaks = qdb_cython.breaks
+            self.trace_dispatch = qdb_cython.trace_dispatch
+        else:
+            poll = self.pipe.poll
+        # reduce overhead (only stop at breakpoint or interrupt):
+        self.use_speedups = use_speedups
+        self.fast_continue = False
 
     def pull_actions(self):
         # receive a remote procedure call from the frontend:
@@ -81,7 +105,15 @@ class Qdb(bdb.Bdb):
         # check for non-interaction rpc (set_breakpoint, interrupt)
         while self.allow_interruptions and self.pipe.poll():
             self.pull_actions()
+            # check for non-interaction rpc (set_breakpoint, interrupt)
+            while poll():
+                self.pull_actions()
+        if (frame.f_code.co_filename, frame.f_lineno) not in breaks and \
+            self.fast_continue:
+            return self.trace_dispatch
         # process the frame (see Bdb.trace_dispatch)
+        ##if self.fast_continue:
+        ##    return self.trace_dispatch
         if self.quitting:
             return # None
         if event == 'line':
@@ -235,25 +267,32 @@ class Qdb(bdb.Bdb):
     def do_continue(self):
         self.set_continue()
         self.waiting = False
+        self.fast_continue = self.use_speedups
+        print "FAST_CONTINUE", self.use_speedups
 
     def do_step(self):
         self.set_step()
         self.waiting = False
+        self.fast_continue = False
 
     def do_return(self):
         self.set_return(self.frame)
         self.waiting = False
+        self.fast_continue = False
 
     def do_next(self):
         self.set_next(self.frame)
         self.waiting = False
+        self.fast_continue = False
 
     def interrupt(self):
         self.set_step()
+        self.fast_continue = False
 
     def do_quit(self):
         self.set_quit()
         self.waiting = False
+        self.fast_continue = False
 
     def do_jump(self, lineno):
         arg = int(lineno)
@@ -295,6 +334,8 @@ class Qdb(bdb.Bdb):
         return open(filename, "Ur").read()
 
     def do_set_breakpoint(self, filename, lineno, temporary=0, cond=None):
+        global breaks   # list for speedups!
+        breaks.append((filename.replace("\\", "/"), int(lineno)))
         return self.set_break(filename, int(lineno), temporary, cond)
 
     def do_list_breakpoint(self):
