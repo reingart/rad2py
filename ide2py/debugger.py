@@ -85,7 +85,7 @@ class Debugger(qdb.Frontend):
             # print the exception message and close (avoid recursion)
             print "DEBUGGER exception", e
             import traceback
-            traceback.traceback.print_exc()
+            traceback.print_exc()
             import sys;
             sys.exit()
 
