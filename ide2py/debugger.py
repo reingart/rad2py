@@ -357,6 +357,7 @@ class Debugger(qdb.Frontend):
                 # replace console functions
                 self.write = self.modal_write
                 self.readline = self.modal_readline
+                self.set_burst(2)   # disable interaction notification
                 # we need the result right now:
                 return self.do_eval(arg)
             except qdb.RPCError, e:
@@ -406,6 +407,7 @@ class Debugger(qdb.Frontend):
                     self.write = write
                 if readline:
                     self.readline = readline
+                self.set_burst(2)   # disable interaction notification
                 # execute the statement in the remote debugger:
                 ret = self.do_exec(statement)
                 if isinstance(ret, basestring):
@@ -423,6 +425,7 @@ class Debugger(qdb.Frontend):
         "Return list of auto-completion options for an expression"
         if self.pipe and self.attached and self.interacting:
             try:
+                self.set_burst(2)   # disable interaction notification
                 return self.get_autocomplete_list(expr)
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
@@ -431,6 +434,7 @@ class Debugger(qdb.Frontend):
         "Returns (name, argspec, tip) for an expression"
         if self.pipe and self.attached and self.interacting:
             try:
+                self.set_burst(2)   # disable interaction notification
                 return self.get_call_tip(expr)
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
