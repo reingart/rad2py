@@ -365,6 +365,7 @@ class Debugger(qdb.Frontend):
             finally:
                 self.write = old_write
                 self.readline = old_readline
+                
 
     @check_interaction
     def ReadFile(self, filename):
@@ -407,7 +408,7 @@ class Debugger(qdb.Frontend):
                     self.write = write
                 if readline:
                     self.readline = readline
-                self.set_burst(2)   # disable interaction notification
+                self.post_event = None   # ignore one interaction notification
                 # execute the statement in the remote debugger:
                 ret = self.do_exec(statement)
                 if isinstance(ret, basestring):
@@ -425,7 +426,7 @@ class Debugger(qdb.Frontend):
         "Return list of auto-completion options for an expression"
         if self.pipe and self.attached and self.interacting:
             try:
-                self.set_burst(2)   # disable interaction notification
+                self.post_event = None   # ignore one interaction notification
                 return self.get_autocomplete_list(expr)
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
@@ -434,7 +435,7 @@ class Debugger(qdb.Frontend):
         "Returns (name, argspec, tip) for an expression"
         if self.pipe and self.attached and self.interacting:
             try:
-                self.set_burst(2)   # disable interaction notification
+                self.post_event = None   # ignore one interaction notification
                 return self.get_call_tip(expr)
             except qdb.RPCError, e:
                 return u'*** %s' % unicode(e)
