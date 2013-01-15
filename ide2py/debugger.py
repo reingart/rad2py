@@ -58,6 +58,7 @@ class Debugger(qdb.Frontend):
     def __init__(self, gui=None, pipe=None):
         qdb.Frontend.__init__(self, pipe)
         self.interacting = False    # flag to signal user interaction
+        self.quitting = False       # flag used when Quit is called
         self.attached = False       # flag to signal remote side availability
         self.gui = gui              # wx window for callbacks
         self.post_event = True      # send event to the GUI
@@ -99,7 +100,10 @@ class Debugger(qdb.Frontend):
         print "DEBUGGER waiting for connection to", self.address
         self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
         print "DEBUGGER connected!"
+        # restore sane defaults:
         self.attached = True
+        self.quitting = False
+        self.post_event = True
     
     def detach(self):
         self.attached = False
@@ -123,9 +127,7 @@ class Debugger(qdb.Frontend):
                 if self.check_running_code(fn.func_name):
                     ret = fn(self, *args, **kwargs)
                     if self.post_event:
-                        self.interacting = False
-                        # interaction is done, clean current line marker
-                        wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
+                        self.clear_interaction()                        
                     return ret
         return check_fn
     
@@ -159,14 +161,23 @@ class Debugger(qdb.Frontend):
                 self.OnIdle(None)   # force pipe processing
             # send the method request                
             ret = fn(self, *args, **kwargs)
-            # if interrupted, send a continue to resume
-            if cont:
+            
+            if self.quitting:
+                # clean up interaction marker
+                self.clear_interaction()
+            elif cont:
+                # if interrupted, send a continue to resume
                 self.post_event = True
-                self.interacting = False
                 self.do_continue()
             return True
         return check_fn
 
+    def clear_interaction(self): 
+        self.interacting = False
+        # interaction is done, clean current line marker
+        wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
+                                         (None, None, None, None)))
+        
     def startup(self):
         "Initialization procedures (called by the backend)"
         # notification sent by _runscript before Bdb.run
@@ -240,6 +251,8 @@ class Debugger(qdb.Frontend):
             quit = dlg.ShowModal() == wx.ID_YES              
             dlg.Destroy()
             if quit:
+                self.quitting = True
+                self.clear_interaction()
                 self.do_quit()
             return False
         # check current text source code against running code
@@ -294,6 +307,7 @@ class Debugger(qdb.Frontend):
     @force_interaction
     def Quit(self):
         "Terminate the program being debugged"
+        self.quitting = True
         self.do_quit()
 
     @check_interaction
