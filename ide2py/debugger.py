@@ -121,10 +121,12 @@ class Debugger(qdb.Frontend):
             else:
                 # do not execute if edited (code editions must be checked)
                 if self.check_running_code(fn.func_name):
-                    self.interacting = False
-                    # interaction is done, clean current line marker
-                    wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
-                    return fn(self, *args, **kwargs)
+                    ret = fn(self, *args, **kwargs)
+                    if self.post_event:
+                        self.interacting = False
+                        # interaction is done, clean current line marker
+                        wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, (None, None, None, None)))
+                    return ret
         return check_fn
     
     def is_waiting(self):
@@ -357,7 +359,7 @@ class Debugger(qdb.Frontend):
                 # replace console functions
                 self.write = self.modal_write
                 self.readline = self.modal_readline
-                self.set_burst(2)   # disable interaction notification
+                self.post_event = None   # ignore one interaction notification
                 # we need the result right now:
                 return self.do_eval(arg)
             except qdb.RPCError, e:
