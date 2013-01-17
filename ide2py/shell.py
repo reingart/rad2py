@@ -104,3 +104,24 @@ class Shell(wx.py.shell.Shell):
         "emulate HasFocus for older wxpython versions"
         return self.has_focus
 
+    def OnKeyDown(self, event):
+        "Handle key presses (overrides Shell default method)"
+        key = event.GetKeyCode()
+        # use arrow up/down for history and tab for autocompletion
+        # if autocomplete/calltip is active, proced with normal behavior
+        if self.AutoCompActive() and not self.CallTipActive():
+            super(Shell, self).OnKeyDown(event)
+        elif key == wx.WXK_UP and self.CanEdit():
+            self.OnHistoryReplace(step=+1)
+        elif key == wx.WXK_DOWN and self.CanEdit():
+            self.OnHistoryReplace(step=-1)
+        elif key == wx.WXK_TAB and \
+             self.GetCurrentPos() != self.promptPosEnd and \
+             self.CanEdit():
+            # try to autocomplete:
+            self.OnCallTipAutoCompleteManually(event.ShiftDown())
+            if not self.AutoCompActive() and not self.CallTipActive():
+                # show autocomplete form history
+                self.OnShowCompHistory()
+        else:
+            super(Shell, self).OnKeyDown(event)
