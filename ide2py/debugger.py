@@ -104,6 +104,7 @@ class Debugger(qdb.Frontend):
         self.attached = True
         self.quitting = False
         self.post_event = True
+        self.lineno = None
     
     def detach(self):
         self.attached = False
@@ -257,7 +258,9 @@ class Debugger(qdb.Frontend):
             return False
         # check current text source code against running code
         if self.lineno is not None and self.orig_line != curr_line:
-            print "edit_and_continue..."
+            print "edit_and_continue...", self.lineno
+            print "*", self.orig_line, "*"
+            print "*", curr_line, "*"
             try:
                 compiler.parse(curr_line)
                 self.set_burst(3)
