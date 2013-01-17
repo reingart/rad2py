@@ -25,7 +25,7 @@ class Interpreter(wx.py.interpreter.Interpreter):
     "Customized interpreter for local execution (handling locals and globals)"
 
     def __init__(self, locals, rawin, stdin, stdout, stderr, 
-                 ps1='>>>', ps2='...',
+                 ps1='>>> ', ps2='... ',
                  globals=None,
                  debugger=None,
                  ):
