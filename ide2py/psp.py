@@ -805,7 +805,7 @@ class PSPMixin(object):
     def NotifyDefect(self, summary="", type="20", filename=None, lineno=0, offset=0, description=""):
         no = None
         # if filename and line number, get injected psp phase from metadata
-        if filename and lineno:
+        if filename and lineno and not filename.startswith("<"):
             metadata = self.update_metadata(filename)
             phase, line = metadata[lineno-1]
         else:
