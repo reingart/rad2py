@@ -155,22 +155,34 @@ class Debugger(qdb.Frontend):
                 cont = True
             else:
                 cont = False
-            # wait for interaction:
-            while not self.interacting:
+            # wait for interaction (only retry i times to not block forever):
+            i = 10000
+            while not self.interacting and i:
                 # allow wx process some events 
                 wx.SafeYield()      # safe = user input "disabled"
                 self.OnIdle(None)   # force pipe processing
-            # send the method request                
-            ret = fn(self, *args, **kwargs)
-            
-            if self.quitting:
-                # clean up interaction marker
-                self.clear_interaction()
-            elif cont:
-                # if interrupted, send a continue to resume
+                i -= 1              # decrement safety counter
+            if self.interacting:
+                # send the method request                
+                ret = fn(self, *args, **kwargs)
+                
+                if self.quitting:
+                    # clean up interaction marker
+                    self.clear_interaction()
+                elif cont:
+                    # if interrupted, send a continue to resume
+                    self.post_event = True
+                    self.do_continue()
+                return True
+            else:
+                # re-enable event notification (interaction not received yet!)
                 self.post_event = True
-                self.do_continue()
-            return True
+                self.gui.ShowInfoBar("cannot interrupt now (blocked): "
+                    "remote interpreter is not executing python code " 
+                    "(ui mainloop, socket poll, c extension, sleep, etc.)",
+                    flags=wx.ICON_INFORMATION, key="debugger")
+                wx.Bell()
+                return False
         return check_fn
 
     def clear_interaction(self): 
@@ -324,6 +336,8 @@ class Debugger(qdb.Frontend):
     def Interrupt(self):
         "Stop immediatelly (similar to Ctrl+C but program con be resumed)"
         if self.attached and not self.is_waiting():
+            # this is a notification, no response will come
+            # an interaction will happen on the next possible python instruction
             self.interrupt()
 
     def LoadBreakpoints(self):
