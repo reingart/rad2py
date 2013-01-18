@@ -91,8 +91,13 @@ class Debugger(qdb.Frontend):
             sys.exit()
 
     def init(self, cont=False):
+        # restore sane defaults:
         self.start_continue = cont
         self.unrecoverable_error = None
+        self.attached = True
+        self.quitting = False
+        self.post_event = True
+        self.lineno = None
         
     def attach(self, host='localhost', port=6000, authkey='secret password'):
         self.address = (host, port)
@@ -100,16 +105,14 @@ class Debugger(qdb.Frontend):
         print "DEBUGGER waiting for connection to", self.address
         self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
         print "DEBUGGER connected!"
-        # restore sane defaults:
-        self.attached = True
-        self.quitting = False
-        self.post_event = True
-        self.lineno = None
     
     def detach(self):
         self.attached = False
         if self.pipe:
             self.pipe.close()
+        self.clear_interaction()
+        # just in case, send a KILL signal to child process
+        self.gui.OnKill(None)
 
     def is_remote(self):
         return (self.attached and 
