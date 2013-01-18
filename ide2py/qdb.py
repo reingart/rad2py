@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.03a"
+__version__ = "1.03b"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -500,6 +500,8 @@ class Qdb(bdb.Bdb):
             filename = code.co_filename
             line = linecache.getline(filename, lineno)
             #(filename, lineno, "", current, line, )}
+        # SyntaxError doesn't execute even one line, so avoid mainpyfile check
+        self._wait_for_mainpyfile = False
         # send exception information & request interaction
         self.user_exception(frame, info)
 
