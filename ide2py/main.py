@@ -1053,7 +1053,9 @@ class CustomStatusBar(wx.StatusBar):
         self.SetStatusText(__copyright__, 6)
         self.eol_choice = wx.Choice(self, wx.ID_ANY,
                                              choices = ["win", "mac", "unix",])
+        self.eol_choice.SetToolTip(wx.ToolTip("End-Of-Line conversion"))
         self.blank_check = wx.CheckBox(self, 1001, "blanks")
+        self.blank_check.SetToolTip(wx.ToolTip("Show/Hide blanks: CR, LF, TAB"))
         self.Bind(wx.EVT_CHECKBOX, self.OnToggleBlanks, self.blank_check)
         # set the initial position of the choice
         self.Reposition()
