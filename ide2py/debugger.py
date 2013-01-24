@@ -253,13 +253,13 @@ class Debugger(qdb.Frontend):
         # only check edited code for the following methods:
         if func_name not in ("Continue", "Step", "StepReturn", "Next"):
             return True
-        if self.filename:
+        if self.filename and self.lineno:
             curr_line = self.gui.GetLineText(self.filename, self.lineno)
             curr_line = curr_line.strip().strip("\r").strip("\n")
         # check if no exception raised
         if self.unrecoverable_error:
             dlg = wx.MessageDialog(self.gui, 
-                   "Unrecoverable error: %s\n\n"
+                   "Exception raised: %s\n\n"
                    "Do you want to QUIT the program?"
                    % unicode(self.unrecoverable_error), 
                    "Unable to interact (Post-Mortem)",
@@ -270,7 +270,11 @@ class Debugger(qdb.Frontend):
                 self.quitting = True
                 self.clear_interaction()
                 self.do_quit()
-            return False
+                return False
+            else:
+                # clean the error and try to resume:
+                # (raised exceptions could be catched by a except/finally block)
+                self.unrecoverable_error = False
         # check current text source code against running code
         if self.lineno is not None and self.orig_line != curr_line:
             print "edit_and_continue...", self.lineno
