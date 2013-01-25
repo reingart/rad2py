@@ -168,7 +168,8 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
     "Defect recording log facilities"
     def __init__(self, parent, filename=""):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        wx.ListCtrl.__init__(self, parent, -1, 
+            style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_ALIGN_LEFT)
         ListCtrlAutoWidthMixin.__init__(self)
         CheckListCtrlMixin.__init__(self)
         #TextEditMixin.__init__(self)
