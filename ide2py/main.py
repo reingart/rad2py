@@ -45,6 +45,7 @@ from debugger import Debugger, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
                      EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
+from designer import GUIDesignerMixin
 
 # optional extensions that may have special dependencies (disabled if not meet)
 ADDONS = []
@@ -104,7 +105,7 @@ ID_EVAL = wx.NewId()
 ID_EXPLORER = wx.NewId()
 
 
-class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
+class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, GUIDesignerMixin):
     def __init__(self, parent):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE | wx.FRAME_NO_WINDOW_MENU)
@@ -411,6 +412,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin):
         
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
+        GUIDesignerMixin.__init__(self)
 
         # web2py initialization (on own thread to enable debugger)
         Web2pyMixin.__init__(self)
@@ -1310,6 +1312,8 @@ elif not os.path.exists(RAD2PY_ICON):
 if __name__ == '__main__':
     #  get rid of ubuntu unity and force use of the old scroll bars
     os.environ['LIBOVERLAY_SCROLLBAR'] = '0'
+    #  disable ubuntu menubar too
+    os.environ['UBUNTU_MENUPROXY'] = '0'
     # start main app, avoid wx redirection on windows
     app = MainApp(redirect=False)
     app.MainLoop()
