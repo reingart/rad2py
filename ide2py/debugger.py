@@ -544,7 +544,8 @@ class EnvironmentPanel(wx.Panel):
 class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
     "Call stack window (filename lineno flags, source)"
     def __init__(self, parent, filename=""):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        wx.ListCtrl.__init__(self, parent, -1, 
+            style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_ALIGN_LEFT)
         ListCtrlAutoWidthMixin.__init__(self)
         self.parent = parent
         self.InsertColumn(0, "Filename", wx.LIST_FORMAT_RIGHT) 
