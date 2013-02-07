@@ -394,7 +394,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             text = text.encode("utf8")
         text = text.rstrip().replace('\r\n','\n')+'\n'
         try:
-            return compile(text, self.filename or '<script>', 'exec')
+            ok = compile(text, self.filename or '<script>', 'exec')
+            self.HighlightLines([])  # clear styling of previous errors
+            return ok
         except Exception, e:
             offset = e.offset or 0  # sometimes these are None
             lineno = e.lineno or 0

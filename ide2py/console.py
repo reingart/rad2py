@@ -128,6 +128,8 @@ class ConsoleCtrl(wx.TextCtrl):
         "Replacement for stdout.write()"
         text = self.fixlineendings(text)
         if DEBUG: print >> sys.stderr, "writing", text
+        if not isinstance(text, unicode):
+            text = unicode(text, "utf8", "replace")
         self.AppendText(text)
         #self.AddEncodedText(text)
         #editpoint = self.GetLength()

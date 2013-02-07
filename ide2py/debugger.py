@@ -73,7 +73,7 @@ class Debugger(qdb.Frontend):
     def OnIdle(self, event):
         "Debugger main loop: read and execute remote methods"
         try:
-            if self.attached:
+            if self.attached and self.pipe:
                 while self.pipe.poll():
                     self.run()
         except EOFError:
