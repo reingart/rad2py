@@ -129,6 +129,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, GUIDes
         # tell FrameManager to manage this frame        
         self._mgr = aui.AuiManager(self)
         self.Show()
+        
         ##self._mgr.SetManagedWindow(self)
         
         wx.GetApp().SetSplashText("Creating Menus...")
@@ -278,6 +279,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, GUIDes
         self.toolbar.AddSimpleTool(wx.ID_REPLACE, "Replace", GetBmp(wx.ART_FIND_AND_REPLACE))
         self.toolbar.AddSeparator()
         self.toolbar.AddSimpleTool(wx.ID_ABOUT, "About", GetBmp(wx.ART_HELP))
+        self.toolbar.AddCheckTool(wx.NewId(), "Designer", 
+                                  images.designer.GetBitmap(), wx.NullBitmap,
+                                  "Designer!")
 
         self.toolbar.Realize()
 

@@ -744,3 +744,12 @@ folder = PyEmbeddedImage(
     "ZYCZsQiDiP6Ftp4oaK0xJnQ6ndkVAIiIUkp5nvd5sxteh5lpQPjmASLy8J1JpVJKa+26bqVS"
     "aTab07YUEo1G0+m0EhHf9xuNRlh3BpZl2bb9C0HSDSnLMEHhAAAAAElFTkSuQmCC")
 
+#----------------------------------------------------------------------
+designer = PyEmbeddedImage(
+    "iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABmJLR0QA/wD/AP+gvaeTAAAA"
+    "CXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3QIIBy8GIzBVAwAAALlJREFUOMvNlMENgzAM"
+    "RZ8R5+zBTBmEgznWo7ASg7CAeyhCadXSBEjplyw7hzw5P5ahkkRV/Uxg3/eEEKQFMAPHwEFE"
+    "d0NVIYQAQLO27o4stfttjfT8TtMUAVtyRSvMDOBhRYyRrusOQ4dhWOum1lRcDxaReh2XwIvA"
+    "7p4NL/Y4F77r83Lgu6fiG/zQuG3BW4BxHMvXYgIUEVRfltc8zw5khbs/5Y0oe3lyKYWf4rHw"
+    "A2123fCn+ujxHRD0Yoellst5AAAAAElFTkSuQmCC")
+
