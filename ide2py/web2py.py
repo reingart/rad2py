@@ -73,7 +73,7 @@ class Web2pyMixin(object):
                 print "Serving HTTP on port %s..." % port
 
                 # connect to idle event to poll and serve requests
-                self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
+                ##self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
 
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)

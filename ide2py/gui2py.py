@@ -4,23 +4,26 @@ import sys,os
 import wx
 import wx.lib.agw.aui as aui
 
+GUI2PY_PATH = "../../gui2py"
 
-class GUIDesignerMixin:
+class Gui2pyMixin:
 
     def __init__(self, ):
         
         try:
-
+            try:
+                import gui
+            except ImportError:
+                sys.path.append(GUI2PY_PATH)
+                
             # import controls (fill the registry!)
-            from gui2py.windows import Window
-            import gui2py.controls
-            import gui2py.menu
+            from gui import Window
 
             # import tools used by the designer
-            from gui2py.tools.inspector import InspectorPanel
-            from gui2py.tools.propeditor import PropertyEditorPanel
-            from gui2py.tools.designer import BasicDesigner
-            from gui2py.tools.toolbox import ToolBox, ToolBoxDropTarget
+            from gui.tools.inspector import InspectorPanel
+            from gui.tools.propeditor import PropertyEditorPanel
+            from gui.tools.designer import BasicDesigner
+            from gui.tools.toolbox import ToolBox, ToolBoxDropTarget
 
             # create the windows and the property editor / inspector
             log = sys.stdout
@@ -43,7 +46,7 @@ class GUIDesignerMixin:
             self._mgr.AddPane(self.toolbox, aui.AuiPaneInfo().Name("toolbox").
                               ToolbarPane().Left().Position(2))
                               
-            filename = "sample.pyw"
+            filename = os.path.join(GUI2PY_PATH, "sample.pyw")
             vars = {}
             execfile(filename, vars)
             w = None
