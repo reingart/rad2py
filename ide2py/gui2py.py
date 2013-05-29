@@ -23,7 +23,7 @@ class Gui2pyMixin:
             from gui.tools.inspector import InspectorPanel
             from gui.tools.propeditor import PropertyEditorPanel
             from gui.tools.designer import BasicDesigner
-            from gui.tools.toolbox import ToolBox, set_drop_target
+            from gui.tools.toolbox import ToolBox
 
             # create the windows and the property editor / inspector
             log = sys.stdout
@@ -45,13 +45,23 @@ class Gui2pyMixin:
 
             self._mgr.AddPane(self.toolbox, aui.AuiPaneInfo().Name("toolbox").
                               ToolbarPane().Left().Position(2))
-                              
+
+        except ImportError, e:
+            self.ShowInfoBar(u"cannot import gui2py!: %s" % unicode(e), 
+                                 flags=wx.ICON_ERROR, key="gui2py")
+
+    def OnDesigner(self, evt):                              
+        try:
+            import gui
+            from gui.tools.designer import BasicDesigner
+            from gui.tools.toolbox import ToolBox, set_drop_target
+
             filename = os.path.join(GUI2PY_PATH, "sample.pyw")
             vars = {}
             execfile(filename, vars)
             w = None
             for name, value in vars.items():
-                if not isinstance(value, Window):
+                if not isinstance(value, gui.Window):
                     continue
                 w = value       # TODO: support many windows
                 # load the window in the widget inspector

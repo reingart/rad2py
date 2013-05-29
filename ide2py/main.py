@@ -103,6 +103,7 @@ ID_INTERRUPT = wx.NewId()
 ID_EVAL = wx.NewId()
 
 ID_EXPLORER = wx.NewId()
+ID_DESIGNER = wx.NewId()
 
 
 class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2pyMixin):
@@ -279,7 +280,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         self.toolbar.AddSimpleTool(wx.ID_REPLACE, "Replace", GetBmp(wx.ART_FIND_AND_REPLACE))
         self.toolbar.AddSeparator()
         self.toolbar.AddSimpleTool(wx.ID_ABOUT, "About", GetBmp(wx.ART_HELP))
-        self.toolbar.AddCheckTool(wx.NewId(), "Designer", 
+        self.toolbar.AddCheckTool(ID_DESIGNER, "Designer", 
                                   images.designer.GetBitmap(), wx.NullBitmap,
                                   "Designer!")
 
@@ -299,6 +300,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
             (ID_ATTACH, self.OnAttachRemoteDebugger),
             (ID_DEBUG, self.OnDebugCommand),
             (ID_EXPLORER, self.OnExplorer),
+            (ID_DESIGNER, self.OnDesigner),
             #(wx.ID_PRINT, self.OnPrint),
             (wx.ID_UNDO, self.OnEditAction),
             (wx.ID_REDO, self.OnEditAction),
