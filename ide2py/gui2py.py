@@ -23,7 +23,7 @@ class Gui2pyMixin:
             from gui.tools.inspector import InspectorPanel
             from gui.tools.propeditor import PropertyEditorPanel
             from gui.tools.designer import BasicDesigner
-            from gui.tools.toolbox import ToolBox, ToolBoxDropTarget
+            from gui.tools.toolbox import ToolBox, set_drop_target
 
             # create the windows and the property editor / inspector
             log = sys.stdout
@@ -61,8 +61,7 @@ class Gui2pyMixin:
                 self.designer = BasicDesigner(w, self.inspector)
                 # associate the window with the toolbox:
                 # (this will allow to drop new controls on the window)
-                dt = ToolBoxDropTarget(w, designer=self.designer, inspector=self.inspector)
-                w.drop_target = dt
+                set_drop_target(w, w, self.designer, self.inspector)
                 # link the designer (context menu)
                 self.inspector.set_designer(self.designer)
                 w.show()
