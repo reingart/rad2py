@@ -39,21 +39,6 @@ AUTOCOMPLETE = True
 AUTOCOMPLETE_IGNORE = []
 
 
-def getargspec(func):
-    """Get argument specifications (for CallTip)"""
-    try:
-        func=func.im_func
-    except:
-        pass
-    try:
-        return inspect.formatargspec(*inspect.getargspec(func)).replace('self, ','')+'\n\n'
-    except:
-        pass
-    try:
-        return inspect.formatargvalues(*inspect.getargvalues(func)).replace('self, ','')+'\n\n'
-    except:
-        return ''
-
 
 class EditorCtrl(stc.StyledTextCtrl):
     "Editor based on Styled Text Control"
@@ -571,68 +556,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         else:
             end = pos
         return txt[start-linepos:end-linepos]
-
-    def GetWords(self,word=None,whole=None):
-        if not word: word = self.GetWord(whole=whole)
-        if not word:
-            return []
-        else:
-            return list(set([x for x 
-                in re.findall(r"\b" + word + r"\w*\b", self.GetText())
-                if x.find(',')==-1 and x[0]!= ' ']))
-
-    def GetWordObject(self,word=None,whole=None):
-        if not word: word=self.GetWord(whole=whole)
-        try:
-            obj = self.Evaluate(word)
-            return obj
-        except:
-            return None
-
-    def GetWordFileName(self,whole=None):
-        wordlist=self.GetWord(whole=whole).split('.')
-        wordlist.append('')
-        index=1
-        n=len(wordlist)
-        while index<n:
-            word='.'.join(wordlist[:-index])
-            try:
-                filename = self.GetWordObject(word=word).__file__
-                filename = replace('.pyc','.py').replace('.pyo','.py')
-                if os.path.exists(filename):
-                    return filename
-            except:
-                pass
-            index+=1
-        return '"%s.py"'%'.'.join(wordList[:-1])
-
-    def Evaluate(self, word):
-        if word in self.namespace:return self.namespace[word]
-        try:
-            self.namespace[word] = eval(word,self.namespace)
-            return self.namespace[word]
-        except:
-            if word in AUTOCOMPLETE_IGNORE:
-                return None
-            else:
-                try:
-                    components = word.split('.')
-                    try:
-                        mod= __import__(word)
-                    except:
-                        if len(components) < 2:
-                            return None
-                        mod = '.'.join(components[:-1])
-                        try:
-                            mod= __import__(mod)
-                        except:
-                            return None
-                    for comp in components[1:]:
-                        mod = getattr(mod, comp)
-                    self.namespace[word]=mod
-                    return mod
-                except:
-                    return None
 
 
     def GetScript(self):
