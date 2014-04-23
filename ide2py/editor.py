@@ -83,10 +83,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.modified = None
         self.calltip = 0
         app = wx.GetApp()
-        if hasattr(app, 'main_frame'):
-            self.namespace = app.main_frame.web2py_namespace()
-        else:
-            self.namespace = {}
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
         self.bom = codecs.BOM_UTF8
