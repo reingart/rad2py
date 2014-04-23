@@ -21,7 +21,7 @@ import traceback
 
 # prevent import error in wx multiversion installs:
 import wxversion
-wxversion.select(["2.8", "2.9"])
+wxversion.select(["3.0", "2.8"])
    
 import wx
 import wx.grid
