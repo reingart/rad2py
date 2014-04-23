@@ -1123,6 +1123,9 @@ class StandaloneEditor(wx.Frame):
         self.editor = EditorCtrl(self, -1, filename=filename)
         self.SendSizeEvent() 
 
+    def UpdateStatusBar(self, statustext, eolmode, encoding):
+        print statustext, eolmode, encoding
+
 
 if __name__ == '__main__':
     app = wx.App()
