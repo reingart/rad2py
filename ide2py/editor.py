@@ -25,6 +25,9 @@ import wx.py
 import images
 import fileutil
 
+# autocompletion library:
+import jedi
+
 
 # Some configuration constants 
 WORDCHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -630,46 +633,29 @@ class EditorCtrl(stc.StyledTextCtrl):
                     return None
 
     def AutoComplete(self, obj=0):
-        word    = self.GetWord()
-        if not word:
-            if obj:
-                self.AddText('.')
-            return
         if obj:
             self.AddText('.')
-            word+='.'
-        words   = self.GetWords(word=word)
-        for dot in range(len(word)):
-            if word[-dot-1] == '.':
-                try:
-                    obj = self.GetWordObject(word[:-dot-1])
-                    if obj:
-                        for attr in dir(obj):
-                            if attr.startswith("__"):
-                                # ignore internal and private attributes
-                                continue
-                            o = getattr(obj, attr)
-                            if inspect.ismodule(o):
-                                img = 1
-                            elif inspect.isclass(o):
-                                img = 2
-                            elif inspect.ismethod(o):
-                                img = 3
-                            elif inspect.isfunction(o) or inspect.isbuiltin(o):
-                                img = 4
-                            else:
-                                img = 5
-                            attr = '%s%s?%s'%(word, attr, img)
-                            if attr not in words: words.append(attr)
-                except:
-                    pass
-                break
+            word = ''
+        else:
+            word = self.GetWord()
+        source = self.GetText().encode(self.encoding)
+        pos = self.GetCurrentPos()
+        col = self.GetColumn(pos)
+        line = self.GetCurrentLine() + 1
+        script = jedi.Script(source, line, col, '')
+        completions = script.complete()
+        words = []
+        for completion in completions:
+            if completion.name.startswith("__"):
+                # ignore internal and private attributes
+                continue
+            img = {"module": 1, "class": 2, "function": 4, "instance": 5, 
+                   "statement": 0, "keyword": 0, "import": 0,
+                  }.get(completion.type, 0)
+            name = "%s?%s" % (completion.name, img)
+            if name not in words: words.append(name)
         if words:
-            words.sort()
-            try:
-                self.AutoCompShow(len(word), " ".join(words))
-            except:
-                pass
+            self.AutoCompShow(len(word), " ".join(words))
 
     def ShowCallTip(self,text=''):
         #prepare
