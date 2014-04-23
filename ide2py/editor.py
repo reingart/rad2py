@@ -564,7 +564,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         pos = self.GetCurrentPos()
         col = self.GetColumn(pos)
         line = self.GetCurrentLine() + 1
-        return jedi.Script(source, line, col, '')
+        return jedi.Script(source, line, col, self.filename)
 
 
     def AutoComplete(self, obj=0):
