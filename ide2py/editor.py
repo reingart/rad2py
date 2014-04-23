@@ -491,6 +491,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             newpos  += len(padding)
             self.SetCurrentPos(newpos)
             self.SetSelection(newpos, newpos)
+        elif key == wx.WXK_SPACE and control and not self.AutoCompActive():
+            self.AutoComplete()
         else:
             event.Skip()
 
