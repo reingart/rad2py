@@ -634,17 +634,23 @@ class EditorCtrl(stc.StyledTextCtrl):
                 except:
                     return None
 
+
+    def GetScript(self):
+        "Return Jedi script object suitable to AutoComplete and ShowCallTip"
+        source = self.GetText().encode(self.encoding)
+        pos = self.GetCurrentPos()
+        col = self.GetColumn(pos)
+        line = self.GetCurrentLine() + 1
+        return jedi.Script(source, line, col, '')
+
+
     def AutoComplete(self, obj=0):
         if obj:
             self.AddText('.')
             word = ''
         else:
             word = self.GetWord()
-        source = self.GetText().encode(self.encoding)
-        pos = self.GetCurrentPos()
-        col = self.GetColumn(pos)
-        line = self.GetCurrentLine() + 1
-        script = jedi.Script(source, line, col, '')
+        script = self.GetScript()
         completions = script.complete()
         words = []
         for completion in completions:
@@ -661,30 +667,27 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def ShowCallTip(self,text=''):
         #prepare
-        obj = self.GetWordObject()
         self.AddText(text)
-        if not obj: return
-        #classes, methods & functions
-        if type(obj) in [types.ClassType,types.TypeType] and hasattr(obj,'__init__'):
-            init = obj.__init__
-            tip = getargspec(init).strip()
-            if tip in ['(self, *args, **kwargs)','(*args, **kwargs)']:
-                tip = ""
-            else:
-                tip = "%s\n"%tip
-            doci = init.__doc__
-            if doci:
-                doc = '%s\n'%(doci.strip())
-            else:
-                doc = ""
-            tip = getargspec(init)
+        script = self.GetScript()
+        # parameters:
+        for signature in script.call_signatures():
+            params = [p.get_code().replace('\n', '') for p in signature.params]
+            try:
+                params[signature.index] = '%s' % params[signature.index]
+            except (IndexError, TypeError):
+                pass
+        else:
+            params = []
+        tip = ', '.join(params)
+        #normal docstring
+        definitions = script.goto_definitions()
+        if definitions:
+            docs = ['Docstring for %s\n%s\n%s' % (d.desc_with_module, '=' * 40, d.doc)
+                if d.doc else '|No Docstring for %s|' % d for d in definitions]
+            doc = ('\n' + '-' * 79 + '\n').join(docs)
         else:
             doc = ""
-            tip = getargspec(obj)
-        #normal docstring
-        _doc = obj.__doc__
         #compose
-        if _doc: doc += _doc
         if doc:
             if CALLTIPS == 'first paragraph only':
                 tip += doc.split('\n')[0]
