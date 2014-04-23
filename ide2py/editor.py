@@ -619,6 +619,16 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.CallTipSetBackground('#FFFFE1')
             self.CallTipShow(pos, tip.replace('\r\n','\n'))
 
+    def GetDefinition(self):
+        #prepare
+        script = self.GetScript()
+        definitions = script.goto_definitions()
+        if definitions:
+            definition = definitions[0]
+            return definition.module_path, definition.line
+        else:
+            return None, None
+
     def OnUpdateUI(self, evt):
         # check for matching braces
         braceatcaret = -1

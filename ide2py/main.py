@@ -936,8 +936,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
     def OnGotoDefinition(self, event):
         if self.active_child and self.explorer:
             filename = self.active_child.GetFilename()
-            word = self.active_child.GetWord()
-            filename, lineno = self.explorer.FindSymbolDef(filename, word)
+            filename, lineno = self.active_child.GetDefinition()
             if filename:
                 child = self.DoOpen(filename)
                 if child:
@@ -1170,6 +1169,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def GetWord(self):
         return self.editor.GetWord(whole=True)
+
+    def GetDefinition(self):
+        return self.editor.GetDefinition()
         
     def SynchCurrentLine(self, lineno):
         if lineno:
