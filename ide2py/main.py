@@ -592,7 +592,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
             self, message="Choose a file",
             defaultDir=os.getcwd(), 
             defaultFile="hola.py",
-            wildcard="Python Files (*.py)|*.py",
+            wildcard="Python Files (*.py)|*.py|Python Windows Files (*.pyw)|*.pyw",
             style=wx.OPEN 
             )
         # set the path to current active editing file

@@ -556,7 +556,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def GetScript(self):
         "Return Jedi script object suitable to AutoComplete and ShowCallTip"
-        source = self.GetText().encode(self.encoding)
+        source = self.GetText() #.encode(self.encoding)
         pos = self.GetCurrentPos()
         col = self.GetColumn(pos)
         line = self.GetCurrentLine() + 1
@@ -622,12 +622,17 @@ class EditorCtrl(stc.StyledTextCtrl):
     def GetDefinition(self):
         #prepare
         script = self.GetScript()
-        definitions = script.goto_definitions()
-        if definitions:
-            definition = definitions[0]
-            return definition.module_path, definition.line
+        if True:
+            definitions = script.goto_assignments()
+        else:
+            definitions = script.goto_definitions()
+        while definitions:
+            definition = definitions.pop()
+            if "__builtin__" not in definition.module_path:
+                break
         else:
             return None, None
+        return definition.module_path, definition.line
 
     def OnUpdateUI(self, evt):
         # check for matching braces
