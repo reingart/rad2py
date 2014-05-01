@@ -916,10 +916,12 @@ def connect(host="localhost", port=6000, authkey='secret password'):
     "Connect to a running debugger backend"
     
     address = (host, port)
-    from multiprocessing.connection import Client
-
-    print "qdb debugger fronted: waiting for connection to", address
-    conn = Client(address, authkey=authkey)
+    from multiprocessing.connection import Listener
+    address = (host, port)     # family is deduced to be 'AF_INET'
+    listener = Listener(address, authkey=authkey)
+    print "qdb debugger backend: waiting for connection at", address
+    conn = listener.accept()
+    print 'qdb debugger backend: connected to', listener.last_accepted
     try:
         Cli(conn).run()
     except EOFError:
@@ -945,12 +947,11 @@ def main(host='localhost', port=6000, authkey='secret password'):
     # Replace pdb's dir with script's dir in front of module search path.
     sys.path[0] = os.path.dirname(mainpyfile)
 
-    from multiprocessing.connection import Listener
+    from multiprocessing.connection import Client
     address = (host, port)     # family is deduced to be 'AF_INET'
-    listener = Listener(address, authkey=authkey)
-    print "qdb debugger backend: waiting for connection at", address
-    conn = listener.accept()
-    print 'qdb debugger backend: connected to', listener.last_accepted
+    print "qdb debugger backend: waiting for connection to", address
+    conn = Client(address, authkey=authkey)
+    print 'qdb debugger backend: connected to', address
 
     # create the backend
     qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)

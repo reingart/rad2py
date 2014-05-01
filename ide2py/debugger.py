@@ -9,7 +9,7 @@ __license__ = "GPL 3.0"
 
 # initally based on idle, inspired by pythonwin implementation
 
-from multiprocessing.connection import Client
+from multiprocessing.connection import Listener
 import compiler
 import os
 import sys
@@ -55,7 +55,7 @@ class LoggingPipeWrapper(object):
 class Debugger(qdb.Frontend):
     "Frontend Visual interface to qdb"
 
-    def __init__(self, gui=None, pipe=None):
+    def __init__(self, gui=None, pipe=None, host='localhost', port=6000, authkey='secret password'):
         qdb.Frontend.__init__(self, pipe)
         self.interacting = False    # flag to signal user interaction
         self.quitting = False       # flag used when Quit is called
@@ -67,6 +67,10 @@ class Debugger(qdb.Frontend):
         self.filename = self.lineno = None
         self.unrecoverable_error = False
         self.pipe = None
+        address = (host, port)     # family is deduced to be 'AF_INET'
+        self.address = (host, port)
+        self.authkey = authkey
+        self.listener = Listener(address, authkey=authkey)
         wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
 
 
@@ -99,11 +103,10 @@ class Debugger(qdb.Frontend):
         self.post_event = True
         self.lineno = None
         
-    def attach(self, host='localhost', port=6000, authkey='secret password'):
-        self.address = (host, port)
-        self.authkey = authkey
+    def attach(self):
         print "DEBUGGER waiting for connection to", self.address
-        self.pipe = LoggingPipeWrapper(Client(self.address, authkey=self.authkey))
+        conn = self.listener.accept()
+        self.pipe = LoggingPipeWrapper(conn)
         print "DEBUGGER connected!"
     
     def detach(self):
