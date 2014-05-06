@@ -182,23 +182,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)       
 
-        self.Bind(wx.EVT_FIND, self.OnFindReplace)
-        self.Bind(wx.EVT_FIND_NEXT, self.OnFindReplace)
-        self.Bind(wx.EVT_FIND_REPLACE, self.OnFindReplace)
-        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnReplaceAll)
-        self.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
-
-        menu_handlers = [
-            (wx.ID_FIND, self.OnFindReplace),
-            (wx.ID_REPLACE, self.DoReplace),
-            #(wx.ID_CUT, self.OnCut),
-            #(wx.ID_COPY, self.OnCopy),
-            #(wx.ID_PASTE, self.OnPaste),
-        ]
-        for menu_id, handler in menu_handlers:
-            self.Bind(wx.EVT_MENU, handler, id=menu_id)
-      
-
         # key bindings (shortcuts). TODO: configuration
         accels = [
                     #(wx.ACCEL_ALT,  ord('X'), wx.Newid()),

@@ -411,6 +411,14 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         for acc in accels:
             self.Bind(wx.EVT_MENU, acc[3], id=acc[2])
         self.SetAcceleratorTable(atable)
+
+        # bind find / replace dialog events:
+        self.Bind(wx.EVT_FIND, self.OnEditAction)
+        self.Bind(wx.EVT_FIND_NEXT, self.OnEditAction)
+        self.Bind(wx.EVT_FIND_REPLACE, self.OnEditAction)
+        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnEditAction)
+        self.Bind(wx.EVT_FIND_CLOSE, self.OnEditAction)
+
         
         # Initialize secondary mixins
         
@@ -1137,20 +1145,33 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         self.editor.OnSaveAs(event)
 
     def OnEditAction(self, event):
-        handlers = {
-            wx.ID_UNDO: self.editor.DoBuiltIn,
-            wx.ID_REDO: self.editor.DoBuiltIn,
-            wx.ID_FIND: self.editor.DoFind,
-            wx.ID_REPLACE: self.editor.DoReplace,
-            wx.ID_COPY: self.editor.DoBuiltIn,
-            wx.ID_PASTE: self.editor.DoBuiltIn,
-            wx.ID_CUT: self.editor.DoBuiltIn,
-            ID_BREAKPOINT: self.editor.ToggleBreakpoint,
-            ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
-            ID_COMMENT: self.editor.ToggleComment,
-            ID_GOTO: self.editor.DoGoto,
+        "Dispatch a top level event to the active child editor"
+        if isinstance(event, wx.FindDialogEvent):
+            # Find / Replace related dialog events (received by the main frame)
+            handlers = {
+                wx.EVT_FIND.typeId: self.editor.OnFindReplace,
+                wx.EVT_FIND_NEXT.typeId: self.editor.OnFindReplace,
+                wx.EVT_FIND_REPLACE.typeId: self.editor.OnFindReplace,
+                wx.EVT_FIND_REPLACE_ALL.typeId: self.editor.OnReplaceAll,
+                wx.EVT_FIND_CLOSE.typeId: self.editor.OnFindClose,
             }
-        handlers[event.GetId()](event)
+            handlers[event.GetEventType()](event)
+        else:
+            # Menu events (received by the main frame)
+            handlers = {
+                wx.ID_UNDO: self.editor.DoBuiltIn,
+                wx.ID_REDO: self.editor.DoBuiltIn,
+                wx.ID_FIND: self.editor.DoFind,
+                wx.ID_REPLACE: self.editor.DoReplace,
+                wx.ID_COPY: self.editor.DoBuiltIn,
+                wx.ID_PASTE: self.editor.DoBuiltIn,
+                wx.ID_CUT: self.editor.DoBuiltIn,
+                ID_BREAKPOINT: self.editor.ToggleBreakpoint,
+                ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
+                ID_COMMENT: self.editor.ToggleComment,
+                ID_GOTO: self.editor.DoGoto,
+                }
+            handlers[event.GetId()](event)
 
     def GetFilename(self):
         return self.editor.filename
