@@ -745,16 +745,15 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         while lineNum < lineCount:
             level = self.GetFoldLevel(lineNum)
-            if level & stc.STC_FOLDLEVELHEADERFLAG and \
-               (level & stc.STC_FOLDLEVELNUMBERMASK) == stc.STC_FOLDLEVELBASE:
 
+            if level & stc.STC_FOLDLEVELBASE:
+
+                self.SetFoldExpanded(lineNum, expanding)
                 if expanding:
-                    self.SetFoldExpanded(lineNum, True)
                     lineNum = self.Expand(lineNum, True)
                     lineNum = lineNum - 1
                 else:
                     lastChild = self.GetLastChild(lineNum, -1)
-                    self.SetFoldExpanded(lineNum, False)
 
                     if lastChild > lineNum:
                         self.HideLines(lineNum+1, lastChild)
