@@ -43,10 +43,10 @@ AUTOCOMPLETE_IGNORE = []
 class EditorCtrl(stc.StyledTextCtrl):
     "Editor based on Styled Text Control"
 
-    CURRENT_LINE_MARKER_NUM = 2
+    CURRENT_LINE_MARKER_NUM = 0x10
     BREAKPOINT_MARKER_NUM = 1
-    CURRENT_LINE_MARKER_MASK = 0x4
-    BREAKPOINT_MARKER_MASK = 0x2
+    CURRENT_LINE_MARKER_MASK = 2 ** CURRENT_LINE_MARKER_NUM
+    BREAKPOINT_MARKER_MASK = 2 ** BREAKPOINT_MARKER_NUM
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
@@ -124,11 +124,11 @@ class EditorCtrl(stc.StyledTextCtrl):
         # margin 0 for breakpoints
         self.SetMarginSensitive(0, True)
         self.SetMarginType(0, wx.stc.STC_MARGIN_SYMBOL)
-        self.SetMarginMask(0, 0x3)
+        self.SetMarginMask(0, 0x0F)
         self.SetMarginWidth(0, 12)
         # margin 1 for current line arrow
         self.SetMarginSensitive(1, False)
-        self.SetMarginMask(1, 0x4)
+        self.SetMarginMask(1, self.CURRENT_LINE_MARKER_MASK)
         # margin 2 for line numbers
         self.SetMarginType(2, stc.STC_MARGIN_NUMBER)
         self.SetMarginWidth(2, 28)
@@ -155,6 +155,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM, wx.stc.STC_MARK_SHORTARROW, wx.BLACK, (255,255,128))
         # Define the breakpoint marker
         self.MarkerDefine(self.BREAKPOINT_MARKER_NUM, wx.stc.STC_MARK_CIRCLE, wx.BLACK, (255,0,0))
+        self.MarkerDefine(self.BREAKPOINT_MARKER_NUM+1, wx.stc.STC_MARK_PLUS, wx.BLACK, wx.WHITE)
+        self.MarkerDefine(self.BREAKPOINT_MARKER_NUM+2, wx.stc.STC_MARK_DOTDOTDOT, wx.BLACK, wx.BLUE)
 
         # Make some styles,  The lexer defines what each style is used for, we
         # just have to define what each style looks like.  This set is adapted from
@@ -703,14 +705,25 @@ class EditorCtrl(stc.StyledTextCtrl):
                 else:
                     # handle not found (this should not happen)!
                     handle = None
+                # remove the main breakpoint marker (handle) and alternate ones
                 self.MarkerDeleteHandle(handle)
+                if self.breakpoints[handle]['cond']:
+                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                if self.breakpoints[handle]['temp']:
+                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
                 del self.breakpoints[handle]
         else:
             # set the breakpoint (if debugger is running) and marker
             if self.debugger:
                 ok = self.debugger.SetBreakpoint(self.filename, lineno+1, temp, cond)
             if ok is not None:
-                handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)                
+                # set the main breakpoint marker (get handle)
+                handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM) 
+                # set alternate markers (if any)
+                if cond:
+                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                if temp:
+                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
                 # store the breakpoint in a struct for the debugger:
                 bp = {'lineno': int(lineno) + 1, 'temp': temp, 'cond': cond}
                 self.breakpoints[handle] = bp
