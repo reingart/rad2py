@@ -948,11 +948,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
     def OnGotoDefinition(self, event):
         if self.active_child and self.explorer:
             filename = self.active_child.GetFilename()
-            filename, lineno = self.active_child.GetDefinition()
+            filename, lineno, offset = self.active_child.GetDefinition()
             if filename:
                 child = self.DoOpen(filename)
                 if child:
-                    child.GotoLineOffset(lineno, 1)
+                    child.GotoLineOffset(lineno, offset)
 
     def ExceptHook(self, extype, exvalue, trace): 
         exc = traceback.format_exception(extype, exvalue, trace) 

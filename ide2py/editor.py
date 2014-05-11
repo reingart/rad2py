@@ -618,8 +618,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             if "__builtin__" not in definition.module_path:
                 break
         else:
-            return None, None
-        return definition.module_path, definition.line
+            return None, None, None
+        return definition.module_path, definition.line, definition.column+1
 
     def OnUpdateUI(self, evt):
         # check for matching braces
