@@ -90,6 +90,7 @@ ID_KILL = wx.NewId()
 ID_ATTACH = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
+ID_ALTBREAKPOINT = wx.NewId()
 ID_CLEARBREAKPOINTS = wx.NewId()
 ID_STEPIN = wx.NewId()
 ID_STEPRETURN = wx.NewId()
@@ -217,6 +218,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_BREAKPOINT, "Toggle &Breakpoint\tF9",
                         help="Set or remove a breakpoint in the current line")
+        dbg_menu.Append(ID_ALTBREAKPOINT, "Toggle Cond./Temp. Breakpoint\tAlt-F9",
+                        help="Set or remove a conditional or temporary breakpoint")
         dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
         
         help_menu = self.menu['help'] = wx.Menu()
@@ -314,6 +317,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
             (ID_GOTO, self.OnEditAction),
             (ID_GOTO_DEF, self.OnGotoDefinition),
             (ID_BREAKPOINT, self.OnEditAction),
+            (ID_ALTBREAKPOINT, self.OnEditAction),
             (ID_CLEARBREAKPOINTS, self.OnEditAction),
          ]
         for menu_id, handler in menu_handlers:
@@ -1167,6 +1171,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
                 wx.ID_PASTE: self.editor.DoBuiltIn,
                 wx.ID_CUT: self.editor.DoBuiltIn,
                 ID_BREAKPOINT: self.editor.ToggleBreakpoint,
+                ID_ALTBREAKPOINT: self.editor.ToggleAltBreakpoint,
                 ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
                 ID_COMMENT: self.editor.ToggleComment,
                 ID_GOTO: self.editor.DoGoto,
