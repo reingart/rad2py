@@ -657,11 +657,16 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.OnPositionChanged(evt)
 
     def OnMarginClick(self, evt):
-        # fold and unfold as needed
         lineclicked = self.LineFromPosition(evt.GetPosition())
         if evt.GetMargin() == 0:
-            self.ToggleBreakpoint(evt, lineclicked)
+            # update beakpoints
+            if evt.GetShift() or evt.GetAlt() or evt.GetControl():
+                # conditional / temporary bp:
+                self.ToggleAltBreakpoint(evt, lineclicked)
+            else:
+                self.ToggleBreakpoint(evt, lineclicked)
         elif evt.GetMargin() == 3:
+            # fold and unfold as needed
             if evt.GetShift() and evt.GetControl():
                 self.FoldAll()
             else:
@@ -681,7 +686,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                     else:
                         self.ToggleFold(lineclicked)
 
-    def ToggleBreakpoint(self, evt, lineno=None):
+    def ToggleBreakpoint(self, evt, lineno=None, cond=None, temp=False):
         ok = None
         if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
@@ -703,12 +708,35 @@ class EditorCtrl(stc.StyledTextCtrl):
         else:
             # set the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.SetBreakpoint(self.filename, lineno+1)
+                ok = self.debugger.SetBreakpoint(self.filename, lineno+1, temp, cond)
             if ok is not None:
                 handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)                
                 # store the breakpoint in a struct for the debugger:
-                bp = {'lineno': int(lineno) + 1, 'temp': False, 'cond': None}
+                bp = {'lineno': int(lineno) + 1, 'temp': temp, 'cond': cond}
                 self.breakpoints[handle] = bp
+
+    def ToggleAltBreakpoint(self, evt, lineno=None):
+        # search the breakpoint
+        for handle in self.breakpoints:
+            if lineno == self.MarkerLineFromHandle(handle):
+                cond = self.breakpoints[handle]['cond']
+                break
+        else:
+            cond = handle = None            
+        # delete the breakpoint if it already exist:
+        if handle:
+            self.ToggleBreakpoint(evt, lineno, None)
+        # ask the condition
+        dlg = wx.TextEntryDialog(self, "Conditional expression:"
+                                 "(empty for temporary 1 run breakpoint)", 
+                                 'Set Cond./Temp. Breakpoint', cond or "")
+        if dlg.ShowModal() == wx.ID_OK:
+            cond = dlg.GetValue() or None
+            temp = cond is None
+        dlg.Destroy()
+        # set the conditional / temporary breakpoint:
+        if cond or temp:
+            self.ToggleBreakpoint(evt, lineno, cond, temp)
 
     def ClearBreakpoints(self, evt):
         lineno = 1
