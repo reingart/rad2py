@@ -351,9 +351,9 @@ class Debugger(qdb.Frontend):
         "Set all breakpoints (remotelly, used at initialization)"
         # get a list of {filename: {lineno: (temp, cond)}
         for filename, bps in self.gui.GetBreakpoints():
-            for lineno, (temporary, cond) in bps.items():
-                print "loading breakpoint", filename, lineno
-                self.do_set_breakpoint(filename, lineno, temporary, cond)
+            for bp in bps.values():
+                print "loading breakpoint", filename, bp['lineno']
+                self.do_set_breakpoint(filename, bp['lineno'], bp['temp'], bp['cond'])
 
     @force_interaction
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):

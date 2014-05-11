@@ -82,6 +82,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.filetimestamp = None
         self.modified = None
         self.calltip = 0
+        self.breakpoints = {}
         app = wx.GetApp()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
@@ -686,15 +687,28 @@ class EditorCtrl(stc.StyledTextCtrl):
             lineno = self.LineFromPosition(self.GetCurrentPos())
         # toggle breakpoints:
         if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:
+            # delete the breakpoint (if debugger is running) and marker
             if self.debugger:
                 ok = self.debugger.ClearBreakpoint(self.filename, lineno+1)
             if ok is not None:
-                self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                # look for the marker handle (lineno can be moved)
+                for handle in self.breakpoints:
+                    if lineno == self.MarkerLineFromHandle(handle):
+                        break
+                else:
+                    # handle not found (this should not happen)!
+                    handle = None
+                self.MarkerDeleteHandle(handle)
+                del self.breakpoints[handle]
         else:
+            # set the breakpoint (if debugger is running) and marker
             if self.debugger:
                 ok = self.debugger.SetBreakpoint(self.filename, lineno+1)
             if ok is not None:
-                self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)                
+                # store the breakpoint in a struct for the debugger:
+                bp = {'lineno': int(lineno) + 1, 'temp': False, 'cond': None}
+                self.breakpoints[handle] = bp
 
     def ClearBreakpoints(self, evt):
         lineno = 1
@@ -706,13 +720,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def GetBreakpoints(self):
         lineno = 0
-        breakpoints = {}
-        while True:
-            lineno = self.MarkerNext(lineno+1, self.BREAKPOINT_MARKER_MASK)
-            if lineno<0:
-                break
-            breakpoints[lineno+1] = (None, None)
-        return breakpoints
+        # update line numbers for each marker:
+        for handle in self.breakpoints:
+            lineno = self.MarkerLineFromHandle(handle)
+            self.breakpoints[handle]['lineno'] = lineno+1
+        return self.breakpoints
 
     def FoldAll(self):
         lineCount = self.GetLineCount()
