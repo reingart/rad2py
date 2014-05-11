@@ -153,6 +153,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         # Define the current line marker
         self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM, wx.stc.STC_MARK_SHORTARROW, wx.BLACK, (255,255,128))
+        self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM+1, wx.stc.STC_MARK_BACKGROUND, wx.BLACK, (255,255,128))
         # Define the breakpoint marker
         self.MarkerDefine(self.BREAKPOINT_MARKER_NUM, wx.stc.STC_MARK_CIRCLE, wx.BLACK, (255,0,0))
         self.MarkerDefine(self.BREAKPOINT_MARKER_NUM+1, wx.stc.STC_MARK_PLUS, wx.BLACK, wx.WHITE)
@@ -835,12 +836,14 @@ class EditorCtrl(stc.StyledTextCtrl):
     def SynchCurrentLine(self, linenum):
         # do not update if currently in the same line
         self.MarkerDeleteAll(self.CURRENT_LINE_MARKER_NUM)
+        self.MarkerDeleteAll(self.CURRENT_LINE_MARKER_NUM+1)
         if linenum:
             # line numbering for editor is 0 based, dbg is 1 based.
             linenum = linenum - 1  
             self.EnsureVisibleEnforcePolicy(linenum)
             self.GotoLine(linenum)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
+            self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM+1)
    
     def GetLineText(self, linenum):
         lstart = self.PositionFromLine(linenum - 1)
