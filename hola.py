@@ -1,6 +1,8 @@
 # sample file to test shell & debugger
 
 a = 1
+print("hola mundo!")
+exit()
 a = 1/0
 a = 1/3
 
@@ -29,7 +31,7 @@ def main(h="CHAU!"):
     n = n+"ldasf"
 
     if n:
-        print a, n
+        print (a, n)
 
 #asdf = hola
 if __name__=="__main__":

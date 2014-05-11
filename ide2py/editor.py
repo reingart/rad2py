@@ -660,7 +660,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         # fold and unfold as needed
         lineclicked = self.LineFromPosition(evt.GetPosition())
         if evt.GetMargin() == 0:
-            self.ToggleBreakpoint(lineclicked)
+            self.ToggleBreakpoint(evt, lineclicked)
         elif evt.GetMargin() == 3:
             if evt.GetShift() and evt.GetControl():
                 self.FoldAll()
@@ -683,7 +683,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def ToggleBreakpoint(self, evt, lineno=None):
         ok = None
-        if not lineno:
+        if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
         # toggle breakpoints:
         if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:

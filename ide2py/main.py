@@ -1274,6 +1274,40 @@ class MainApp(wx.App):
                          advancedsplash.AS_SHADOW_BITMAP,
                          shadowcolour=wx.ColourDatabase().Find("yellow"),
                 )
+            import wx.lib.agw.speedmeter as SM
+            pi=3.14
+            self.SpeedWindow1 = SM.SpeedMeter(self.splash_frame,
+                                          agwStyle=SM.SM_DRAW_HAND |
+                                          SM.SM_DRAW_SECTORS |
+                                          SM.SM_DRAW_MIDDLE_TEXT |
+                                          SM.SM_DRAW_SECONDARY_TICKS
+                                          )
+            self.SpeedWindow1.SetAngleRange(-pi/6, 7*pi/6)
+            intervals = range(0, 201, 20)
+            self.SpeedWindow1.SetIntervals(intervals)
+            colours = [wx.BLACK]*10
+            self.SpeedWindow1.SetIntervalColours(colours)
+            ticks = [str(interval) for interval in intervals]
+            self.SpeedWindow1.SetTicks(ticks)
+            self.SpeedWindow1.SetTicksColour(wx.WHITE)
+            self.SpeedWindow1.SetNumberOfSecondaryTicks(5)
+            self.SpeedWindow1.SetTicksFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
+            self.SpeedWindow1.SetMiddleText("Km/h")
+            # Assign The Colour To The Center Text
+            self.SpeedWindow1.SetMiddleTextColour(wx.WHITE)
+            # Assign A Font To The Center Text
+            self.SpeedWindow1.SetMiddleTextFont(wx.Font(8, wx.SWISS, wx.NORMAL, wx.BOLD))
+
+            # Set The Colour For The Hand Indicator
+            self.SpeedWindow1.SetHandColour(wx.Colour(255, 50, 0))
+
+            # Do Not Draw The External (Container) Arc. Drawing The External Arc May
+            # Sometimes Create Uglier Controls. Try To Comment This Line And See It
+            # For Yourself!
+            self.SpeedWindow1.DrawExternalArc(False)        
+
+            # Set The Current Value For The SpeedMeter
+            self.SpeedWindow1.SetSpeedValue(44)
             if RAD2PY_ICON:
                 ib = wx.IconBundle()
                 ib.AddIconFromFile(RAD2PY_ICON, wx.BITMAP_TYPE_ANY)
