@@ -730,16 +730,18 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.breakpoints[handle] = bp
 
     def ToggleAltBreakpoint(self, evt, lineno=None):
+        if lineno is None:
+            lineno = self.LineFromPosition(self.GetCurrentPos())
         # search the breakpoint
         for handle in self.breakpoints:
             if lineno == self.MarkerLineFromHandle(handle):
                 cond = self.breakpoints[handle]['cond']
                 break
         else:
-            cond = handle = None            
+            cond = temp = handle = None            
         # delete the breakpoint if it already exist:
         if handle:
-            self.ToggleBreakpoint(evt, lineno, None)
+            self.ToggleBreakpoint(evt, lineno)
         # ask the condition
         dlg = wx.TextEntryDialog(self, "Conditional expression:"
                                  "(empty for temporary 1 run breakpoint)", 
