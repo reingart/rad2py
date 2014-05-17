@@ -1008,7 +1008,7 @@ def quit():
 
 if __name__ == '__main__':
     # When invoked as main program:
-    if '--test' in sys.argv:
+    if '--test1' in sys.argv:
         test()
     # Check environment for configuration parameters:
     kwargs = {}
