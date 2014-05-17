@@ -35,7 +35,10 @@ try:
 except ImportError:
     # disable advanced splash screen
     advancedsplash = None
-    infobar = wx
+    if hasattr(wx, "InfoBar"):
+        infobar = wx
+    else:
+        infobar = None
 
 import images
 
@@ -1035,6 +1038,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
     def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, 
                     auto_dismiss=False):
         "Show message in a information bar (between menu and toolbar)"
+        if not infobar:
+            return
         if key not in self.infobars:
             # create a new InfoBar if not exists
             self.infobars[key] = infobar.InfoBar(self)
@@ -1229,7 +1234,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, parent=None):
         # TODO: add the infobar to the notebook
-        self.parent.ShowInfoBar(message, flags=flags, key="editor", 
+        if infobar:
+            self.parent.ShowInfoBar(message, flags=flags, key="editor", 
                                 auto_dismiss=True)
         
     def ChangeEOL(self, eol):
