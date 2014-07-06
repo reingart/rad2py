@@ -79,6 +79,7 @@ CONFIG_FILE = "ide2py.ini"
 REDIRECT_STDIO = False
 RAD2PY_ICON = "rad2py.ico"
 SPLASH_IMAGE = "splash.png"
+DEBUG = False
 
 ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
@@ -967,9 +968,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         # display the exception
         print u'Unhandled Error: %s' % title
-        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
-        dlg.ShowModal()
-        dlg.Destroy()
+        if extype != wx.PyAssertion and not DEBUG:
+            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
+            dlg.ShowModal()
+            dlg.Destroy()
 
     def OnException(self, event):
         # unpack remote exception contents
