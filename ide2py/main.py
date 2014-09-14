@@ -35,7 +35,10 @@ try:
 except ImportError:
     # disable advanced splash screen
     advancedsplash = None
-    infobar = wx
+    if hasattr(wx, "InfoBar"):
+        infobar = wx
+    else:
+        infobar = None
 
 import images
 
@@ -76,6 +79,7 @@ CONFIG_FILE = "ide2py.ini"
 REDIRECT_STDIO = False
 RAD2PY_ICON = "rad2py.ico"
 SPLASH_IMAGE = "splash.png"
+DEBUG = False
 
 ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
@@ -90,6 +94,7 @@ ID_KILL = wx.NewId()
 ID_ATTACH = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
+ID_ALTBREAKPOINT = wx.NewId()
 ID_CLEARBREAKPOINTS = wx.NewId()
 ID_STEPIN = wx.NewId()
 ID_STEPRETURN = wx.NewId()
@@ -217,6 +222,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         dbg_menu.AppendSeparator()
         dbg_menu.Append(ID_BREAKPOINT, "Toggle &Breakpoint\tF9",
                         help="Set or remove a breakpoint in the current line")
+        dbg_menu.Append(ID_ALTBREAKPOINT, "Toggle Cond./Temp. Breakpoint\tAlt-F9",
+                        help="Set or remove a conditional or temporary breakpoint")
         dbg_menu.Append(ID_CLEARBREAKPOINTS, "Clear All Breakpoint\tCtrl-Shift-F9")
         
         help_menu = self.menu['help'] = wx.Menu()
@@ -314,6 +321,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
             (ID_GOTO, self.OnEditAction),
             (ID_GOTO_DEF, self.OnGotoDefinition),
             (ID_BREAKPOINT, self.OnEditAction),
+            (ID_ALTBREAKPOINT, self.OnEditAction),
             (ID_CLEARBREAKPOINTS, self.OnEditAction),
          ]
         for menu_id, handler in menu_handlers:
@@ -944,11 +952,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
     def OnGotoDefinition(self, event):
         if self.active_child and self.explorer:
             filename = self.active_child.GetFilename()
-            filename, lineno = self.active_child.GetDefinition()
+            filename, lineno, offset = self.active_child.GetDefinition()
             if filename:
                 child = self.DoOpen(filename)
                 if child:
-                    child.GotoLineOffset(lineno, 1)
+                    child.GotoLineOffset(lineno, offset)
 
     def ExceptHook(self, extype, exvalue, trace): 
         exc = traceback.format_exception(extype, exvalue, trace) 
@@ -960,9 +968,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         # display the exception
         print u'Unhandled Error: %s' % title
-        dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
-        dlg.ShowModal()
-        dlg.Destroy()
+        if extype != wx.PyAssertion and not DEBUG:
+            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
+            dlg.ShowModal()
+            dlg.Destroy()
 
     def OnException(self, event):
         # unpack remote exception contents
@@ -1031,6 +1040,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
     def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, 
                     auto_dismiss=False):
         "Show message in a information bar (between menu and toolbar)"
+        if not infobar:
+            return
         if key not in self.infobars:
             # create a new InfoBar if not exists
             self.infobars[key] = infobar.InfoBar(self)
@@ -1167,6 +1178,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
                 wx.ID_PASTE: self.editor.DoBuiltIn,
                 wx.ID_CUT: self.editor.DoBuiltIn,
                 ID_BREAKPOINT: self.editor.ToggleBreakpoint,
+                ID_ALTBREAKPOINT: self.editor.ToggleAltBreakpoint,
                 ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
                 ID_COMMENT: self.editor.ToggleComment,
                 ID_GOTO: self.editor.DoGoto,
@@ -1224,7 +1236,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
 
     def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, parent=None):
         # TODO: add the infobar to the notebook
-        self.parent.ShowInfoBar(message, flags=flags, key="editor", 
+        if infobar:
+            self.parent.ShowInfoBar(message, flags=flags, key="editor", 
                                 auto_dismiss=True)
         
     def ChangeEOL(self, eol):
@@ -1274,6 +1287,40 @@ class MainApp(wx.App):
                          advancedsplash.AS_SHADOW_BITMAP,
                          shadowcolour=wx.ColourDatabase().Find("yellow"),
                 )
+            import wx.lib.agw.speedmeter as SM
+            pi=3.14
+            self.SpeedWindow1 = SM.SpeedMeter(self.splash_frame,
+                                          agwStyle=SM.SM_DRAW_HAND |
+                                          SM.SM_DRAW_SECTORS |
+                                          SM.SM_DRAW_MIDDLE_TEXT |
+                                          SM.SM_DRAW_SECONDARY_TICKS
+                                          )
+            self.SpeedWindow1.SetAngleRange(-pi/6, 7*pi/6)
+            intervals = range(0, 201, 20)
+            self.SpeedWindow1.SetIntervals(intervals)
+            colours = [wx.BLACK]*10
+            self.SpeedWindow1.SetIntervalColours(colours)
+            ticks = [str(interval) for interval in intervals]
+            self.SpeedWindow1.SetTicks(ticks)
+            self.SpeedWindow1.SetTicksColour(wx.WHITE)
+            self.SpeedWindow1.SetNumberOfSecondaryTicks(5)
+            self.SpeedWindow1.SetTicksFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
+            self.SpeedWindow1.SetMiddleText("Km/h")
+            # Assign The Colour To The Center Text
+            self.SpeedWindow1.SetMiddleTextColour(wx.WHITE)
+            # Assign A Font To The Center Text
+            self.SpeedWindow1.SetMiddleTextFont(wx.Font(8, wx.SWISS, wx.NORMAL, wx.BOLD))
+
+            # Set The Colour For The Hand Indicator
+            self.SpeedWindow1.SetHandColour(wx.Colour(255, 50, 0))
+
+            # Do Not Draw The External (Container) Arc. Drawing The External Arc May
+            # Sometimes Create Uglier Controls. Try To Comment This Line And See It
+            # For Yourself!
+            self.SpeedWindow1.DrawExternalArc(False)        
+
+            # Set The Current Value For The SpeedMeter
+            self.SpeedWindow1.SetSpeedValue(44)
             if RAD2PY_ICON:
                 ib = wx.IconBundle()
                 ib.AddIconFromFile(RAD2PY_ICON, wx.BITMAP_TYPE_ANY)

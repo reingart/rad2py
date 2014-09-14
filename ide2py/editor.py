@@ -43,10 +43,10 @@ AUTOCOMPLETE_IGNORE = []
 class EditorCtrl(stc.StyledTextCtrl):
     "Editor based on Styled Text Control"
 
-    CURRENT_LINE_MARKER_NUM = 2
+    CURRENT_LINE_MARKER_NUM = 0x10
     BREAKPOINT_MARKER_NUM = 1
-    CURRENT_LINE_MARKER_MASK = 0x4
-    BREAKPOINT_MARKER_MASK = 0x2
+    CURRENT_LINE_MARKER_MASK = 2 ** CURRENT_LINE_MARKER_NUM
+    BREAKPOINT_MARKER_MASK = 2 ** BREAKPOINT_MARKER_NUM
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
@@ -82,6 +82,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.filetimestamp = None
         self.modified = None
         self.calltip = 0
+        self.breakpoints = {}
         app = wx.GetApp()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
@@ -123,11 +124,11 @@ class EditorCtrl(stc.StyledTextCtrl):
         # margin 0 for breakpoints
         self.SetMarginSensitive(0, True)
         self.SetMarginType(0, wx.stc.STC_MARGIN_SYMBOL)
-        self.SetMarginMask(0, 0x3)
+        self.SetMarginMask(0, 0x0F)
         self.SetMarginWidth(0, 12)
         # margin 1 for current line arrow
         self.SetMarginSensitive(1, False)
-        self.SetMarginMask(1, 0x4)
+        self.SetMarginMask(1, self.CURRENT_LINE_MARKER_MASK)
         # margin 2 for line numbers
         self.SetMarginType(2, stc.STC_MARGIN_NUMBER)
         self.SetMarginWidth(2, 28)
@@ -152,8 +153,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
         # Define the current line marker
         self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM, wx.stc.STC_MARK_SHORTARROW, wx.BLACK, (255,255,128))
+        self.MarkerDefine(self.CURRENT_LINE_MARKER_NUM+1, wx.stc.STC_MARK_BACKGROUND, wx.BLACK, (255,255,128))
         # Define the breakpoint marker
         self.MarkerDefine(self.BREAKPOINT_MARKER_NUM, wx.stc.STC_MARK_CIRCLE, wx.BLACK, (255,0,0))
+        self.MarkerDefine(self.BREAKPOINT_MARKER_NUM+1, wx.stc.STC_MARK_PLUS, wx.BLACK, wx.WHITE)
+        self.MarkerDefine(self.BREAKPOINT_MARKER_NUM+2, wx.stc.STC_MARK_DOTDOTDOT, wx.BLACK, wx.BLUE)
 
         # Make some styles,  The lexer defines what each style is used for, we
         # just have to define what each style looks like.  This set is adapted from
@@ -614,8 +618,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             if "__builtin__" not in definition.module_path:
                 break
         else:
-            return None, None
-        return definition.module_path, definition.line
+            return None, None, None
+        return definition.module_path, definition.line, definition.column+1
 
     def OnUpdateUI(self, evt):
         # check for matching braces
@@ -656,11 +660,16 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.OnPositionChanged(evt)
 
     def OnMarginClick(self, evt):
-        # fold and unfold as needed
         lineclicked = self.LineFromPosition(evt.GetPosition())
         if evt.GetMargin() == 0:
-            self.ToggleBreakpoint(lineclicked)
+            # update beakpoints
+            if evt.GetShift() or evt.GetAlt() or evt.GetControl():
+                # conditional / temporary bp:
+                self.ToggleAltBreakpoint(evt, lineclicked)
+            else:
+                self.ToggleBreakpoint(evt, lineclicked)
         elif evt.GetMargin() == 3:
+            # fold and unfold as needed
             if evt.GetShift() and evt.GetControl():
                 self.FoldAll()
             else:
@@ -680,21 +689,70 @@ class EditorCtrl(stc.StyledTextCtrl):
                     else:
                         self.ToggleFold(lineclicked)
 
-    def ToggleBreakpoint(self, evt, lineno=None):
+    def ToggleBreakpoint(self, evt, lineno=None, cond=None, temp=False):
         ok = None
-        if not lineno:
+        if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
         # toggle breakpoints:
         if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:
+            # delete the breakpoint (if debugger is running) and marker
             if self.debugger:
                 ok = self.debugger.ClearBreakpoint(self.filename, lineno+1)
             if ok is not None:
-                self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                # look for the marker handle (lineno can be moved)
+                for handle in self.breakpoints:
+                    if lineno == self.MarkerLineFromHandle(handle):
+                        break
+                else:
+                    # handle not found (this should not happen)!
+                    handle = None
+                # remove the main breakpoint marker (handle) and alternate ones
+                self.MarkerDeleteHandle(handle)
+                if self.breakpoints[handle]['cond']:
+                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                if self.breakpoints[handle]['temp']:
+                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
+                del self.breakpoints[handle]
         else:
+            # set the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.SetBreakpoint(self.filename, lineno+1)
+                ok = self.debugger.SetBreakpoint(self.filename, lineno+1, temp, cond)
             if ok is not None:
-                self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM)
+                # set the main breakpoint marker (get handle)
+                handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM) 
+                # set alternate markers (if any)
+                if cond:
+                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                if temp:
+                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
+                # store the breakpoint in a struct for the debugger:
+                bp = {'lineno': int(lineno) + 1, 'temp': temp, 'cond': cond}
+                self.breakpoints[handle] = bp
+
+    def ToggleAltBreakpoint(self, evt, lineno=None):
+        if lineno is None:
+            lineno = self.LineFromPosition(self.GetCurrentPos())
+        # search the breakpoint
+        for handle in self.breakpoints:
+            if lineno == self.MarkerLineFromHandle(handle):
+                cond = self.breakpoints[handle]['cond']
+                break
+        else:
+            cond = temp = handle = None            
+        # delete the breakpoint if it already exist:
+        if handle:
+            self.ToggleBreakpoint(evt, lineno)
+        # ask the condition
+        dlg = wx.TextEntryDialog(self, "Conditional expression:"
+                                 "(empty for temporary 1 run breakpoint)", 
+                                 'Set Cond./Temp. Breakpoint', cond or "")
+        if dlg.ShowModal() == wx.ID_OK:
+            cond = dlg.GetValue() or None
+            temp = cond is None
+        dlg.Destroy()
+        # set the conditional / temporary breakpoint:
+        if cond or temp:
+            self.ToggleBreakpoint(evt, lineno, cond, temp)
 
     def ClearBreakpoints(self, evt):
         lineno = 1
@@ -706,13 +764,11 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def GetBreakpoints(self):
         lineno = 0
-        breakpoints = {}
-        while True:
-            lineno = self.MarkerNext(lineno+1, self.BREAKPOINT_MARKER_MASK)
-            if lineno<0:
-                break
-            breakpoints[lineno+1] = (None, None)
-        return breakpoints
+        # update line numbers for each marker:
+        for handle in self.breakpoints:
+            lineno = self.MarkerLineFromHandle(handle)
+            self.breakpoints[handle]['lineno'] = lineno+1
+        return self.breakpoints
 
     def FoldAll(self):
         lineCount = self.GetLineCount()
@@ -782,12 +838,14 @@ class EditorCtrl(stc.StyledTextCtrl):
     def SynchCurrentLine(self, linenum):
         # do not update if currently in the same line
         self.MarkerDeleteAll(self.CURRENT_LINE_MARKER_NUM)
+        self.MarkerDeleteAll(self.CURRENT_LINE_MARKER_NUM+1)
         if linenum:
             # line numbering for editor is 0 based, dbg is 1 based.
             linenum = linenum - 1  
             self.EnsureVisibleEnforcePolicy(linenum)
             self.GotoLine(linenum)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
+            self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM+1)
    
     def GetLineText(self, linenum):
         lstart = self.PositionFromLine(linenum - 1)
