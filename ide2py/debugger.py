@@ -87,12 +87,17 @@ class Debugger(qdb.Frontend):
             print "DEBUGGER connection exception:", e
             self.detach()
         except Exception, e:
-            # print the exception message and close (avoid recursion)
+            # show the exception message and abort (avoid recursion)
+            # known causes: pickle (ImportError)
             print "DEBUGGER exception", e
             import traceback
-            traceback.print_exc()
-            import sys;
-            sys.exit()
+            exc = traceback.format_exc()
+            dlg = wx.MessageDialog(self.gui, exc, 
+                   "Debugger exception (session aborted)",
+                   wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+            self.detach()
 
     def init(self, cont=False):
         # restore sane defaults:
