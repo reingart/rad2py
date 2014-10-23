@@ -1,0 +1,19 @@
+{{left_sidebar_enabled=right_sidebar_enabled=False}}
+{{extend 'layout.html'}}
+
+<hr />
+<h1>{{=T("Welcome to PSP support tool")}}</h2>
+In this application you can:
+<ul>
+  <li>{{=A(T("List projects"), _href=URL('projects','index'))}} or {{=A(T("Create"), _href=URL('projects','create'))}} one</li>
+  <li>{{=A(T("Estimate project size (PROBE)"), _href=URL('probe','index'))}} using the {{=A(T("reuse library"), _href=URL('probe','library'))}} {{=A(T("categorization"), _href=URL('probe','categorize'))}} ({{=A(T("log-normbal distribution"), _href=URL('probe','normal_distribution.png'))}} )</li>
+  <li>{{=A(T("Estimate project time"), _href=URL('estimate','index'))}}, calculate the {{=A(T("correlation"), _href=URL('estimate','correlation'))}} and {{=A(T("significance"), _href=URL('estimate','significance'))}} of your historical data ({{=A(T("Linear Regression"), _href=URL('estimate','linear_regression'))}}</li>
+  <li>{{=A(T("Generate Reports"), _href=URL('reports','index'))}} of performance and quality ({{=A(T("projects"), _href=URL('reports','projects'))}}, {{=A(T("defects"), _href=URL('reports','defects'))}} including their {{=A(T("pareto distribution"), _href=URL('reports','pareto_distribution.png'))}} and {{=A(T("average fix time"), _href=URL('reports','average_fix_time.png'))}} )</li>
+</ul>
+
+<p/>
+<hr/>
+
+<p>
+For more information see <a href="http://code.google.com/p/rad2py">http://code.google.com/p/rad2py</a>
+</p>

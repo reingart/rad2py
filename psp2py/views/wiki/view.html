@@ -1,0 +1,8 @@
+{{extend 'layout.html'}}
+<h1>{{=title}}</h1>
+
+{{=text}}
+
+{{=FORM(
+    INPUT(_type="submit", _value=T("Edit")),
+    _action=URL('wiki', 'edit', args=request.args))}}

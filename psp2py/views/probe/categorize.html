@@ -1,0 +1,48 @@
+{{extend 'layout.html'}}
+<h1>Object size categorization</h1>
+
+<h2>Normal (logarithmic) parameters</h2>
+<ul>
+    <li>Std_Dev: {{=std_dev}}</li>
+    <li>Average: {{=avg_ln}}</li>
+</ul>
+
+<h2>Objects and size ranges</h2>
+
+<table>
+    <tr>
+    <th>Object Name</th>
+    <th>Size Range</th>
+    <th>Object LOC</th>
+    <th>Object ln(LOC)</th>
+    </tr>
+    {{for name, loc in locs.items():}}
+        <tr>
+            <td>{{=name}}</td>
+            <td style="text-align: center">{{=categorization.get(name)}}</td>
+            <td style="text-align: right">{{=objs[name]['loc']}}</td>
+            <td style="text-align: right">{{=loc}}</td>
+        </tr>
+    {{pass}}
+</table>
+
+<h2>Distribution</h2>
+
+<table>
+    <tr>
+    <th>Size Range</th>
+    <th>Range Midpoint LOC</th>
+    <th>Range Midpoint ln(LOC)</th>
+    <th>Quantity</th>
+    <th>Percentage</th>
+    </tr>
+    {{for size in PSP_SIZES:}}
+        <tr>
+            <td>{{=size}}</td>
+            <td style="text-align: center">{{=midpoints.get(size, "")}}</td>
+            <td style="text-align: center">{{=midpoints_ln.get(size, "")}}</td>
+            <td style="text-align: left">{{=midpoints_q.get(size)}}</td>
+            <td style="text-align: left">{{=categorization and ("%0.2f" % (midpoints_q.get(size, 0)/float(len(categorization))*100.)) or ''}} %</td>
+        </tr>
+    {{pass}}
+</table>
