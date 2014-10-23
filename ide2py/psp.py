@@ -694,8 +694,8 @@ class PSPMixin(object):
         self.camera = Camera(self)
         self._mgr.AddPane(self.camera, aui.AuiPaneInfo().
                           Name("psp_webcam").Caption("PSP Camera").
-                          Float().FloatingSize(wx.Size(300, 200)).
-                          CloseButton(True).MinimizeButton(True))
+                          MinSize(wx.Size(50, 40)).
+                          Float().CloseButton(True).MinimizeButton(True))
         self._mgr.Update()
 
     def set_current_psp_phase(self, phase):

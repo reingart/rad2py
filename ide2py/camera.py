@@ -53,7 +53,11 @@ class Camera(wx.Panel):
     def OnPaint(self, evt):
         "Draw the captured image to the screen"
         dc = wx.BufferedPaintDC(self)
-        dc.DrawBitmap(self.bmp, 0, 0)
+        width, height = self.GetSize()
+        # resize the image up to the panel dimensions, and draw it:
+        image = wx.ImageFromBitmap(self.bmp)
+        image = image.Scale(width, height, wx.IMAGE_QUALITY_NORMAL)
+        dc.DrawBitmap(wx.BitmapFromImage(image), 0, 0)
 
 
 if __name__ == "__main__":
