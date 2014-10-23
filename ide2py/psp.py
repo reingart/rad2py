@@ -23,6 +23,11 @@ import wx.lib.agw.aui as aui
 import images
 import simplejsonrpc
 
+try:
+    from camera import Camera           # camera sensor needs OpenCV
+except ImportError:
+    Camera = None
+
 
 PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
 PSP_TIMES = ["plan", "actual", "interruption", "comments"]
@@ -267,6 +272,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             val = item.get(col_key, "")
             if col_key == 'fix_time':
                 val = pretty_time(val)
+            elif isinstance(val, str):
+                val = val.decode("utf8", "replace")
             elif val is not None:
                 val = str(val)
             else:
@@ -571,6 +578,9 @@ class PSPMixin(object):
             import webbrowser
             wx.CallAfter(webbrowser.open, url)
 
+        # initialize the camera sensor (after one second to not delay startup)
+        if Camera:
+            wx.CallLater(1000., self.CreatePSPCamera)
 
     def CreatePSPPlanSummaryGrid(self, filename):
         grid = wx.grid.Grid(self)
@@ -679,6 +689,14 @@ class PSPMixin(object):
         self.psp_toolbar = tb4
 
         return tb4
+
+    def CreatePSPCamera(self):
+        self.camera = Camera(self)
+        self._mgr.AddPane(self.camera, aui.AuiPaneInfo().
+                          Name("psp_webcam").Caption("PSP Camera").
+                          Float().FloatingSize(wx.Size(300, 200)).
+                          CloseButton(True).MinimizeButton(True))
+        self._mgr.Update()
 
     def set_current_psp_phase(self, phase):
         if self._current_psp_phase:
