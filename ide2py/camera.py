@@ -17,8 +17,8 @@ class Camera(wx.Panel):
     
     def __init__(self, parent, rate=1, width=320, height=240,
                  classpath="haarcascade_frontalface_default.xml"):
-        wx.Panel.__init__(self, parent)
-        parent.SetSize((width, height))        
+        wx.Panel.__init__(self, parent, -1, wx.DefaultPosition, 
+                                wx.Size(width, height))
 
         # set up OpenCV features:
         self.capture = cv2.VideoCapture(0)
@@ -61,6 +61,7 @@ if __name__ == "__main__":
     app = wx.App()
     frame = wx.Frame(None)
     cam = Camera(frame)
+    frame.SetSize(cam.GetSize())        
     frame.Show()
     app.MainLoop()
 
