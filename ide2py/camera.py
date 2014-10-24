@@ -10,12 +10,13 @@ __license__ = "GPL 3.0"
 
 import wx
 import cv, cv2
+import time
 
 
 class Camera(wx.Panel):
     "Widget to capture and display images (with faces detection)"
     
-    def __init__(self, parent, rate=1, width=320, height=240,
+    def __init__(self, parent, rate=5, width=320, height=240,
                  classpath="haarcascade_frontalface_default.xml"):
         wx.Panel.__init__(self, parent, -1, wx.DefaultPosition, 
                                 wx.Size(width, height))
@@ -30,13 +31,24 @@ class Camera(wx.Panel):
 
         # Initialize sampling capture rate (default: one shot per second)
         self.timer = wx.Timer(self)
-        self.timer.Start(rate * 1000.)
+        self.timer.Start(500.)
+        self.count = 0
+        self.rate = rate
         self.Bind(wx.EVT_PAINT, self.OnPaint)
-        self.Bind(wx.EVT_TIMER, self.OnTimer)        
+        self.Bind(wx.EVT_TIMER, self.OnTimer)
 
     def OnTimer(self, evt):
         "Capture a single frame image and detect faces on it"
-        ret, img = self.capture.read()
+        t0 = time.time()
+        # Capture a image frame twice a second to flush buffers:
+        self.capture.grab()
+        ##print "grabbing", self.count
+        self.count += 1
+        if self.count % (self.rate * 2):
+            return
+        # Process the image frame (default sampling rate is 5 seconds)
+        t1 = time.time()
+        ret, img = self.capture.retrieve()
         if ret:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -44,7 +56,8 @@ class Camera(wx.Panel):
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30),
                 flags=cv2.cv.CV_HAAR_SCALE_IMAGE
             )
-            print "faces", faces
+            t2 = time.time()            
+            print "faces", faces, t1-t0, t2-t1
             for (x, y, w, h) in faces:
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
             self.bmp.CopyFromBuffer(img)
