@@ -391,10 +391,16 @@ class Qdb(bdb.Bdb):
         env = {'locals': {}, 'globals': {}}
         # converts the frame global and locals to a short text representation:
         if self.frame:
-            for name, value in self.frame_locals.items():
-                env['locals'][name] = pydoc.cram(repr(value), 255), repr(type(value))
-            for name, value in self.frame.f_globals.items():
-                env['globals'][name] = pydoc.cram(repr(value), 20), repr(type(value))
+            for scope, max_length, vars in (
+                    ("locals", 255, self.frame_locals.items()),
+                    ("globals", 20, self.frame.f_globals.items()), ):
+                for (name, value) in vars:
+                    try:
+                        short_repr = pydoc.cram(repr(value), max_length)                    
+                    except Exception as e:
+                        # some objects cannot be represented...
+                        short_repr = "**exception** %s" % repr(e)
+                    env[scope][name] = (short_repr, repr(type(value)))
         return env
 
     def get_autocomplete_list(self, expression):
