@@ -763,16 +763,26 @@ class PSPMixin(object):
 
     def PSPInterrupt(self, message=""):
         "Start the PSP interruption counter"
-        self.psp_interruption = 0
-        self.psp_log_event("pausing!", comment=message)
+        # if PSP time tracking is not started, activate it:
+        if not self.timer.IsRunning():
+            self.OnStartPSP(None)
+        # ignore interrupt state change if already being counted (paused):
+        if self.psp_interruption is None:
+            self.psp_interruption = 0
+            self.psp_log_event("pausing!", comment=message)
 
     def PSPResume(self, message=""):
         "Disable the PSP interruption counter"
-        self.psp_interruption = None
-        phase = self.GetPSPPhase()
-        if message:
-            self.psptimetable.comment(phase, message, self.psp_interruption)
-        self.psp_log_event("resuming", comment=message)
+        # if PSP time tracking is not started, activate it:
+        if not self.timer.IsRunning():
+            self.OnStartPSP(None)
+        # ignore resume state change if already being counted (resumed):
+        if self.psp_interruption is not None:
+            self.psp_interruption = None
+            phase = self.GetPSPPhase()
+            if message:
+                self.psptimetable.comment(phase, message, self.psp_interruption)
+            self.psp_log_event("resuming", comment=message)
 
     def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
