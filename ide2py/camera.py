@@ -20,6 +20,7 @@ class Camera(wx.Panel):
                  classpath="haarcascade_frontalface_default.xml"):
         wx.Panel.__init__(self, parent, -1, wx.DefaultPosition, 
                                 wx.Size(width, height))
+        self.parent = parent
 
         # set up OpenCV features:
         self.capture = cv2.VideoCapture(0)
@@ -51,6 +52,7 @@ class Camera(wx.Panel):
         t1 = time.time()
         ret, img = self.capture.retrieve()
         if ret:
+            # Detect faces using OpenCV (it needs the gray scale conversion):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             faces = self.classifier.detectMultiScale(
@@ -58,9 +60,15 @@ class Camera(wx.Panel):
                 flags=cv2.cv.CV_HAAR_SCALE_IMAGE
             )
             t2 = time.time()
-            print "faces", faces, t1-t0, t2-t1
+            if False: print "faces", faces, t1-t0, t2-t1
+            # Draw detected faces over the color original image:
             for (x, y, w, h) in faces:
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 4)
+            # Notify PSP parent component about the detected change (if any):
+            if not len(faces):
+                self.parent.PSPInterrupt("cam")
+            else:
+                self.parent.PSPResume("cam")
             self.bmp.CopyFromBuffer(img)
             self.Refresh()
 
