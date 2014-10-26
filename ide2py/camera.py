@@ -27,7 +27,8 @@ class Camera(wx.Panel):
         self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
         self.classifier = cv2.CascadeClassifier(classpath)
 
-        self.bmp = wx.EmptyBitmap(width, height)
+        # create an initial bitmap with a compatible OpenCV image bit depth
+        self.bmp = wx.EmptyBitmap(width, height, 24)
 
         # Initialize sampling capture rate (default: one shot per second)
         self.timer = wx.Timer(self)
