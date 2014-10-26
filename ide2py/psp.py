@@ -761,24 +761,30 @@ class PSPMixin(object):
         self.psp_toolbar.EnableTool(ID_STOP, True)
         self.show_psp_plan_pane()
 
+    def PSPInterrupt(self, message=""):
+        "Start the PSP interruption counter"
+        self.psp_interruption = 0
+        self.psp_log_event("pausing!", comment=message)
+
+    def PSPResume(self, message=""):
+        "Disable the PSP interruption counter"
+        self.psp_interruption = None
+        phase = self.GetPSPPhase()
+        if message:
+            self.psptimetable.comment(phase, message, self.psp_interruption)
+        self.psp_log_event("resuming", comment=message)
+
     def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
         if self.psp_interruption is not None:
             dlg = wx.TextEntryDialog(self, 
                 'Enter a comment for the time recording log:', 
                 'Interruption', 'phone call')
-            if dlg.ShowModal() == wx.ID_OK:
-                phase = self.GetPSPPhase()
-                message = dlg.GetValue()
-                self.psptimetable.comment(phase, message, self.psp_interruption)
-                self.psp_log_event("resuming", comment=message)
+            message = dlg.GetValue() if dlg.ShowModal() == wx.ID_OK else ""
             dlg.Destroy()
-            # disable interruption counter
-            self.psp_interruption = None
+            self.PSPResume(message)
         else:
-            # start interruption counter
-            self.psp_interruption = 0
-            self.psp_log_event("pausing!")
+            self.PSPInterrupt()
         self.show_psp_plan_pane()
 
     def OnStopPSP(self, event):
