@@ -9,7 +9,7 @@ __license__ = "GPL 3.0"
 
 
 import wx
-import cv, cv2
+import cv2
 import time
 
 
@@ -23,8 +23,8 @@ class Camera(wx.Panel):
 
         # set up OpenCV features:
         self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv.CV_CAP_PROP_FRAME_WIDTH, width)
-        self.capture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, height)
+        self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, width)
+        self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
         self.classifier = cv2.CascadeClassifier(classpath)
 
         self.bmp = wx.EmptyBitmap(width, height)
@@ -56,10 +56,10 @@ class Camera(wx.Panel):
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(85, 85),
                 flags=cv2.cv.CV_HAAR_SCALE_IMAGE
             )
-            t2 = time.time()            
+            t2 = time.time()
             print "faces", faces, t1-t0, t2-t1
             for (x, y, w, h) in faces:
-                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 4)
             self.bmp.CopyFromBuffer(img)
             self.Refresh()
 
