@@ -693,9 +693,20 @@ class PSPMixin(object):
     def CreatePSPCamera(self):
         self.camera = Camera(self)
         self._mgr.AddPane(self.camera, aui.AuiPaneInfo().
-                          Name("psp_webcam").Caption("PSP Camera").
-                          MinSize(wx.Size(50, 40)).
+                          Name("psp_camera").Caption("PSP Camera").
+                          MinSize(wx.Size(50, 40)).BestSize(wx.Size(96, 72)).
+                          MaxSize(wx.Size(360, 240)).Bottom().Right().
+                          Layer(1).Position(2).
                           Float().CloseButton(True).MinimizeButton(True))
+        self._mgr.Update()
+        # move the camera to the bottom right sector of the screen:
+        pane = self._mgr.GetPane(self.camera)
+        dw, dh = wx.DisplaySize()
+        w, h = pane.floating_size
+        art_provider = self._mgr.GetArtProvider()
+        caption_size = art_provider.GetMetric(aui.AUI_DOCKART_CAPTION_SIZE)
+        border_size = 4*art_provider.GetMetric(aui.AUI_DOCKART_PANE_BORDER_SIZE)
+        pane.FloatingPosition((dw - w - border_size, dh - h - caption_size))
         self._mgr.Update()
 
     def set_current_psp_phase(self, phase):
