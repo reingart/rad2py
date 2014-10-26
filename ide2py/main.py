@@ -71,8 +71,13 @@ try:
 except ImportError:
     SimpleBrowserPanel = None
 
-from web2py import Web2pyMixin
-ADDONS.append("web2py")
+try:
+    from web2py import Web2pyMixin
+    ADDONS.append("web2py")
+except:
+    class Web2pyMixin():
+        def __init__(self): pass
+    
 
 TITLE = "ide2py %s (rad2py) [%s]" % (__version__, ', '.join(ADDONS))
 CONFIG_FILE = "ide2py.ini"
