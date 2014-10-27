@@ -973,6 +973,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         # display the exception
         print u'Unhandled Error: %s' % title
+        print >> sys.stderr, msg
         # ignore internal wx assertion (on some wx builds)
         PyAssertion = getattr(wx, "PyAssertion", None)
         if PyAssertion and extype != wx.PyAssertion and not DEBUG:
