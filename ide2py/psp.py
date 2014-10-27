@@ -19,6 +19,8 @@ import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
+from wx.lib.agw.pygauge import PyGauge
+
         
 import images
 import simplejsonrpc
@@ -145,8 +147,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
         self.UpdateValues(row, col)
         self.grid.SelectRow(-1)
         self.grid.SelectRow(row)
-        if plan:
-            return value/float(plan) * 100
+        return self.cells.get(phase, {})
 
     def comment(self, phase, message, delta):
         "Record the comment of an interruption in selected phase"
@@ -656,9 +657,14 @@ class PSPMixin(object):
         if WX_VERSION > (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddControl(self.psp_phase_choice, "PSP Phase")
 
-        self.psp_gauge = wx.Gauge(tb4, -1, 100, (50, 8))
+        self.psp_gauge = PyGauge(tb4, -1, size=(100, 22))
         if WX_VERSION > (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddControl(self.psp_gauge, "Progressbar")
+        self.psp_gauge.SetValue([0, 0])
+        self.psp_gauge.SetBarColor([wx.Colour(255,159,176), wx.Colour(162,255,178)])
+        self.psp_gauge.SetBackgroundColour(wx.WHITE)
+        self.psp_gauge.SetBorderColor(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNSHADOW))
+        self.psp_gauge.SetBorderPadding(2)
 
         tb4.AddSimpleTool(ID_DEFECT, "Defect", images.GetDebuggingBitmap(),
                           short_help_string="Add a PSP defect")
@@ -814,8 +820,27 @@ class PSPMixin(object):
             self.psp_interruption += 1
         phase = self.GetPSPPhase()
         if phase:
-            percent = self.psptimetable.count(phase, self.psp_interruption)
-            self.psp_gauge.SetValue(percent or 0)
+            # register variation and calculate total elapsed time
+            psp_times = self.psptimetable.count(phase, self.psp_interruption)
+            actual = psp_times.get('actual', 0)
+            interruption = psp_times.get('interruption', 0)
+            plan = float(psp_times.get('plan', 0))
+            total = float(max(plan, (actual + interruption)))
+            # Draw progress bar accordingly
+            self.psp_gauge.SetRange(total)
+            self.psp_gauge.SetValue([interruption, interruption + actual])
+            # TODO: properly use effects (incremental update):
+            self.psp_gauge.Update([0, 0], 100)
+            # NOTE: percentage could be bigger than > 100 % (plan < elapsed)
+            percentage = int((actual + interruption) / plan * 100.)
+            if percentage < 75:
+                colour = wx.BLUE
+            elif percentage <= 100:
+                colour = wx.NamedColour("ORANGE")
+            else:
+                colour = wx.RED
+            self.psp_gauge.SetDrawValue(font=wx.SMALL_FONT, colour=colour,
+                                        formatString="%d %%" % percentage)
             if not self.psp_interruption:
                 self.psp_defect_list.count(phase)
             
