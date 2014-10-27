@@ -835,8 +835,8 @@ class PSPMixin(object):
             # Draw progress bar accordingly
             self.psp_gauge.SetRange(total)
             self.psp_gauge.SetValue([interruption, interruption + actual])
-            # TODO: properly use effects (incremental update):
-            self.psp_gauge.Update([0, 0], 100)
+            # TODO: properly use effects (incremental Update):
+            self.psp_gauge.Refresh()
             # NOTE: percentage could be bigger than > 100 % (plan < elapsed)
             percentage = int((actual + interruption) / plan * 100.)
             if percentage < 75:
