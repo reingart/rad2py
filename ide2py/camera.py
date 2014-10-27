@@ -64,13 +64,13 @@ class Camera(wx.Panel):
             # Draw detected faces over the color original image:
             for (x, y, w, h) in faces:
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 4)
+            self.bmp.CopyFromBuffer(img)
+            self.Refresh()
             # Notify PSP parent component about the detected change (if any):
             if not len(faces):
                 self.parent.PSPInterrupt("cam")
             else:
                 self.parent.PSPResume("cam")
-            self.bmp.CopyFromBuffer(img)
-            self.Refresh()
 
     def OnPaint(self, evt):
         "Draw the captured image to the screen"
