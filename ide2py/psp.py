@@ -779,6 +779,9 @@ class PSPMixin(object):
         if self.psp_interruption is None:
             self.psp_interruption = 0
             self.psp_log_event("pausing!", comment=message)
+            self.psp_toolbar.ToggleTool(ID_PAUSE, True)
+            self.psp_toolbar.Refresh(False)
+            self.psp_toolbar.Update()
 
     def PSPResume(self, message=""):
         "Disable the PSP interruption counter"
@@ -792,6 +795,9 @@ class PSPMixin(object):
             if message:
                 self.psptimetable.comment(phase, message, self.psp_interruption)
             self.psp_log_event("resuming", comment=message)
+            self.psp_toolbar.ToggleTool(ID_PAUSE, False)
+            self.psp_toolbar.Refresh(False)
+            self.psp_toolbar.Update()
 
     def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
