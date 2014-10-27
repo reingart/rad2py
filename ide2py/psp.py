@@ -32,7 +32,7 @@ except ImportError:
 
 
 PSP_PHASES = ["planning", "design", "code", "review", "compile", "test", "postmortem"]
-PSP_TIMES = ["plan", "actual", "interruption", "comments"]
+PSP_TIMES = ["plan", "actual", "interruption", "off_task", "comments"]
 PSP_DEFECT_TYPES = {10: 'Documentation', 20: 'Synax', 30: 'Build', 
     40: 'Assignment', 50: 'Interface',  60: 'Checking', 70: 'Data', 
     80: 'Function', 90: 'System', 100: 'Enviroment'}
@@ -130,15 +130,17 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
     def GetRowLabelValue(self, row):
         return self.rows[row].capitalize()
 
-    def count(self, phase, interruption):
+    def count(self, phase, interruption, active=True):
         "Increment actual user time according selected phase"
         key_phase = phase
         key_time = "plan"
         plan = self.cells.get(key_phase, {}).get(key_time, 0)
-        if not interruption:
-            key_time = "actual"
-        else:
+        if not active:
+            key_time = "off_task"
+        elif interruption:
             key_time = "interruption"
+        else:
+            key_time = "actual"
         value = self.cells.get(phase, {}).get(key_time, 0) + 1
         self.cells.setdefault(key_phase, {})[key_time] = value
         self.cells.sync()
@@ -555,8 +557,9 @@ class PSPMixin(object):
                           Bottom().Row(2).
                           FloatingSize(wx.Size(300, 200)).CloseButton(True).MaximizeButton(True))
         self._mgr.Update()
-        # flag for time not spent on psp task
+        # flags for time not spent on psp task
         self.psp_interruption = None
+        self.psp_off_task = 0
 
         self.AppendWindowMenuItem('PSP', 
             ('psp_plan', 'psp_defects', 'psp_toolbar', ), self.OnWindowMenu)
@@ -820,8 +823,11 @@ class PSPMixin(object):
             self.psp_interruption += 1
         phase = self.GetPSPPhase()
         if phase:
+            # ignore actual time or interruptions if the IDE is not "focused"
+            active = wx.GetApp().IsActive() or self.executing
             # register variation and calculate total elapsed time
-            psp_times = self.psptimetable.count(phase, self.psp_interruption)
+            psp_times = self.psptimetable.count(phase, self.psp_interruption,
+                                                active)
             actual = psp_times.get('actual', 0)
             interruption = psp_times.get('interruption', 0)
             plan = float(psp_times.get('plan', 0))
