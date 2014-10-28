@@ -48,6 +48,7 @@ from debugger import Debugger, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
                      EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
+from task import TaskMixin
 from gui2py import Gui2pyMixin
 
 # optional extensions that may have special dependencies (disabled if not meet)
@@ -116,7 +117,8 @@ ID_EXPLORER = wx.NewId()
 ID_DESIGNER = wx.NewId()
 
 
-class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2pyMixin):
+class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
+                 Web2pyMixin, Gui2pyMixin):
     def __init__(self, parent):
         aui.AuiMDIParentFrame.__init__(self, parent, -1, title=TITLE,
             size=(800,600), style=wx.DEFAULT_FRAME_STYLE | wx.FRAME_NO_WINDOW_MENU)
@@ -436,7 +438,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, Web2pyMixin, PSPMixin, RepoMixin, Gui2py
         # Initialize secondary mixins
         
         wx.GetApp().SetSplashText("Initializing Mixins...")
-        
+
+        TaskMixin.__init__(self)        
         PSPMixin.__init__(self)
         RepoMixin.__init__(self)
         Gui2pyMixin.__init__(self)
