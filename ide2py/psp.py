@@ -21,7 +21,6 @@ from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
 from wx.lib.agw.pygauge import PyGauge
 
-        
 import images
 import simplejsonrpc
 
@@ -41,8 +40,8 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_DIFF, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_PROJECT_LABEL, ID_UP, ID_DOWN, ID_WIKI, ID_COMPILE, ID_TEST \
-    = [wx.NewId() for i in range(21)]
+ID_PROJECT, ID_UP, ID_DOWN, ID_WIKI, ID_COMPILE, ID_TEST \
+    = [wx.NewId() for i in range(20)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -544,7 +543,7 @@ class PSPMixin(object):
         tb4 = self.CreatePSPToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
                           Name("psp_toolbar").Caption("PSP Toolbar").
-                          ToolbarPane().Top().Position(3).CloseButton(True))
+                          ToolbarPane().Top().Position(4).CloseButton(True))
 
         grid = self.CreatePSPPlanSummaryGrid(filename=psp_times)
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
@@ -634,9 +633,6 @@ class PSPMixin(object):
         if WX_VERSION < (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddSpacer(200)        
         tb4.AddLabel(-1, "PSP:", width=30)
-        tb4.AddSimpleTool(ID_PROJECT, "Project", images.month.GetBitmap(),
-                         short_help_string="Change current PSP Project")
-        tb4.AddLabel(ID_PROJECT_LABEL, "select project...", width=100)
 
         tb4.AddSimpleTool(ID_UP, "Upload", GetBmp(wx.ART_GO_UP),
                           short_help_string="send metrics to remote server")
@@ -686,7 +682,6 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnStopPSP, id=ID_STOP)
         self.Bind(wx.EVT_MENU, self.OnDefectPSP, id=ID_DEFECT)
         self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT)
-        self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT_LABEL)
         self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
@@ -1026,8 +1021,7 @@ class PSPMixin(object):
     def psp_set_project(self, project_name):
         "Set project_name in toolbar and config file"
         self.psp_project_name = project_name
-        self.psp_toolbar.SetToolLabel(ID_PROJECT_LABEL, project_name)
-        self.psp_toolbar.Refresh()
+        self.activate_task(project_name)
         # store project name in config file
         wx.GetApp().config.set('PSP', 'project_name', project_name)
         wx.GetApp().write_config()

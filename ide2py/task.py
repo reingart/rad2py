@@ -32,12 +32,13 @@ class TaskMixin(object):
     "ide2py extension for integrated task-focused interface support"
     
     def __init__(self):
-        cfg = wx.GetApp().get_config("Tasks")
+        cfg = wx.GetApp().get_config("TASK")
         
         # shelves (persistent dictionaries)
-        task_list = cfg.get("list", "task_list.dat")
-        task_history = cfg.get("history", "task_history.dat")
-        task_context = cfg.get("context", "task_context.dat")
+        self.tasks = shelve.open(cfg.get("list", "task_list.dat"), 
+                                 writeback=True)
+        ##task_history = cfg.get("history", "task_history.dat")
+        ##task_context = cfg.get("context", "task_context.dat")
 
         # textual recording logs
         task_event_log_filename = cfg.get("event_log", "task_event_log.txt")
@@ -53,9 +54,9 @@ class TaskMixin(object):
         self.AppendWindowMenuItem('Task',
             ('task_list', 'task_detail', 'task_toolbar', ), self.OnWindowMenu)
         
-        self.task_uuid = cfg.get("task_uuid")
-        if self.task_uuid:
-            self.set_task(self.task_uuid)
+        task_uuid = cfg.get("task_uuid")
+        if task_uuid:
+            self.activate_task(None, task_uuid)
 
         self.CreateTaskMenu()
 
@@ -92,7 +93,8 @@ class TaskMixin(object):
         return tb4
             
     def __del__(self):
-        close(self.psp_event_log_file)
+        self.psp_event_log_file.close()
+        self.task_list.close()
 
     def task_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
@@ -114,13 +116,22 @@ class TaskMixin(object):
             self.psp_load_project(project_name)
         dlg.Destroy()
 
-    def set_task(self, task_uuid, task_name):
+    def activate_task(self, task_name=None, task_uuid=None):
         "Set task name in toolbar and uuid in config file"
+        if not task_uuid:
+            # search the task
+            for task_uuid, task in self.tasks.items():
+                if task['name'] == task_name:
+                    break
+            else:
+                # add the new task
+                task_uuid = str(uuid.uuid1())
+                self.tasks[task_uuid] = {'name': task_name}
         self.task_uuid = task_uuid
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
         # store project name in config file
-        wx.GetApp().config.set('Task', 'task_uuid', task_uuid)
+        wx.GetApp().config.set('TASK', 'task_uuid', task_uuid)
         wx.GetApp().write_config()
 
 
