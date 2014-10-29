@@ -10,9 +10,8 @@ __license__ = "GPL 3.0"
 
 import datetime
 import os, os.path
-import pickle, shelve
 import sys
-import hashlib, uuid
+import uuid
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
@@ -32,17 +31,15 @@ class TaskMixin(object):
     "ide2py extension for integrated task-focused interface support"
     
     def __init__(self):
-        cfg = wx.GetApp().get_config("TASK")
         
-        # shelves (persistent dictionaries)
-        self.tasks = shelve.open(cfg.get("list", "task_list.dat"), 
-                                 writeback=True)
+        cfg = wx.GetApp().get_config("PSP")
+        
+        # create the structure for the task-based database:
+        self.db = wx.GetApp().get_db()
+        self.db.create("task", task_id=int, task_name=str, task_uuid=str)    
+        
         ##task_history = cfg.get("history", "task_history.dat")
         ##task_context = cfg.get("context", "task_context.dat")
-
-        # textual recording logs
-        task_event_log_filename = cfg.get("event_log", "task_event_log.txt")
-        self.task_event_log_file = open(task_event_log_filename, "a")
 
         tb4 = self.CreateTaskToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
@@ -54,9 +51,9 @@ class TaskMixin(object):
         self.AppendWindowMenuItem('Task',
             ('task_list', 'task_detail', 'task_toolbar', ), self.OnWindowMenu)
         
-        task_uuid = cfg.get("task_uuid")
-        if task_uuid:
-            self.activate_task(None, task_uuid)
+        task_id = cfg.get("task_id")
+        if task_id:
+            self.activate_task(None, task_id)
 
         self.CreateTaskMenu()
 
@@ -116,22 +113,22 @@ class TaskMixin(object):
             self.psp_load_project(project_name)
         dlg.Destroy()
 
-    def activate_task(self, task_name=None, task_uuid=None):
+    def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"
-        if not task_uuid:
+        if not task_id:
             # search the task
-            for task_uuid, task in self.tasks.items():
-                if task['name'] == task_name:
-                    break
-            else:
+            tasks = self.db.select("task", task_id=task_id)
+            task_id = tasks[0]['task_id'] if tasks else None
+            if not task_id:
                 # add the new task
-                task_uuid = str(uuid.uuid1())
-                self.tasks[task_uuid] = {'name': task_name}
-        self.task_uuid = task_uuid
+                task_id = self.db.insert("task", task_name=task_name, 
+                                                 task_uuid=str(uuid.uuid1()))
+            
+        self.task_id = task_id
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
         # store project name in config file
-        wx.GetApp().config.set('TASK', 'task_uuid', task_uuid)
+        wx.GetApp().config.set('TASK', 'task_id', task_id)
         wx.GetApp().write_config()
 
 
