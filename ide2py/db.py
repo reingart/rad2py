@@ -45,9 +45,21 @@ class Database():
         sql = '\n'.join(sql)
         cur.execute(sql)
 
+    def insert(self, table, **kwargs):
+        "Insert values in a given table"
+        items = kwargs.items()
+        fields = ', '.join([k for k, v in items])
+        placemarks = ', '.join(['?' for k, v in items])
+        sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, fields, placemarks)
+        cur = self.cnn.cursor()
+        cur.execute(sql, [v for k, v in items])
+        self.cnn.commit()
+        return cur.lastrowid
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
     db.create("t1", t1_id=int, f=float, s=str)
     db.create("t2", t2_id=int, f=float, s=str, t1_id=int)
-    
+    id1 = db.insert("t1", f=3.14159265359, s="pi")
+    id2 = db.insert("t2", f=2.71828182846, s="e", t1_id=id1)
