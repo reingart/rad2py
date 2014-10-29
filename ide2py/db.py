@@ -46,7 +46,7 @@ class Database():
         cur.execute(sql)
 
     def insert(self, table, **kwargs):
-        "Insert values in a given table"
+        "Insert a row for the given values in the specified table"
         items = kwargs.items()
         fields = ', '.join([k for k, v in items])
         placemarks = ', '.join(['?' for k, v in items])
@@ -56,6 +56,19 @@ class Database():
         self.cnn.commit()
         return cur.lastrowid
 
+    def update(self, table, **kwargs):
+        "Update rows using the given values (filter by primary key)"
+        items = kwargs.items()
+        pk = table + "_id"
+        placemarks = ', '.join(["%s=?" % k for k, v in items if k != pk])
+        values = [v for k, v in items if k != pk] + [kwargs[pk]]
+        sql = "UPDATE %s SET %s WHERE %s = ?" % (table, placemarks, pk)
+        cur = self.cnn.cursor()
+        print sql, values
+        cur.execute(sql, values)
+        self.cnn.commit()
+        return cur.rowcount
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
@@ -63,3 +76,5 @@ if __name__ == "__main__":
     db.create("t2", t2_id=int, f=float, s=str, t1_id=int)
     id1 = db.insert("t1", f=3.14159265359, s="pi")
     id2 = db.insert("t2", f=2.71828182846, s="e", t1_id=id1)
+    ok = db.update("t1", t1_id=id1, s="PI")
+    assert ok > 0
