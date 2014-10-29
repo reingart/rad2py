@@ -91,7 +91,7 @@ class Database():
         fields = ', '.join([(k if v in basic_types 
                                else "%s(%s)" % (aggregate_types[v], k))
                             for k, v in items 
-                            if v in all_types])
+                            if v in all_types]) or "*"
         group_by = ', '.join([k for k, v in items 
                                 if not v in (aggregate_types.keys())])
         values = [v for k, v in items if v not in all_types]
