@@ -64,7 +64,17 @@ class Database():
         values = [v for k, v in items if k != pk] + [kwargs[pk]]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (table, placemarks, pk)
         cur = self.cnn.cursor()
-        print sql, values
+        cur.execute(sql, values)
+        self.cnn.commit()
+        return cur.rowcount
+
+    def delete(self, table, **kwargs):
+        "Delete rows (filter by given values)"
+        items = kwargs.items()
+        placemarks = ' AND '.join(["%s=?" % k for k, v in items])
+        values = [v for k, v in items]
+        sql = "DELETE FROM %s WHERE %s" % (table, placemarks)
+        cur = self.cnn.cursor()
         cur.execute(sql, values)
         self.cnn.commit()
         return cur.rowcount
@@ -77,4 +87,6 @@ if __name__ == "__main__":
     id1 = db.insert("t1", f=3.14159265359, s="pi")
     id2 = db.insert("t2", f=2.71828182846, s="e", t1_id=id1)
     ok = db.update("t1", t1_id=id1, s="PI")
+    assert ok > 0
+    ok = db.delete("t2", f=2.71828182846, s="e")
     assert ok > 0
