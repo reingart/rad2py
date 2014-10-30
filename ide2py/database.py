@@ -127,6 +127,10 @@ class Table():
         "Return an intermediate accesor to the record (don't query the db yet)" 
         return Row(self.db, self.table_name, {self.table_name + "_id": key})
 
+    def __call__(self, **kwargs):
+        "Return an intermediate accesor to the record (using kwargs as filter)" 
+        return Row(self.db, self.table_name, kwargs)
+
     def append(self, data):
         "Short-cut to insert a row (data: fields values)"
         return self.db.insert(self.table_name, **data)
@@ -203,4 +207,4 @@ if __name__ == "__main__":
     db['t1'][t1_id]['f'] +=1
     assert db['t1'][t1_id]['f'] == 2 
     assert not db['t1'][t1_id+1]        # this record doesn't exist
-
+    assert db['t1'](t1_id=t1_id)['f'] == 2
