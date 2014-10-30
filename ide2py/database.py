@@ -98,7 +98,7 @@ class Database():
         sql = "SELECT %s FROM %s" % (fields, table)
         if where:
             sql += " WHERE %s" % where
-        if group_by:
+        if group_by and fields != "*":
             sql += " GROUP BY %s" % group_by
         cur = self.cnn.cursor()
         print sql, values
