@@ -571,7 +571,12 @@ class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def AddItem(self, item, key=None):
         index = self.InsertStringItem(sys.maxint, item[0])
         for i, val in enumerate(item[1:]):
-            self.SetStringItem(index, i+1, str(val))
+            if isinstance(val, str):
+                # Until python 3, encoding is not properly detected by linecache
+                val = val.decode("utf8", "replace")
+            elif not isinstance(val, basestring):
+                val = str(val)
+            self.SetStringItem(index, i+1, val)
     
     def BuildList(self, items):
         self.DeleteAllItems()
