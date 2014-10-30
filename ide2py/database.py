@@ -106,6 +106,62 @@ class Database():
         self.cnn.commit()
         return cur.fetchall()
 
+    def __getitem__(self, table_name):
+        "Return an intermediate accesor to the table (don't query the db yet)" 
+        return Table(self, table_name)
+
+
+class Table():
+    "Dict/List-like to map records in a database"
+
+    def __init__(self, db, table_name):
+        self.db = db
+        self.table_name = table_name
+
+    def __setitem__(self, key, data):
+        "Short-cut to update a row (key: pk, data: fields values)"
+        data[self.table_name + "_id"] = key
+        self.db.update(self.table_name, **data)
+
+    def __getitem__(self, key):
+        "Return an intermediate accesor to the record (don't query the db yet)" 
+        return Row(db, self.table_name, {self.table_name + "_id": key})
+
+    def append(self, data):
+        "Short-cut to insert a row (data: fields values)"
+        return self.db.insert(self.table_name, **data)
+
+
+class Row():
+    "Dict-like to map stored fields in the database" 
+    
+    def __init__(self, db, table_name, primary_key):
+        self.db = db
+        self.table_name = table_name
+        self.primary_key = primary_key
+        self.data_in = {}
+        self.data_out = {}
+    
+    def __getitem__(self, field):
+        "Fetch the record from the database and return the field value"
+        if not self.data_in:
+            rows = self.db.select(self.table_name, **self.primary_key)
+            if rows:
+                self.data_in = rows[0]
+        return self.data_in[field]
+
+    def __setitem__(self, field, value):
+        "Store the field value for further update (at the destructor)"
+        self.data_out[field] = value
+    
+    def __del__(self):
+        "Write data to the database on destruction"
+        # Note that this could not be immediate!
+        # Also, exceptions here could be ignored by Python!
+        if self.data_out:
+            self.data_out.update(self.primary_key)
+            self.db.update(self.table_name, **self.data_out)
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
@@ -121,3 +177,11 @@ if __name__ == "__main__":
 
     rows = db.select('t1', f=sum, s="pi")
     print rows[0]["sum(f)"]
+    
+    # dict-like syntax (inspired by shelve):
+    r = {'f': 0, 's': 'hola'}
+    t1_id = db['t1'].append(r)
+    db['t1'][t1_id]['f'] +=1
+    db['t1'][t1_id]['f'] +=1
+    assert db['t1'][t1_id]['f'] == 2 
+
