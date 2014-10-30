@@ -125,7 +125,7 @@ class Table():
 
     def __getitem__(self, key):
         "Return an intermediate accesor to the record (don't query the db yet)" 
-        return Row(db, self.table_name, {self.table_name + "_id": key})
+        return Row(self.db, self.table_name, {self.table_name + "_id": key})
 
     def append(self, data):
         "Short-cut to insert a row (data: fields values)"
@@ -142,12 +142,21 @@ class Row():
         self.data_in = {}
         self.data_out = {}
     
+    def load(self):
+        "Fetch the record from the database"
+        rows = self.db.select(self.table_name, **self.primary_key)
+        if rows:
+            self.data_in = rows[0]
+    
+    def save(self):
+        "Write the modified values to the database"
+        self.data_out.update(self.primary_key)
+        self.db.update(self.table_name, **self.data_out)
+    
     def __getitem__(self, field):
-        "Fetch the record from the database and return the field value"
+        "Read the field value for this record"
         if not self.data_in:
-            rows = self.db.select(self.table_name, **self.primary_key)
-            if rows:
-                self.data_in = rows[0]
+            self.load()
         return self.data_in[field]
 
     def __setitem__(self, field, value):
@@ -159,9 +168,18 @@ class Row():
         # Note that this could not be immediate!
         # Also, exceptions here could be ignored by Python!
         if self.data_out:
-            self.data_out.update(self.primary_key)
-            self.db.update(self.table_name, **self.data_out)
+            self.save()
 
+    def __nonzero__(self):
+        if not self.data_in:
+            self.load()
+        return bool(self.data_in)
+
+    def __len__(self):
+        if not self.data_in:
+            self.load()
+        return len(self.data_in)
+        
 
 if __name__ == "__main__":
     db = Database(path="test.db")
@@ -184,4 +202,5 @@ if __name__ == "__main__":
     db['t1'][t1_id]['f'] +=1
     db['t1'][t1_id]['f'] +=1
     assert db['t1'][t1_id]['f'] == 2 
+    assert not db['t1'][t1_id+1]        # this record doesn't exist
 
