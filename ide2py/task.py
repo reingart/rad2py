@@ -116,14 +116,12 @@ class TaskMixin(object):
     def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"
         if not task_id:
-            # search the task
-            tasks = self.db.select("task", task_id=task_id)
-            task_id = tasks[0]['task_id'] if tasks else None
-            if not task_id:
+            # search the task using the given name
+            task = self.db["task"](task_name=task_name)
+            if not task:
                 # add the new task
-                task_id = self.db.insert("task", task_name=task_name, 
-                                                 task_uuid=str(uuid.uuid1()))
-            
+                task = {'task_name': task_name, 'task_uuid': str(uuid.uuid1())}
+                task_id = self.db["task"].append(task)
         self.task_id = task_id
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
