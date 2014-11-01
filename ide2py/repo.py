@@ -236,7 +236,6 @@ class RepoMixin(object):
 
 
     def DoOpenRepo(self, path):
-        self.path = path
         if path.startswith("http://") or path.startswith("https://"):
             self.repo = Web2pyRepo(path, self.username)
         else:
@@ -282,7 +281,7 @@ class RepoMixin(object):
                 continue
             # check if this context file is relevant for the task
             if self.task_id:
-                abs_fn = os.path.join(self.path, fn)
+                abs_fn = os.path.join(self.repo_path, fn)
                 relevance = self.get_task_context_file_relevance(abs_fn)
                 # filter out non-relevant context files 
                 if relevance_threshold and relevance < relevance_threshold:
@@ -315,7 +314,7 @@ class RepoMixin(object):
                 icon = 1
             if not basename in current:
                 node = tree.AppendItem(current[None], basename, icon)
-                tree.SetPyData(node, os.path.join(self.path, fn))
+                tree.SetPyData(node, os.path.join(self.repo_path, fn))
                 current[basename] = node
                 if search:
                     tree.EnsureVisible(node)

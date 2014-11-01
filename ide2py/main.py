@@ -551,6 +551,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             self.active_child.Close()     
 
     def OnCloseAll(self, event):
+        "Perform a ordered destruction, clean-up and update database / config"
+        
+        # detach the current active task (if any)
+        if self.task_id:
+            self.deactivate_task()
+        
         # get global config instance
         config = wx.GetApp().config
         

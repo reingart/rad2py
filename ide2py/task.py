@@ -36,7 +36,8 @@ class TaskMixin(object):
         
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
-        self.db.create("task", task_id=int, task_name=str, task_uuid=str)    
+        self.db.create("task", task_id=int, task_name=str, task_uuid=str,
+                               repo_path=str)    
 
         self.db.create("context_file", context_file_id=int, task_id=int, 
                                        filename=str, lineno=int, total_time=int,
@@ -61,7 +62,8 @@ class TaskMixin(object):
         
         task_id = cfg.get("task_id")
         if task_id:
-            self.activate_task(None, task_id)            
+            self.activate_task(None, self.task_id)
+        self.task_id = task_id
 
         self.CreateTaskMenu()
 
@@ -123,6 +125,8 @@ class TaskMixin(object):
 
     def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"
+        # deactivate the current active task to update context if required:
+        self.deactivate_task()
         if task_id:
             # get the task for a given id
             task = self.db["task"][task_id]
@@ -141,6 +145,16 @@ class TaskMixin(object):
         # store project name in config file
         wx.GetApp().config.set('TASK', 'task_id', task_id)
         wx.GetApp().write_config()
+        # populate the repository view associated to this task:
+        if task['repo_path']:
+            wx.CallLater(2000, self.DoOpenRepo, task['repo_path'])
+
+    def deactivate_task(self):
+        # store the opened repository to the current active task (if any):
+        if self.task_id:
+            task = self.db["task"][self.task_id]
+            task['repo_path'] = self.repo_path
+            task.save()
 
     def get_task_context(self, filename):
         "Fetch the current record for this context file (or create a new one)"
