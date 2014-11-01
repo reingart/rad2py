@@ -132,7 +132,7 @@ class Table():
 
     def __call__(self, **kwargs):
         "Return an intermediate accesor to the record (using kwargs as filter)" 
-        return Row(self.db, self.table_name, kwargs)
+        return Row(self.db, self.table_name, query=kwargs)
     
     def new(self, **kwargs):
         "Create an empty record to be inserted in the table"
@@ -148,32 +148,38 @@ class Table():
 class Row():
     "Dict-like to map stored fields in the database" 
     
-    def __init__(self, db, table_name, primary_key):
+    def __init__(self, db, table_name, primary_key=None, query=None):
         self.db = db
         self.table_name = table_name
-        self.primary_key = primary_key
+        self.primary_key = primary_key or {}
+        self.query = query or primary_key
         self.data_in = {}
         self.data_out = {}
     
     def load(self):
         "Fetch the record from the database"
-        rows = self.db.select(self.table_name, **self.primary_key)
+        rows = self.db.select(self.table_name, **self.query)
         if rows:
             self.data_in = rows[0]
     
     def save(self):
         "Write the modified values to the database"
+        pk = self.table_name + "_id"
         if self.primary_key:
+            if not self.primary_key:
+                self.primary_key[pk] = self.data_in[pk]
             self.data_out.update(self.primary_key)
             self.db.update(self.table_name, **self.data_out)
+            new_id = self.primary_key.values()[0]
         else:
             new_id = self.db.insert(self.table_name, **self.data_out)
             # store the new id so the record could be re-fetched on next access
-            self.primary_key = {self.table_name + "_id": new_id}
-            return new_id
+            self.primary_key = self.query = {pk: new_id}
+        self.data_out = {}
+        return new_id
     
     def keys(self):
-        if not self.data_in and self.primary_key:
+        if not self.data_in and self.query:
             self.load()
         return self.data_in.keys() if self.data_in else self.data_out.keys()
     
@@ -182,7 +188,7 @@ class Row():
             
     def __getitem__(self, field):
         "Read the field value for this record"
-        if self.primary_key:
+        if self.primary_key or self.query:
             # real record already in the database, fetch if necessary
             if not self.data_in:
                 self.load()
@@ -229,12 +235,16 @@ if __name__ == "__main__":
     print rows[0]["sum(f)"]
     
     # dict-like syntax (inspired by shelve):
-    r = db['t1'].new(f=0, s='hola')
+    r = db['t1'].new(f=0, s='hola')    
     t1_id = r.save()
+    print t1_id
     assert r['t1_id'] == t1_id
     db['t1'][t1_id]['f'] +=1
     db['t1'][t1_id]['f'] +=1
     assert db['t1'][t1_id]['f'] == 2 
     assert not db['t1'][t1_id+1]        # this record doesn't exist
     assert db['t1'](t1_id=t1_id)['f'] == 2
+    r['f'] = 99
+    r = db['t1'](f=99)
+    r['f'] = 98
     
