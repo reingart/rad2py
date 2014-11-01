@@ -12,6 +12,9 @@ import os
 import sqlite3
 
 
+SQL_TYPE_MAP = {int: "INTEGER", float: "REAL", str: "TEXT", bool: "BOOLEAN"}
+
+
 class Database():
     "Simple database abstraction layer"
     
@@ -26,7 +29,7 @@ class Database():
         sql = []
         sql.append("CREATE TABLE IF NOT EXISTS %s (" % table)
         for i, (field_name, field_type) in enumerate(fields.items()):
-            sql_type = {int: "INTEGER", float: "REAL", str: "TEXT"}[field_type]
+            sql_type = SQL_TYPE_MAP[field_type]
             if field_name == table + "_id":
                 sql_constraint = "PRIMARY KEY"
                 # store primary key for further reference
@@ -83,7 +86,7 @@ class Database():
     def select(self, table, **kwargs):
         "Query rows (filter by given values)"
         items = kwargs.items()
-        basic_types = int, str, float
+        basic_types = tuple(SQL_TYPE_MAP.keys())
         aggregate_types = {sum: 'sum', len: 'count', min: 'min', max: 'max'}
         all_types = basic_types + tuple(aggregate_types.keys())
         where = ' AND '.join(["%s=?" % k for k, v in items
