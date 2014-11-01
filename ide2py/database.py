@@ -133,9 +133,15 @@ class Table():
     def __call__(self, **kwargs):
         "Return an intermediate accesor to the record (using kwargs as filter)" 
         return Row(self.db, self.table_name, kwargs)
+    
+    def new(self, **kwargs):
+        "Create an empty record to be inserted in the table"
+        row = Row(self.db, self.table_name, {})
+        row.update(kwargs)
+        return row
 
     def append(self, data):
-        "Short-cut to insert a row (data: fields values)"
+        "Short-cut to insert a row (data: fields values dict)"
         return self.db.insert(self.table_name, **data)
 
 
@@ -157,14 +163,33 @@ class Row():
     
     def save(self):
         "Write the modified values to the database"
-        self.data_out.update(self.primary_key)
-        self.db.update(self.table_name, **self.data_out)
+        if self.primary_key:
+            self.data_out.update(self.primary_key)
+            self.db.update(self.table_name, **self.data_out)
+        else:
+            new_id = self.db.insert(self.table_name, **self.data_out)
+            # store the new id so the record could be re-fetched on next access
+            self.primary_key = {self.table_name + "_id": new_id}
+            return new_id
     
+    def keys(self):
+        if not self.data_in and self.primary_key:
+            self.load()
+        return self.data_in.keys() if self.data_in else self.data_out.keys()
+    
+    def update(self, other):
+        self.data_out.update(other)
+            
     def __getitem__(self, field):
         "Read the field value for this record"
-        if not self.data_in:
-            self.load()
-        return self.data_in[field]
+        if self.primary_key:
+            # real record already in the database, fetch if necessary
+            if not self.data_in:
+                self.load()
+            return self.data_in[field]
+        else:
+            # not inserted yet, return the internal value
+            return self.data_out[field]
 
     def __setitem__(self, field, value):
         "Store the field value for further update (at the destructor)"
@@ -204,10 +229,12 @@ if __name__ == "__main__":
     print rows[0]["sum(f)"]
     
     # dict-like syntax (inspired by shelve):
-    r = {'f': 0, 's': 'hola'}
-    t1_id = db['t1'].append(r)
+    r = db['t1'].new(f=0, s='hola')
+    t1_id = r.save()
+    assert r['t1_id'] == t1_id
     db['t1'][t1_id]['f'] +=1
     db['t1'][t1_id]['f'] +=1
     assert db['t1'][t1_id]['f'] == 2 
     assert not db['t1'][t1_id+1]        # this record doesn't exist
     assert db['t1'](t1_id=t1_id)['f'] == 2
+    
