@@ -116,7 +116,9 @@ class ExplorerPanel(wx.Panel):
 
     def RemoveFile(self, filename):
         if filename in self.modules:
-            self.tree.Delete(self.modules[filename])        
+            # erase the tree node and clean-up the modules cache dict:
+            self.tree.Delete(self.modules[filename])
+            del self.modules[filename]
     
     def OnParsed(self, evt):
         modulename, filename, nodes = evt.data
