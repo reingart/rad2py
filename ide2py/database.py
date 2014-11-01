@@ -148,6 +148,13 @@ class Table():
         "Short-cut to remove rows (filter: fields values dict)"
         return self.db.delete(self.table_name, **kwargs)
 
+    def select(self, **kwargs):
+        "Short-cut to return a list of select rows (filter: fields values dict)"
+        for r in self.db.select(self.table_name, **kwargs):
+            row = Row(self.db, self.table_name)
+            row.load(r)
+            yield row
+
 
 class Row():
     "Dict-like to map stored fields in the database" 
@@ -160,11 +167,14 @@ class Row():
         self.data_in = {}
         self.data_out = {}
     
-    def load(self):
+    def load(self, data=None):
         "Fetch the record from the database"
-        rows = self.db.select(self.table_name, **self.query)
+        if not data:
+            rows = self.db.select(self.table_name, **self.query)
+        else:
+            rows = [data]
         if rows:
-            self.data_in = rows[0]
+            self.data_in = dict(rows[0])    # convert from sqlite custom dict
             if not self.primary_key:
                 pk = self.table_name + "_id"
                 self.primary_key = self.query = {pk: self.data_in[pk]}
@@ -183,7 +193,7 @@ class Row():
             # store the new id so the record could be re-fetched on next access
             self.primary_key = self.query = {pk: new_id}
         # assume data was written correctly and update internal cache:
-        self.data_in = dict(self.data_in).update(self.data_out)
+        self.data_in = self.data_in.update(self.data_out)
         self.data_out = {}
         return new_id
     
@@ -211,6 +221,10 @@ class Row():
         if not self.primary_key:
             self.load()
         self.data_out[field] = value
+
+    def __delitem__(self, field):
+        "Remove the field from the internal cache"
+        del self.data_in[field]
     
     def __del__(self):
         "Write data to the database on destruction"
