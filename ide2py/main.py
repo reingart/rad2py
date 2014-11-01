@@ -50,6 +50,7 @@ from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
 from task import TaskMixin
 from gui2py import Gui2pyMixin
+from database import Database
 
 # optional extensions that may have special dependencies (disabled if not meet)
 ADDONS = []
@@ -682,6 +683,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             child = AUIChildFrame(self, filename, title)
             child.Show()
             self.children.append(child)
+            if self.task_id:
+                self.load_task_context(filename, child)
             if self.explorer:
                 wx.CallAfter(self.explorer.ParseFile, filename)
         else:
@@ -718,6 +721,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
 
     def DoClose(self, child, filename):
         self.children.remove(child)
+        if self.task_id or True:
+            self.save_task_context(filename, child)
         if self.explorer:
             wx.CallAfter(self.explorer.RemoveFile, filename)
 
@@ -1368,6 +1373,10 @@ class MainApp(wx.App):
         self.config.read(CONFIG_FILE)
         if not self.config.sections():
             raise RuntimeError("No configuration found, use ide2py.ini.dist!")
+        # initialize the internal database
+        db_conf = self.get_config("DATABASE")
+        self.db = Database(**dict(db_conf.items()))        
+        # create the IDE main window
         self.main_frame = PyAUIFrame(None)
         self.main_frame.Show()
 
@@ -1379,6 +1388,9 @@ class MainApp(wx.App):
 
     def write_config(self):
         self.config.write(open(CONFIG_FILE, "w"))
+
+    def get_db(self):
+        return self.db
 
 
 # search actual installation directory

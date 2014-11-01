@@ -37,7 +37,15 @@ class TaskMixin(object):
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
         self.db.create("task", task_id=int, task_name=str, task_uuid=str)    
-        
+
+        self.db.create("context_file", context_file_id=int, task_id=int, 
+                                       filename=str, lineno=int, total_time=int,
+                                       closed=bool)
+        self.db.create("breakpoint", task_id=int, context_file_id=int, 
+                                     lineno=int, temporary=bool, cond=str)
+        self.db.create("fold", task_id=int, context_file_id=int, 
+                               lineno=int, temporary=bool, cond=str)
+                                      
         ##task_history = cfg.get("history", "task_history.dat")
         ##task_context = cfg.get("context", "task_context.dat")
 
@@ -115,20 +123,48 @@ class TaskMixin(object):
 
     def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"
-        if not task_id:
+        if task_id:
+            # get the task for a given id
+            task = self.db["task"][task_id]
+        else:
             # search the task using the given name
             task = self.db["task"](task_name=task_name)
             if not task:
                 # add the new task
-                task = {'task_name': task_name, 'task_uuid': str(uuid.uuid1())}
-                task_id = self.db["task"].append(task)
-        self.task_id = task_id
+                task = self.db["task"].new(task_name=task_name, 
+                                           task_uuid=str(uuid.uuid1()))
+                task.save()
+        self.task_id = task['task_id']
+        print "TASK ID", self.task_id, task.data_in
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
         # store project name in config file
         wx.GetApp().config.set('TASK', 'task_id', task_id)
         wx.GetApp().write_config()
 
+    def get_task_context(self, filename):
+        ctx = self.db["context_file"](task_id=self.task_id, filename=filename)
+        if not ctx:
+            # insert the new context file to this task
+            ctx = self.db["context_file"].new(task_id=self.task_id, 
+                                              filename=filename)
+        return ctx
+    
+    def save_task_context(self, filename, editor):
+        print "SAVING", filename, editor
+        # get the current record for this context file:
+        ctx = self.get_task_context(filename)
+        # update the context file
+        ctx['lineno'] = editor.GetCurrentLine()
+        ctx.save()
+        
+    def load_task_context(self, filename, editor):
+        print "LOADING", filename, editor
+        # get the current record for this context file:
+        ctx = self.get_task_context(filename)
+        # update the context file
+        print "GoTO", filename, ctx['lineno']
+        editor.GotoLineOffset(ctx['lineno'], 1)
 
 
 if __name__ == "__main__":
