@@ -73,3 +73,6 @@ stc_p_decorator = face:%(mono)s,fore:#007F7F,bold,size:%(size)d
 
 [HISTORY]
 
+[DATABASE]
+PATH = local.db
+
