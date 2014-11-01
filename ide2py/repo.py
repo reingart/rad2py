@@ -158,13 +158,17 @@ class RepoMixin(object):
 
         tree.AssignImageList(imglist)
 
-        # icon status mapping
+        # extra controls to search / filter
         
+        self.repo_slider = wx.Slider(panel, style=wx.SL_HORIZONTAL)
+        self.SetToolTip(wx.ToolTip('Filter context files by relevance (active task)'))
+        self.repo_slider.Bind(wx.EVT_SLIDER, self.OnSearchRepo)
 
         self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.repo_filter.Bind(wx.EVT_TEXT_ENTER, self.OnSearchRepo)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.repo_tree, 1, wx.EXPAND)
+        sizer.Add(self.repo_slider, 0, wx.EXPAND|wx.ALL, 5)
         sizer.Add(self.repo_filter, 0, wx.EXPAND|wx.ALL, 5)
         if 'wxMac' in wx.PlatformInfo:
             sizer.Add((5,5))  # Make sure there is room for the focus ring
@@ -265,6 +269,7 @@ class RepoMixin(object):
         for item in self.repo_filter.GetMenu().GetMenuItems():
             if item.IsChecked():
                 filter_status.append(item.Text)
+        relevance_threshold = self.repo_slider.GetValue()
 
         tree = self.repo_tree
         items = self.repo_dict
@@ -275,6 +280,16 @@ class RepoMixin(object):
                 continue
             if search and not fnmatch.fnmatch(fn, search):
                 continue
+            # check if this context file is relevant for the task
+            if self.task_id:
+                abs_fn = os.path.join(self.path, fn)
+                relevance = self.get_task_context_file_relevance(abs_fn)
+                # filter out non-relevant context files 
+                if relevance_threshold and relevance < relevance_threshold:
+                    continue
+            else:
+                relevance = None        # not tracking, do not change color
+                
             current = items
             folders = os.path.dirname(fn).split(os.path.sep)
             basename = os.path.basename(fn)
@@ -304,6 +319,15 @@ class RepoMixin(object):
                 current[basename] = node
                 if search:
                     tree.EnsureVisible(node)
+                # change the text color by relevance (remark the more important)
+                if relevance is not None:
+                    gray = (100 - relevance) / 100 * 211
+                    print "Relevance colour", fn, gray
+                    colour = wx.Colour(gray, gray, gray)
+                    tree.SetItemTextColour(node, colour)
+                    # TODO: calculate the remark limit based on file count?
+                    if relevance > 33:
+                        tree.SetItemBold(node, True)
             else:
                 node = current[basename]
                 tree.SetItemImage(node, icon, wx.TreeItemIcon_Normal)

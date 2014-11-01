@@ -195,6 +195,19 @@ class TaskMixin(object):
             print "TICKING", filename, ctx, ctx['total_time']
             ctx['total_time'] = (ctx['total_time'] or 0) + 1
         # it will be saved on task deactivation (to avoid excesive db access)
+    
+    def get_task_context_file_relevance(self, filename):
+        "Ponderate if a given context file is relevant to the current task"
+        total_time_sum = sum([ctx['total_time'] or 0.0
+                              for ctx in self.task_context_files.values()], 0.0)
+        # check if it is a context file (do not track if never was activated)
+        if filename in self.task_context_files:
+            ctx = self.task_context_files[filename]
+            relevance = ctx['total_time'] / total_time_sum  * 100
+            print "Relevance", filename, relevance, total_time_sum
+        else:
+            relevance = 0        
+        return relevance
         
 
 if __name__ == "__main__":
