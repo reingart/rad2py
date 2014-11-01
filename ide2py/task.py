@@ -143,6 +143,7 @@ class TaskMixin(object):
         wx.GetApp().write_config()
 
     def get_task_context(self, filename):
+        "Fetch the current record for this context file (or create a new one)"
         ctx = self.db["context_file"](task_id=self.task_id, filename=filename)
         if not ctx:
             # insert the new context file to this task
@@ -151,20 +152,20 @@ class TaskMixin(object):
         return ctx
     
     def save_task_context(self, filename, editor):
-        print "SAVING", filename, editor
-        # get the current record for this context file:
+        "Update the record for this context file" 
+        print "SAVING CONTEXT", filename, editor
         ctx = self.get_task_context(filename)
-        # update the context file
         ctx['lineno'] = editor.GetCurrentLine()
+        ctx['closed'] = True
         ctx.save()
         
     def load_task_context(self, filename, editor):
-        print "LOADING", filename, editor
-        # get the current record for this context file:
+        "Read and apply the record for this context file"
+        print "LOADING CONTEXT", filename, editor
         ctx = self.get_task_context(filename)
-        # update the context file
         print "GoTO", filename, ctx['lineno']
         editor.GotoLineOffset(ctx['lineno'], 1)
+        ctx['closed'] = False
 
 
 if __name__ == "__main__":
