@@ -143,6 +143,10 @@ class Table():
     def append(self, data):
         "Short-cut to insert a row (data: fields values dict)"
         return self.db.insert(self.table_name, **data)
+        
+    def delete(self, **kwargs):
+        "Short-cut to remove rows (filter: fields values dict)"
+        return self.db.delete(self.table_name, **kwargs)
 
 
 class Row():
@@ -178,6 +182,8 @@ class Row():
             new_id = self.db.insert(self.table_name, **self.data_out)
             # store the new id so the record could be re-fetched on next access
             self.primary_key = self.query = {pk: new_id}
+        # assume data was written correctly and update internal cache:
+        self.data_in = dict(self.data_in).update(self.data_out)
         self.data_out = {}
         return new_id
     
