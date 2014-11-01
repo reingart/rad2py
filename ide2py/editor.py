@@ -689,19 +689,23 @@ class EditorCtrl(stc.StyledTextCtrl):
                     else:
                         self.ToggleFold(lineclicked)
 
-    def ToggleBreakpoint(self, evt, lineno=None, cond=None, temp=False):
+    def ToggleBreakpoint(self, evt=None, lineno=None, cond=None, temp=False):
         ok = None
         if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
+            # fix the line number (starting at 0 for STC, 1 for debugger):
+            lineno += 1
+        else:
+            lineno = int(lineno)
         # toggle breakpoints:
-        if self.MarkerGet(lineno) & self.BREAKPOINT_MARKER_MASK:
+        if self.MarkerGet(lineno - 1) & self.BREAKPOINT_MARKER_MASK:
             # delete the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.ClearBreakpoint(self.filename, lineno+1)
+                ok = self.debugger.ClearBreakpoint(self.filename, lineno)
             if ok is not None:
                 # look for the marker handle (lineno can be moved)
                 for handle in self.breakpoints:
-                    if lineno == self.MarkerLineFromHandle(handle):
+                    if lineno - 1 == self.MarkerLineFromHandle(handle):
                         break
                 else:
                     # handle not found (this should not happen)!
@@ -709,29 +713,31 @@ class EditorCtrl(stc.StyledTextCtrl):
                 # remove the main breakpoint marker (handle) and alternate ones
                 self.MarkerDeleteHandle(handle)
                 if self.breakpoints[handle]['cond']:
-                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                    self.MarkerDelete(lineno - 1, self.BREAKPOINT_MARKER_NUM+1)
                 if self.breakpoints[handle]['temp']:
-                    self.MarkerDelete(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
+                    self.MarkerDelete(lineno - 1, self.BREAKPOINT_MARKER_NUM+2)
                 del self.breakpoints[handle]
         else:
             # set the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.SetBreakpoint(self.filename, lineno+1, temp, cond)
+                ok = self.debugger.SetBreakpoint(self.filename, lineno, temp, cond)
             if ok is not None:
                 # set the main breakpoint marker (get handle)
-                handle = self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM) 
+                handle = self.MarkerAdd(lineno - 1, self.BREAKPOINT_MARKER_NUM) 
                 # set alternate markers (if any)
                 if cond:
-                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+1)
+                    self.MarkerAdd(lineno - 1, self.BREAKPOINT_MARKER_NUM+1)
                 if temp:
-                    self.MarkerAdd(int(lineno), self.BREAKPOINT_MARKER_NUM+2)
+                    self.MarkerAdd(lineno - 1, self.BREAKPOINT_MARKER_NUM+2)
                 # store the breakpoint in a struct for the debugger:
-                bp = {'lineno': int(lineno) + 1, 'temp': temp, 'cond': cond}
+                bp = {'lineno': lineno, 'temp': temp, 'cond': cond}
                 self.breakpoints[handle] = bp
 
     def ToggleAltBreakpoint(self, evt, lineno=None):
         if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
+            # fix the line number (starting at 0 for STC, 1 for debugger):
+            lineno += 1
         # search the breakpoint
         for handle in self.breakpoints:
             if lineno == self.MarkerLineFromHandle(handle):
@@ -760,14 +766,14 @@ class EditorCtrl(stc.StyledTextCtrl):
             lineno = self.MarkerNext(lineno, self.BREAKPOINT_MARKER_MASK)
             if lineno<0:
                 break
-            self.ToggleBreakpoint(evt, lineno)
+            self.ToggleBreakpoint(evt, lineno + 1)
 
     def GetBreakpoints(self):
         lineno = 0
-        # update line numbers for each marker:
+        # update line numbers for each marker (text could be added/deleted):
         for handle in self.breakpoints:
             lineno = self.MarkerLineFromHandle(handle)
-            self.breakpoints[handle]['lineno'] = lineno+1
+            self.breakpoints[handle]['lineno'] = lineno + 1
         return self.breakpoints
 
     def FoldAll(self):
