@@ -161,6 +161,9 @@ class Row():
         rows = self.db.select(self.table_name, **self.query)
         if rows:
             self.data_in = rows[0]
+            if not self.primary_key:
+                pk = self.table_name + "_id"
+                self.primary_key = self.query = {pk: self.data_in[pk]}
     
     def save(self):
         "Write the modified values to the database"
@@ -188,17 +191,19 @@ class Row():
             
     def __getitem__(self, field):
         "Read the field value for this record"
-        if self.primary_key or self.query:
-            # real record already in the database, fetch if necessary
-            if not self.data_in:
-                self.load()
-            return self.data_in[field]
-        else:
-            # not inserted yet, return the internal value
-            return self.data_out[field]
+        if not (self.primary_key or self.query):
+            # not inserted yet, first save
+            self.save()        
+        # real record should be in the database, fetch if necessary
+        if not self.data_in:
+            self.load()
+        return self.data_in[field]
 
     def __setitem__(self, field, value):
         "Store the field value for further update (at the destructor)"
+        # load to get the record id
+        if not self.primary_key:
+            self.load()
         self.data_out[field] = value
     
     def __del__(self):
@@ -246,5 +251,7 @@ if __name__ == "__main__":
     assert db['t1'](t1_id=t1_id)['f'] == 2
     r['f'] = 99
     r = db['t1'](f=99)
+    print r['t1_id']
     r['f'] = 98
-    
+    print r['t1_id']
+    r.save()
