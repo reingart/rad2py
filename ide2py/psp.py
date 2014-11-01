@@ -822,10 +822,13 @@ class PSPMixin(object):
         # increment interruption delta time counter (if any)
         if self.psp_interruption is not None:
             self.psp_interruption += 1
+        # ignore actual time or interruptions if the IDE is not "focused"
+        active = wx.GetApp().IsActive() or self.executing
+        # update task total time
+        if self.task_id and active and not self.psp_interruption:
+            self.tick_task_context()
         phase = self.GetPSPPhase()
         if phase:
-            # ignore actual time or interruptions if the IDE is not "focused"
-            active = wx.GetApp().IsActive() or self.executing
             # register variation and calculate total elapsed time
             psp_times = self.psptimetable.count(phase, self.psp_interruption,
                                                 active)

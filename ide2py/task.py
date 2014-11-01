@@ -45,9 +45,9 @@ class TaskMixin(object):
                                      lineno=int, temp=bool, cond=str)
         self.db.create("fold", task_id=int, context_file_id=int, 
                                lineno=int, temporary=bool, cond=str)
-                                      
-        ##task_history = cfg.get("history", "task_history.dat")
-        ##task_context = cfg.get("context", "task_context.dat")
+        
+        # internal structure to keep tracking times and other 
+        self.task_context_files = {}
 
         tb4 = self.CreateTaskToolbar()
         self._mgr.AddPane(tb4, aui.AuiPaneInfo().
@@ -61,7 +61,7 @@ class TaskMixin(object):
         
         task_id = cfg.get("task_id")
         if task_id:
-            self.activate_task(None, task_id)
+            self.activate_task(None, task_id)            
 
         self.CreateTaskMenu()
 
@@ -144,11 +144,16 @@ class TaskMixin(object):
 
     def get_task_context(self, filename):
         "Fetch the current record for this context file (or create a new one)"
-        ctx = self.db["context_file"](task_id=self.task_id, filename=filename)
-        if not ctx:
-            # insert the new context file to this task
-            ctx = self.db["context_file"].new(task_id=self.task_id, 
-                                              filename=filename)
+        # check if it was already fetched from the db
+        if filename in self.task_context_files:
+            ctx = self.task_context_files[filename]
+        else:
+            ctx = self.db["context_file"](task_id=self.task_id, filename=filename)
+            if not ctx:
+                # insert the new context file to this task
+                ctx = self.db["context_file"].new(task_id=self.task_id, 
+                                                  filename=filename)
+            self.task_context_files[filename] = ctx
         return ctx
     
     def save_task_context(self, filename, editor):
@@ -181,6 +186,16 @@ class TaskMixin(object):
             del bp['breakpoint_id']
             editor.ToggleBreakpoint(**bp)
 
+    def tick_task_context(self):
+        "Update task context file timings"
+        if self.active_child:
+            #lineno = self.active_child.GetCurrentLine()
+            filename = self.active_child.GetFilename()
+            ctx = self.get_task_context(filename)
+            print "TICKING", filename, ctx, ctx['total_time']
+            ctx['total_time'] = (ctx['total_time'] or 0) + 1
+        # it will be saved on task deactivation (to avoid excesive db access)
+        
 
 if __name__ == "__main__":
     app = wx.App()
