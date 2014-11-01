@@ -41,8 +41,8 @@ class TaskMixin(object):
         self.db.create("context_file", context_file_id=int, task_id=int, 
                                        filename=str, lineno=int, total_time=int,
                                        closed=bool)
-        self.db.create("breakpoint", task_id=int, context_file_id=int, 
-                                     lineno=int, temporary=bool, cond=str)
+        self.db.create("breakpoint", breakpoint_id=int, context_file_id=int, 
+                                     lineno=int, temp=bool, cond=str)
         self.db.create("fold", task_id=int, context_file_id=int, 
                                lineno=int, temporary=bool, cond=str)
                                       
@@ -158,6 +158,14 @@ class TaskMixin(object):
         ctx['lineno'] = editor.GetCurrentLine()
         ctx['closed'] = True
         ctx.save()
+        # remove all previous breakpoints and add persist ones:
+        self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])
+        for bp in editor.GetBreakpoints().values():
+            print "saving breakpoint", filename, bp
+            bp = self.db["breakpoint"].new(**bp)
+            bp['context_file_id'] = ctx['context_file_id'] 
+            bp.save()
+            
         
     def load_task_context(self, filename, editor):
         "Read and apply the record for this context file"
@@ -166,6 +174,12 @@ class TaskMixin(object):
         print "GoTO", filename, ctx['lineno']
         editor.GotoLineOffset(ctx['lineno'], 1)
         ctx['closed'] = False
+        # load all previous breakpoints and restore them:
+        q = dict(context_file_id=ctx['context_file_id'])
+        for bp in self.db["breakpoint"].select(**q):
+            del bp['context_file_id']
+            del bp['breakpoint_id']
+            editor.ToggleBreakpoint(**bp)
 
 
 if __name__ == "__main__":
