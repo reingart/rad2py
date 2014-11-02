@@ -22,7 +22,17 @@ class Database():
         self.cnn = sqlite3.connect(path)
         self.cnn.row_factory = sqlite3.Row
         self.primary_keys = {}
+        self.cur = None
     
+    def cursor(self, force=False):
+        "Instantiate a new (if needed) cursor to execute SQL queries"
+        if not self.cur or force:
+            self.cur = self.cnn.cursor()
+        return self.cur
+
+    def commit(self):
+        self.cnn.commit()
+
     def create(self, table, _auto=True, **fields):
         "Create a table in the database for the given name and fields dict"
         cur = self.cnn.cursor()
@@ -58,7 +68,6 @@ class Database():
         cur = self.cnn.cursor()
         print sql, [v for k, v in items]
         cur.execute(sql, [v for k, v in items])
-        self.cnn.commit()
         return cur.lastrowid
 
     def update(self, table, **kwargs):
@@ -68,10 +77,9 @@ class Database():
         placemarks = ', '.join(["%s=?" % k for k, v in items if k != pk])
         values = [v for k, v in items if k != pk] + [kwargs[pk]]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (table, placemarks, pk)
-        cur = self.cnn.cursor()
+        cur = self.cursor()
         print sql, values
         cur.execute(sql, values)
-        self.cnn.commit()
         return cur.rowcount
 
     def delete(self, table, **kwargs):
@@ -80,9 +88,8 @@ class Database():
         placemarks = ' AND '.join(["%s=?" % k for k, v in items])
         values = [v for k, v in items]
         sql = "DELETE FROM %s WHERE %s" % (table, placemarks)
-        cur = self.cnn.cursor()
+        cur = self.cursor()
         cur.execute(sql, values)
-        self.cnn.commit()
         return cur.rowcount
 
     def select(self, table, **kwargs):
@@ -105,15 +112,18 @@ class Database():
             sql += " WHERE %s" % where
         if group_by and fields != "*":
             sql += " GROUP BY %s" % group_by
-        cur = self.cnn.cursor()
+        cur = self.cursor()
         print sql, values
         cur.execute(sql, values)
-        self.cnn.commit()
         return cur.fetchall()
 
     def __getitem__(self, table_name):
         "Return an intermediate accesor to the table (don't query the db yet)" 
         return Table(self, table_name)
+
+    def __del__(self):
+        print "Delayed COMMIT!"
+        self.commit()
 
 
 class Table():
