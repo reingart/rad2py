@@ -56,6 +56,7 @@ class Database():
         placemarks = ', '.join(['?' for k, v in items])
         sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, fields, placemarks)
         cur = self.cnn.cursor()
+        print sql, [v for k, v in items]
         cur.execute(sql, [v for k, v in items])
         self.cnn.commit()
         return cur.lastrowid
@@ -68,6 +69,7 @@ class Database():
         values = [v for k, v in items if k != pk] + [kwargs[pk]]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (table, placemarks, pk)
         cur = self.cnn.cursor()
+        print sql, values
         cur.execute(sql, values)
         self.cnn.commit()
         return cur.rowcount
@@ -222,7 +224,7 @@ class Row():
     def __setitem__(self, field, value):
         "Store the field value for further update (at the destructor)"
         # load to get the record id
-        if not self.primary_key:
+        if not self.primary_key and self.query:
             self.load()
         self.data_out[field] = value
 
