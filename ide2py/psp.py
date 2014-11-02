@@ -917,7 +917,7 @@ class PSPMixin(object):
             projects = []
             dlg = wx.MessageDialog(self, u"Exception: %s\n\n" 
                        "Configure server_url in [PSP] section "
-                       "and start web2py server" % unicode(e), 
+                       "and start web2py server" % unicode(e, "utf8", "ignore"), 
                        "Cannot connect to psp2py application server!",
                        wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()

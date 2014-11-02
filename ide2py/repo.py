@@ -17,7 +17,10 @@ import wx.lib.agw.aui as aui
 import tempfile
 from urlparse import urlparse
 
-from repo_hg import MercurialRepo
+try:
+    from repo_hg import MercurialRepo
+except ImportError:
+    MercurialRepo = None
 from repo_w2p import Web2pyRepo
 import fileutil
 import images
@@ -44,6 +47,7 @@ class RepoMixin(object):
         cfg = wx.GetApp().get_config("REPOSITORY")
         path = cfg.get("path", "")
         self.username = cfg.get("username", "")
+        self.repo_path = None
 
         # keep track of remote opened files
         self.remote_files_map = {}
@@ -166,6 +170,7 @@ class RepoMixin(object):
         self.repo_slider.Bind(wx.EVT_SLIDER, self.OnSearchRepo)
 
         self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        self.repo_filter.ShowCancelButton(True)
         self.repo_filter.Bind(wx.EVT_TEXT_ENTER, self.OnSearchRepo)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.repo_tree, 1, wx.EXPAND)
@@ -183,7 +188,7 @@ class RepoMixin(object):
         for st in ('modified', 'added', 'deleted', 'clean', 'unknown', 
                    'missing', 'ignored'):
             item = menu.AppendCheckItem(-1, "%s" % st, "Show %s files" % st)
-            item.Check((st not in ('ignored', )))
+            item.Check((st not in ('ignored', 'unknown')))
             self.Bind(wx.EVT_MENU, self.OnSearchRepo, item)
         self.repo_filter.SetMenu(menu)
 
@@ -239,8 +244,15 @@ class RepoMixin(object):
     def DoOpenRepo(self, path, relevance_threshold=0):
         if path.startswith("http://") or path.startswith("https://"):
             self.repo = Web2pyRepo(path, self.username)
-        else:
+        elif MercurialRepo:
             self.repo = MercurialRepo(path, self.username)
+        else:
+            dlg = wx.MessageDialog(self, "Unable to load repository: %s" % path,
+                        'Mercurial Support not installed', 
+                       wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+
         # set initial fall-off relevance limit:
         self.repo_slider.SetValue(relevance_threshold)
         self.PopulateRepoTree(path)

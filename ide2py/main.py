@@ -62,7 +62,7 @@ except ImportError:
         pass
 try:
     from repo import RepoMixin, RepoEvent, EVT_REPO_ID
-    ADDONS.extend(["repo", "hg"])
+    ADDONS.extend(["repo"])
 except ImportError:
     class RepoMixin(object):
         pass
