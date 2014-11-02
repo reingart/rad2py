@@ -1253,9 +1253,8 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def ToggleBreakpoint(self, **kwargs):
         return self.editor.ToggleBreakpoint(evt=None, **kwargs)
 
-    def Fold(self, **kwargs):
-        self.editor.SetFoldExpanded(kwargs['start_lineno'], kwargs['expanded'])
-        self.editor.Expand(kwargs['start_lineno'], kwargs['expanded'], force=True)
+    def SetFold(self, **kwargs):
+        self.editor.SetFold(**kwargs)
 
     def FoldAll(self, expanding=False):
         return self.editor.FoldAll(expanding)

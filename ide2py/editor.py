@@ -807,6 +807,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             lineNum = lineNum + 1
 
     def GetFoldAll(self):
+        "Export all fold information for persistence -line number 1 based-"
         linecount = self.GetLineCount()
         folds = []
         lineno = 0
@@ -823,6 +824,11 @@ class EditorCtrl(stc.StyledTextCtrl):
                 folds.append(fold)
             lineno = lineno + 1
         return folds
+
+    def SetFold(self, start_lineno, expanded, level, **kwargs):
+        "Programatically fold/unfold (exported) -line number 1 based-"
+        if expanded != self.GetFoldExpanded(start_lineno - 1):
+            self.ToggleFold(start_lineno - 1)
 
     def Expand(self, line, doExpand, force=False, visLevels=0, level=-1):
         lastChild = self.GetLastChild(line, level)

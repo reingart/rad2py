@@ -213,7 +213,7 @@ class TaskMixin(object):
         for fold in self.db["fold"].select(**q):
             if fold['expanded']:
                 print "restoring fold", filename, fold['start_lineno']
-                editor.Fold(**fold)        
+                editor.SetFold(**fold)        
 
     def tick_task_context(self):
         "Update task context file timings"
