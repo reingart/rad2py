@@ -138,6 +138,7 @@ class TaskMixin(object):
                 task = self.db["task"].new(task_name=task_name, 
                                            task_uuid=str(uuid.uuid1()))
                 task.save()
+                self.db.commit()
         self.task_id = task['task_id']
         print "TASK ID", self.task_id, task.data_in
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
@@ -158,6 +159,7 @@ class TaskMixin(object):
             task = self.db["task"][self.task_id]
             task['repo_path'] = self.repo_path
             task.save()
+            self.db.commit()
 
     def get_task_context(self, filename):
         "Fetch the current record for this context file (or create a new one)"
@@ -194,6 +196,7 @@ class TaskMixin(object):
             fold = self.db["fold"].new(**fold)
             fold['context_file_id'] = ctx['context_file_id'] 
             fold.save()
+        self.db.commit()
         
     def load_task_context(self, filename, editor):
         "Read and apply the record for this context file"
@@ -213,7 +216,7 @@ class TaskMixin(object):
         for fold in self.db["fold"].select(**q):
             if fold['expanded']:
                 print "restoring fold", filename, fold['start_lineno']
-                editor.SetFold(**fold)        
+                editor.SetFold(**fold)
 
     def tick_task_context(self):
         "Update task context file timings"
@@ -235,7 +238,7 @@ class TaskMixin(object):
             relevance = ctx['total_time'] / total_time_sum  * 100
             print "Relevance", filename, relevance, total_time_sum
         else:
-            relevance = 0        
+            relevance = 0
         return relevance
         
 
