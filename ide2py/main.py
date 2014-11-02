@@ -1253,6 +1253,9 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     def ToggleBreakpoint(self, **kwargs):
         return self.editor.ToggleBreakpoint(evt=None, **kwargs)
 
+    def GetFoldAll(self):
+        return self.editor.GetFoldAll()
+
     def UpdateStatusBar(self, statustext, eolmode, encoding):
         self.parent.statusbar.SetStatusText(statustext, 1)
         self.parent.statusbar.SetStatusText(self.filename, 2)

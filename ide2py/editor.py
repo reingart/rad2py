@@ -141,8 +141,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         #FOLDING
         self.SetProperty("fold", "1")
         self.SetProperty("tab.timmy.whinge.level", "1")
-        self.SetProperty("fold.comment.python", "0")
-        self.SetProperty("fold.quotes.python", "0")
+        self.SetProperty("fold.comment.python", "1")
+        self.SetProperty("fold.quotes.python", "1")
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPEN, stc.STC_MARK_BOXMINUS, "white", "#808080")
         self.MarkerDefine(stc.STC_MARKNUM_FOLDER, stc.STC_MARK_BOXPLUS, "white", "#808080")
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERSUB, stc.STC_MARK_VLINE, "white", "#808080")
@@ -804,6 +804,24 @@ class EditorCtrl(stc.StyledTextCtrl):
                         self.HideLines(lineNum+1, lastChild)
 
             lineNum = lineNum + 1
+
+    def GetFoldAll(self):
+        linecount = self.GetLineCount()
+        folds = []
+        lineno = 0
+        while lineno < linecount:
+            level = self.GetFoldLevel(lineno)
+            print "GetFoldAll", lineno, level
+            if level  & stc.STC_FOLDLEVELHEADERFLAG:
+                fold = {
+                        'level': level,
+                        'start_lineno': lineno + 1,
+                        'end_lineno': self.GetLastChild(lineno, -1) + 1,
+                        'expanded': self.GetFoldExpanded(lineno),
+                       }
+                folds.append(fold)
+            lineno = lineno + 1
+        return folds
 
     def Expand(self, line, doExpand, force=False, visLevels=0, level=-1):
         lastChild = self.GetLastChild(line, level)
