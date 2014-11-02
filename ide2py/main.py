@@ -92,6 +92,7 @@ ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
 ID_GOTO_DEF = wx.NewId()
 ID_OPEN_MODULE = wx.NewId()
+ID_FOLD = wx.NewId()
 
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
@@ -188,6 +189,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         edit_menu.Append(wx.ID_FIND, '&Find\tCtrl-F', 'Find in the Demo Code')
         edit_menu.Append(wx.ID_REPLACE, "&Replace\tCtrl-H", "Search and replace")
         edit_menu.AppendSeparator()
+        edit_menu.Append(ID_FOLD, 'Fold/Unfold All', "")
         edit_menu.Append(ID_COMMENT, 'Comment/Uncomment\tAlt-3', "")
         edit_menu.Append(ID_GOTO, "&Goto Line/Regex\tCtrl-G", "")
         edit_menu.Append(ID_GOTO_DEF, "&Goto Definition\tShift-F2", 
@@ -326,6 +328,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             (wx.ID_PASTE, self.OnEditAction),
             (wx.ID_HELP, self.OnHelp),
             (ID_COMMENT, self.OnEditAction),
+            (ID_FOLD, self.OnEditAction),
             (ID_GOTO, self.OnEditAction),
             (ID_GOTO_DEF, self.OnGotoDefinition),
             (ID_BREAKPOINT, self.OnEditAction),
@@ -1203,6 +1206,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
                 ID_ALTBREAKPOINT: self.editor.ToggleAltBreakpoint,
                 ID_CLEARBREAKPOINTS: self.editor.ClearBreakpoints,
                 ID_COMMENT: self.editor.ToggleComment,
+                ID_FOLD: lambda evt, self=self: self.editor.FoldAll(None),
                 ID_GOTO: self.editor.DoGoto,
                 }
             handlers[event.GetId()](event)
