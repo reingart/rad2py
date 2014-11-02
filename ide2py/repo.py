@@ -161,7 +161,8 @@ class RepoMixin(object):
         # extra controls to search / filter
         
         self.repo_slider = wx.Slider(panel, style=wx.SL_HORIZONTAL)
-        self.SetToolTip(wx.ToolTip('Filter context files by relevance (active task)'))
+        tip = wx.ToolTip('Filter context files by relevance (active task)')
+        self.repo_slider.SetToolTip(tip)
         self.repo_slider.Bind(wx.EVT_SLIDER, self.OnSearchRepo)
 
         self.repo_filter = wx.SearchCtrl(panel, style=wx.TE_PROCESS_ENTER)
