@@ -107,8 +107,11 @@ class Database():
                                else "%s(%s)" % (aggregate_types[v], k))
                             for k, v in items 
                             if v in all_types]) or "*"
-        group_by = ', '.join([k for k, v in items 
-                                if not v in (aggregate_types.keys())])
+        if [v for k, v in items if v in aggregate_types]:
+            group_by = ', '.join([k for k, v in items 
+                                    if not v in (aggregate_types.keys())])
+        else:
+            group_by = None
         values = [v for k, v in items if v not in all_types]
         sql = "SELECT %s FROM %s" % (fields, table)
         if where:
@@ -192,7 +195,7 @@ class Row():
             self.data_in = dict(rows[0])    # convert from sqlite custom dict
             if not self.primary_key:
                 pk = self.table_name + "_id"
-                self.primary_key = self.query = {pk: self.data_in[pk]}
+                self.primary_key = self.query = {pk: self.data_in.get(pk)}
     
     def save(self):
         "Write the modified values to the database"
