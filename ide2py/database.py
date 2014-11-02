@@ -12,6 +12,7 @@ import os
 import sqlite3
 
 
+DEBUG = False
 SQL_TYPE_MAP = {int: "INTEGER", float: "REAL", str: "TEXT", bool: "BOOLEAN"}
 
 
@@ -69,7 +70,7 @@ class Database():
         placemarks = ', '.join(['?' for k, v in items])
         sql = "INSERT INTO %s (%s) VALUES (%s)" % (table, fields, placemarks)
         cur = self.cnn.cursor()
-        print sql, [v for k, v in items]
+        if DEBUG: print sql, [v for k, v in items]
         cur.execute(sql, [v for k, v in items])
         return cur.lastrowid
 
@@ -81,7 +82,7 @@ class Database():
         values = [v for k, v in items if k != pk] + [kwargs[pk]]
         sql = "UPDATE %s SET %s WHERE %s = ?" % (table, placemarks, pk)
         cur = self.cursor()
-        print sql, values
+        if DEBUG: print sql, values
         cur.execute(sql, values)
         return cur.rowcount
 
@@ -119,7 +120,7 @@ class Database():
         if group_by and fields != "*":
             sql += " GROUP BY %s" % group_by
         cur = self.cursor()
-        print sql, values
+        if DEBUG: print sql, values
         cur.execute(sql, values)
         return cur.fetchall()
 
@@ -128,7 +129,7 @@ class Database():
         return Table(self, table_name)
 
     def __del__(self):
-        print "Delayed COMMIT!"
+        if DEBUG: print "Delayed COMMIT!"
         self.commit()
 
 
