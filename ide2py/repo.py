@@ -336,7 +336,6 @@ class RepoMixin(object):
                 # change the text color by relevance (remark the more important)
                 if relevance is not None:
                     gray = (100 - relevance) / 100 * 211
-                    print "Relevance colour", fn, gray
                     colour = wx.Colour(gray, gray, gray)
                     tree.SetItemTextColour(node, colour)
                     # TODO: calculate the remark limit based on file count?

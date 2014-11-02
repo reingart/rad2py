@@ -813,7 +813,6 @@ class EditorCtrl(stc.StyledTextCtrl):
         lineno = 0
         while lineno < linecount:
             level = self.GetFoldLevel(lineno)
-            print "GetFoldAll", lineno, level
             if level  & stc.STC_FOLDLEVELHEADERFLAG:
                 fold = {
                         'level': level,

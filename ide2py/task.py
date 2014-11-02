@@ -19,6 +19,7 @@ import wx.lib.agw.aui as aui
 
 import images
 
+DEBUG = False
 TASK_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(event)s %(comment)s"
 
 ID_CREATE, ID_ACTIVATE, ID_DELETE, ID_TASK_LABEL, ID_CONTEXT = \
@@ -108,7 +109,7 @@ class TaskMixin(object):
         timestamp = str(datetime.datetime.now())
         msg = PSP_EVENT_LOG_FORMAT % {'timestamp': timestamp, 'phase': phase, 
             'event': event, 'comment': comment, 'uuid': uuid}
-        print msg
+        if DEBUG: print msg
         self.task_event_log_file.write("%s\r\n" % msg)
         self.task_event_log_file.flush()
 
@@ -140,7 +141,7 @@ class TaskMixin(object):
                 task.save()
                 self.db.commit()
         self.task_id = task['task_id']
-        print "TASK ID", self.task_id, task.data_in
+        if DEBUG: print "TASK ID", self.task_id, task.data_in
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
         # store project name in config file
@@ -193,7 +194,7 @@ class TaskMixin(object):
     
     def save_task_context(self, filename, editor):
         "Update the record for this context file" 
-        print "SAVING CONTEXT", filename, editor
+        if DEBUG: print "SAVING CONTEXT", filename, editor
         ctx = self.get_task_context(filename)
         ctx['lineno'] = editor.GetCurrentLine()
         ctx['closed'] = not wx.GetApp().closing
@@ -201,14 +202,14 @@ class TaskMixin(object):
         # remove all previous breakpoints and persist new ones:
         self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])
         for bp in editor.GetBreakpoints().values():
-            print "saving breakpoint", filename, bp
+            if DEBUG: print "saving breakpoint", filename, bp
             bp = self.db["breakpoint"].new(**bp)
             bp['context_file_id'] = ctx['context_file_id'] 
             bp.save()
         # remove all previous breakpoints and persist new ones:
         self.db["fold"].delete(context_file_id=ctx['context_file_id'])
         for fold in editor.GetFoldAll():
-            print "saving fold", filename, fold['start_lineno']
+            if DEBUG: print "saving fold", filename, fold['start_lineno']
             fold = self.db["fold"].new(**fold)
             fold['context_file_id'] = ctx['context_file_id'] 
             fold.save()
@@ -216,9 +217,9 @@ class TaskMixin(object):
         
     def load_task_context(self, filename, editor):
         "Read and apply the record for this context file"
-        print "LOADING CONTEXT", filename, editor
+        if DEBUG: print "LOADING CONTEXT", filename, editor
         ctx = self.get_task_context(filename)
-        print "GoTO", filename, ctx['lineno']
+        if DEBUG: print "GoTO", filename, ctx['lineno']
         editor.GotoLineOffset(ctx['lineno'], 1)
         ctx['closed'] = False
         # load all previous breakpoints and restore them:
@@ -231,7 +232,7 @@ class TaskMixin(object):
         editor.FoldAll(expanding=False)
         for fold in self.db["fold"].select(**q):
             if fold['expanded']:
-                print "restoring fold", filename, fold['start_lineno']
+                if DEBUG: print "restoring fold", filename, fold['start_lineno']
                 editor.SetFold(**fold)
 
     def tick_task_context(self):
@@ -240,7 +241,7 @@ class TaskMixin(object):
             #lineno = self.active_child.GetCurrentLine()
             filename = self.active_child.GetFilename()
             ctx = self.get_task_context(filename)
-            print "TICKING", filename, ctx, ctx['total_time']
+            if DEBUG: print "TICKING", filename, ctx, ctx['total_time']
             ctx['total_time'] = (ctx['total_time'] or 0) + 1
         # it will be saved on task deactivation (to avoid excesive db access)
     
@@ -252,7 +253,7 @@ class TaskMixin(object):
         if filename in self.task_context_files:
             ctx = self.task_context_files[filename]
             relevance = ctx['total_time'] / total_time_sum  * 100
-            print "Relevance", filename, relevance, total_time_sum
+            if DEBUG: print "Relevance", filename, relevance, total_time_sum
         else:
             relevance = 0
         return relevance
