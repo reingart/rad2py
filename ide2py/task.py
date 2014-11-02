@@ -147,7 +147,10 @@ class TaskMixin(object):
         wx.GetApp().write_config()
         # populate the repository view associated to this task:
         if task['repo_path']:
-            wx.CallLater(2000, self.DoOpenRepo, task['repo_path'])
+            # TODO: calculate a better fall-off relevancy limit
+            relevance_threshold = 5
+            wx.CallLater(2000, self.DoOpenRepo, task['repo_path'], 
+                                                relevance_threshold)
 
     def deactivate_task(self):
         # store the opened repository to the current active task (if any):

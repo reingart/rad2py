@@ -235,11 +235,13 @@ class RepoMixin(object):
         dlg.Destroy()
 
 
-    def DoOpenRepo(self, path):
+    def DoOpenRepo(self, path, relevance_threshold=0):
         if path.startswith("http://") or path.startswith("https://"):
             self.repo = Web2pyRepo(path, self.username)
         else:
             self.repo = MercurialRepo(path, self.username)
+        # set initial fall-off relevance limit:
+        self.repo_slider.SetValue(relevance_threshold)
         self.PopulateRepoTree(path)
 
     def OnRepoFileHistory(self, evt):
