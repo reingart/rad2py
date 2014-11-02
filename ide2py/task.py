@@ -44,8 +44,8 @@ class TaskMixin(object):
                                        closed=bool)
         self.db.create("breakpoint", breakpoint_id=int, context_file_id=int, 
                                      lineno=int, temp=bool, cond=str)
-        self.db.create("fold", task_id=int, context_file_id=int, 
-                               lineno=int, temporary=bool, cond=str)
+        self.db.create("fold", fold_id=int, context_file_id=int, level=int, 
+                               start_lineno=int, end_lineno=int, expanded=bool)
         
         # internal structure to keep tracking times and other 
         self.task_context_files = {}
@@ -180,14 +180,20 @@ class TaskMixin(object):
         ctx['lineno'] = editor.GetCurrentLine()
         ctx['closed'] = True
         ctx.save()
-        # remove all previous breakpoints and add persist ones:
+        # remove all previous breakpoints and persist new ones:
         self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])
         for bp in editor.GetBreakpoints().values():
             print "saving breakpoint", filename, bp
             bp = self.db["breakpoint"].new(**bp)
             bp['context_file_id'] = ctx['context_file_id'] 
             bp.save()
-            
+        # remove all previous breakpoints and persist new ones:
+        self.db["fold"].delete(context_file_id=ctx['context_file_id'])
+        for fold in editor.GetFoldAll():
+            print "saving fold", filename, fold['start_lineno']
+            fold = self.db["fold"].new(**fold)
+            fold['context_file_id'] = ctx['context_file_id'] 
+            fold.save()
         
     def load_task_context(self, filename, editor):
         "Read and apply the record for this context file"
@@ -202,6 +208,12 @@ class TaskMixin(object):
             del bp['context_file_id']
             del bp['breakpoint_id']
             editor.ToggleBreakpoint(**bp)
+        # load all previous folds and restore them:
+        editor.FoldAll(expanding=False)
+        for fold in self.db["fold"].select(**q):
+            if fold['expanded']:
+                print "restoring fold", filename, fold['start_lineno']
+                editor.Fold(**fold)        
 
     def tick_task_context(self):
         "Update task context file timings"
