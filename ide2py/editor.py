@@ -776,15 +776,16 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.breakpoints[handle]['lineno'] = lineno + 1
         return self.breakpoints
 
-    def FoldAll(self):
+    def FoldAll(self, expanding=None):
         lineCount = self.GetLineCount()
-        expanding = True
 
-        # find out if we are folding or unfolding
-        for lineNum in range(lineCount):
-            if self.GetFoldLevel(lineNum) & stc.STC_FOLDLEVELHEADERFLAG:
-                expanding = not self.GetFoldExpanded(lineNum)
-                break
+        if expanding is None:
+            expanding = True
+            # find out if we are folding or unfolding
+            for lineNum in range(lineCount):
+                if self.GetFoldLevel(lineNum) & stc.STC_FOLDLEVELHEADERFLAG:
+                    expanding = not self.GetFoldExpanded(lineNum)
+                    break
 
         lineNum = 0
 
