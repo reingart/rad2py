@@ -146,6 +146,22 @@ class TaskMixin(object):
         # store project name in config file
         wx.GetApp().config.set('TASK', 'task_id', task_id)
         wx.GetApp().write_config()
+        # pre-load all task contexts (open an editor if necessary):
+        rows = self.db['context_file'].select(task_id=self.task_id)
+        # sort in the most relevant order (max total_time, reversed):
+        context_files = sorted(rows, key=lambda it: -it['total_time'])
+        first = None
+        for row in context_files:
+            filename = row['filename']
+            if filename:
+                ctx = self.get_task_context(filename)
+                if not ctx['closed'] and os.path.exists(filename):
+                    if first is None:
+                        first = filename
+                    self.DoOpen(filename)
+        # activate editor of the most relevant context file:
+        if first:
+            self.DoOpen(first)
         # populate the repository view associated to this task:
         if task['repo_path']:
             # TODO: calculate a better fall-off relevancy limit
@@ -180,7 +196,7 @@ class TaskMixin(object):
         print "SAVING CONTEXT", filename, editor
         ctx = self.get_task_context(filename)
         ctx['lineno'] = editor.GetCurrentLine()
-        ctx['closed'] = True
+        ctx['closed'] = not wx.GetApp().closing
         ctx.save()
         # remove all previous breakpoints and persist new ones:
         self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])

@@ -555,6 +555,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
 
     def OnCloseAll(self, event):
         "Perform a ordered destruction, clean-up and update database / config"
+
+        # Signal that the using is attempting closing the IDE
+        wx.GetApp().closing = True 
         
         # detach the current active task (if any)
         if self.task_id:
@@ -569,13 +572,16 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             open_files.append(self.active_child.GetFilename())
             if not self.active_child.Close():
                 event.Veto()
+                wx.GetApp().closing = False 
                 return 
         # clean old config file values and store new filenames:
         if config.has_section('FILES'):
             config.remove_section('FILES')
         config.add_section('FILES')
-        for i, filename in enumerate(open_files):
-            config.set('FILES', "file_%02d" % i, filename)
+        # use recent files if not using the task-focused interface: 
+        if not self.task_id:
+            for i, filename in enumerate(open_files):
+                config.set('FILES', "file_%02d" % i, filename)
         
         # Save current perspective layout. WARNING: all panes must have a name! 
         if hasattr(self, "_mgr"):
@@ -707,9 +713,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
     def DoOpenFiles(self):
         "Open previous session files"
         
-        # read configuration file 
+        # read configuration file (open only files if not within a task)
         config = wx.GetApp().config
-        if config.has_section('FILES'):
+        if config.has_section('FILES') and not self.task_id:
             open_files = config.items("FILES") 
             open_files.sort()
             # open previous session files
@@ -1388,6 +1394,7 @@ class MainApp(wx.App):
             self.splash_frame.SetText(text)
             
     def InitApp(self):
+        self.closing = False
         self.config = ConfigParser.ConfigParser()
         # read default configuration
         self.config.read("ide2py.ini.dist")
