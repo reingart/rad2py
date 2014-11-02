@@ -33,6 +33,9 @@ class Database():
     def commit(self):
         self.cnn.commit()
 
+    def rollback(self):
+        self.cnn.rollback()
+
     def create(self, table, _auto=True, **fields):
         "Create a table in the database for the given name and fields dict"
         cur = self.cnn.cursor()
