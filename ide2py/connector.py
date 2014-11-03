@@ -17,8 +17,8 @@ except ImportError:
 
 
 TAG_MAP = {
-    'type': ("bug", "enhancement", "question"),
-    'resulution': ("duplicate", "wontfix", "help wanted", "invalid")
+    'type': ("bug", "enhancement", "question", "other"),
+    'resulution': ("fixed", "duplicate", "wontfix", "help wanted", "invalid"),
     }
 
  
@@ -62,8 +62,8 @@ class GitHub(object):
     def build_issue(self, data):
         "Convert the task data to a GitHub issue"
         issue = {
-                'title': data['title'],
-                'body': data['description'],
+                'title': data.get('title'),
+                'body': data.get('description'),
                 }
         if 'name' in data:
              issue['number'] = ''.join([s for s in data['name'] 
@@ -73,6 +73,12 @@ class GitHub(object):
     def create_task(self, data):
         "Create a new a task (GitHub issue)"
         issue = self.repo.issues.post(**self.build_issue(data))
+        return self.build_task(issue)
+
+    def get_task(self, data):
+        "Retrieve a specific task (GitHub issue)"
+        issue = self.build_issue(data)
+        issue = self.repo.issues(issue['number']).get(**issue)
         return self.build_task(issue)
 
     def update_task(self, data):
