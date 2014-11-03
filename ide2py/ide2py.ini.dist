@@ -76,3 +76,7 @@ stc_p_decorator = face:%(mono)s,fore:#007F7F,bold,size:%(size)d
 [DATABASE]
 PATH = local.db
 
+[GITHUB]
+username = 
+password =
+
