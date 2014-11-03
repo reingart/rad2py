@@ -38,7 +38,8 @@ class TaskMixin(object):
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
         self.db.create("task", task_id=int, task_name=str, task_uuid=str,
-                               repo_path=str)    
+                               repo_path=str, 
+                               connector=str, organization=str, project=str)    
 
         self.db.create("context_file", context_file_id=int, task_id=int, 
                                        filename=str, lineno=int, total_time=int,
@@ -169,6 +170,24 @@ class TaskMixin(object):
             relevance_threshold = 5
             wx.CallLater(2000, self.DoOpenRepo, task['repo_path'], 
                                                 relevance_threshold)
+
+        # create a connector and display the task panel
+        if task['connector'] == 'github':
+            cfg = wx.GetApp().get_config("GITHUB")
+            kwargs = {}
+            kwargs['username'] = cfg.get("username")
+            kwargs['password'] = cfg.get("password")
+            kwargs['organization'] = task['organization'] or cfg.get('username')
+            kwargs['project'] = task['project'] or 'prueba'
+            gh = connector.GitHub(**kwargs)
+            panel = TaskPanel(self)            
+            self._mgr.AddPane(panel, aui.AuiPaneInfo().
+                              Name("task_info").Caption("Task Info").
+                              Layer(1).Position(2).BestSize(wx.Size(100, 300)).
+                              Float().Position(5).CloseButton(True))
+            self._mgr.Update()
+            wx.CallLater(3000, panel.Load, gh, {"name": '1'})
+
 
     def deactivate_task(self):
         # store the opened repository to the current active task (if any):
@@ -327,7 +346,7 @@ class TaskPanel(wx.Panel):
 
     def Load(self, connector, data):
         self.connector = connector
-        self.data = gh.get_task(data)
+        self.data = connector.get_task(data)
         self.SetValue(self.data)
         self.image.SetBitmap(images.github_mark_32px.GetBitmap())
 
