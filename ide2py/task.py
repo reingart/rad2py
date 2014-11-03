@@ -16,6 +16,7 @@ import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
+from wx.lib.scrolledpanel import ScrolledPanel
 
 import connector
 import images
@@ -278,52 +279,55 @@ class TaskMixin(object):
         return relevance
         
 
-class TaskPanel(wx.Panel):
+class TaskPanel(ScrolledPanel):
     def __init__(self, parent ):
 
-        wx.Panel.__init__(self, parent)
+        ScrolledPanel.__init__(self, parent, -1)
 
         grid1 = wx.FlexGridSizer( 0, 2, 5, 5 )
+        grid1.AddGrowableCol(1)
 
         self.image = wx.StaticBitmap(self, size=(32, 32))
         self.label = wx.StaticText(self, -1, "Task Nº\ndate\nowner\nstatus")
         grid1.Add(self.image, 0, wx.ALIGN_CENTER_VERTICAL|
                                  wx.ALIGN_CENTER_HORIZONTAL, 5)
-        grid1.Add(self.label, 1, wx.EXPAND, 5)
+        grid1.Add(self.label, 1, wx.ALL | wx.EXPAND, 5)
 
         label = wx.StaticText(self, -1, "Title:")
-        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        grid1.Add(label, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         self.title = wx.TextCtrl(self, -1, "", size=(200, -1), )
-        grid1.Add(self.title, 1, wx.EXPAND, 5)
+        grid1.Add(self.title, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
         label = wx.StaticText(self, -1, "Description:")
-        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        grid1.Add(label, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         self.description = wx.TextCtrl(self, -1, "", size=(200, 100), 
                                        style=wx.TE_MULTILINE)
-        grid1.Add(self.description, 1, wx.EXPAND, 5)
+        grid1.Add(self.description, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
         self.types = sorted(connector.TAG_MAP['type'])
         self.resols = ["", ] + list(sorted(connector.TAG_MAP['resulution']))
         
         label = wx.StaticText(self, -1, "Type:")
-        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        grid1.Add(label, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         self.task_type = wx.Choice(self, -1, choices=self.types, size=(80,-1))
-        grid1.Add(self.task_type, 1, wx.EXPAND, 5)
+        grid1.Add(self.task_type, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
         label = wx.StaticText(self, -1, "Resolution:")
-        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        grid1.Add(label, 0, wx.ALL | wx.ALIGN_LEFT, 5)
         self.resolution = wx.Choice(self, -1, choices=self.resols, size=(80,-1))
-        grid1.Add(self.resolution, 1, wx.EXPAND, 5)
+        grid1.Add(self.resolution, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
         btn = wx.Button(self, wx.ID_OK, label="Submit")
         btn.SetDefault()
         self.Bind(wx.EVT_BUTTON, self.OnSubmit, btn)
-        grid1.Add((0, 0), 0, wx.ALIGN_RIGHT, 5)
-        grid1.Add(btn, 0, wx.ALIGN_CENTER, 5)
+        grid1.Add((0, 0), 0, wx.ALL | wx.ALIGN_RIGHT, 5)
+        grid1.Add(btn, 0, wx.ALL | wx.ALIGN_CENTER, 5)
 
         self.SetSizer(grid1)
         grid1.Fit(self)
-
+        self.SetAutoLayout(1)
+        self.SetupScrolling()
+        
     def SetValue(self, item):
         self.label.SetLabel("%s\nCreated: %s\nOwner: %s\nStatus: %s" % (
                              str(item.get("name", "")),
