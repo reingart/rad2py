@@ -17,10 +17,10 @@ import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
 import wx.lib.agw.aui as aui
 
+import connector
 import images
 
 DEBUG = False
-TASK_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(event)s %(comment)s"
 
 ID_CREATE, ID_ACTIVATE, ID_DELETE, ID_TASK_LABEL, ID_CONTEXT = \
     [wx.NewId() for i in range(5)]
@@ -259,7 +259,101 @@ class TaskMixin(object):
         return relevance
         
 
+class TaskPanel(wx.Panel):
+    def __init__(self, parent ):
+
+        wx.Panel.__init__(self, parent)
+
+        grid1 = wx.FlexGridSizer( 0, 2, 5, 5 )
+
+        self.image = wx.StaticBitmap(self, size=(32, 32))
+        self.label = wx.StaticText(self, -1, "Task Nº\ndate\nowner\nstatus")
+        grid1.Add(self.image, 0, wx.ALIGN_CENTER_VERTICAL|
+                                 wx.ALIGN_CENTER_HORIZONTAL, 5)
+        grid1.Add(self.label, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Title:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.title = wx.TextCtrl(self, -1, "", size=(200, -1), )
+        grid1.Add(self.title, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Description:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.description = wx.TextCtrl(self, -1, "", size=(200, 100), 
+                                       style=wx.TE_MULTILINE)
+        grid1.Add(self.description, 1, wx.EXPAND, 5)
+
+        self.types = sorted(connector.TAG_MAP['type'])
+        self.resols = ["", ] + list(sorted(connector.TAG_MAP['resulution']))
+        
+        label = wx.StaticText(self, -1, "Type:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.task_type = wx.Choice(self, -1, choices=self.types, size=(80,-1))
+        grid1.Add(self.task_type, 1, wx.EXPAND, 5)
+
+        label = wx.StaticText(self, -1, "Resolution:")
+        grid1.Add(label, 0, wx.ALIGN_LEFT, 5)
+        self.resolution = wx.Choice(self, -1, choices=self.resols, size=(80,-1))
+        grid1.Add(self.resolution, 1, wx.EXPAND, 5)
+
+        btn = wx.Button(self, wx.ID_OK, label="Submit")
+        btn.SetDefault()
+        self.Bind(wx.EVT_BUTTON, self.OnSubmit, btn)
+        grid1.Add((0, 0), 0, wx.ALIGN_RIGHT, 5)
+        grid1.Add(btn, 0, wx.ALIGN_CENTER, 5)
+
+        self.SetSizer(grid1)
+        grid1.Fit(self)
+
+    def SetValue(self, item):
+        self.label.SetLabel("%s\nCreated: %s\nOwner: %s\nStatus: %s" % (
+                             str(item.get("name", "")),
+                             item.get("started"), item.get("owner"),
+                             item.get("status"), ))
+        self.title.SetValue(item.get("title", ""))
+        self.description.SetValue(item.get("description", ""))
+        if item['type']:
+            self.task_type.SetSelection(self.types.index(int(item['type'])))
+        if item['resolution']:
+            self.resolution.SetSelection(self.resols.index(item['resolution']))
+        
+    def GetValue(self):
+        item = {"title": self.title.GetValue(), 
+                "description": self.description.GetValue(), 
+                "type": self.types[self.task_type.GetCurrentSelection()], 
+                "resolution": self.resols[self.resolution.GetCurrentSelection()],
+                }
+        return item
+
+    def Load(self, connector, data):
+        self.connector = connector
+        self.data = gh.get_task(data)
+        self.SetValue(self.data)
+        self.image.SetBitmap(images.github_mark_32px.GetBitmap())
+
+    def OnSubmit(self, event):
+        self.data.update(self.GetValue())
+        print self.data
+        self.connector.update_task(self.data)
+
+
 if __name__ == "__main__":
     app = wx.App()
-    app.MainLoop()
+        
+    frame = wx.Frame(None)
+    panel = TaskPanel(frame)
+    frame.Show()
 
+    # load issue:
+    import ConfigParser
+    config = ConfigParser.ConfigParser()
+    config.read('ide2py.ini')
+    kwargs = dict(config.items("GITHUB"))
+    kwargs['organization'] = 'reingart'
+    kwargs['project'] = 'prueba'
+    gh = connector.GitHub(**kwargs)
+    
+    panel.Load(gh, {"name": '1'})
+    
+    app.MainLoop()
+    
