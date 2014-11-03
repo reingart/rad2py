@@ -34,9 +34,9 @@ class GitHub(object):
         "Get a list of tasks availables in the project"
         # query github for a list of open tasks
         for issue in self.repo.issues.get(state=status, sort='created'):
-            yield self.parse_task(issue)
+            yield self.build_task(issue)
 
-    def parse_task(self, issue):
+    def build_task(self, issue):
         "Convert a GitHub issue to a Task"
         # classify labels (ticket type and resolution)
         tags = dict([(key, label['name']) for label in issue['labels'] 
@@ -44,7 +44,7 @@ class GitHub(object):
                       if label['name'] in values])
         # normalize the ticket data
         data = {
-                'id': issue['id'],
+                 'id': issue['id'],
                  'title': issue['title'],
                  'name': "Issue %s" % issue['number'],
                  'description': issue['body'],
@@ -59,11 +59,27 @@ class GitHub(object):
         }
         return data
 
+    def build_issue(self, data):
+        "Convert the task data to a GitHub issue"
+        issue = {
+                'title': data['title'],
+                'body': data['description'],
+                }
+        if 'name' in data:
+             issue['number'] = ''.join([s for s in data['name'] 
+                                          if s.isdigit()])
+        return issue
+
     def create_task(self, data):
-        "Create a new a task"
-        issue = self.repo.issues.post(title=data['title'],
-                                      body=data['description'])
-        return self.parse_task(issue)
+        "Create a new a task (GitHub issue)"
+        issue = self.repo.issues.post(**self.build_issue(data))
+        return self.build_task(issue)
+
+    def update_task(self, data):
+        "Edit task data (GitHub issue)"
+        issue = self.build_issue(data)
+        issue = self.repo.issues(issue['number']).patch(**issue)
+        return self.build_task(issue)
 
 
 if __name__ == "__main__":
@@ -78,7 +94,9 @@ if __name__ == "__main__":
     kwargs['project'] = 'prueba'
     print kwargs
     gh = GitHub(**kwargs)
-    pprint.pprint(list(gh.list_tasks(status="open")))
     task = gh.create_task({'title': 'prueba', 'description': '1234...'})
     pprint.pprint(task)
-
+    task['description'] = "56789..."
+    gh.update_task(task)
+    pprint.pprint(list(gh.list_tasks(status="open")))
+    
