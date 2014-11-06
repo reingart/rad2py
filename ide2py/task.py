@@ -68,6 +68,13 @@ class TaskMixin(object):
             self.activate_task(None, self.task_id)
         self.task_id = task_id
 
+        self.task_panel = TaskPanel(self)
+        self._mgr.AddPane(self.task_panel, aui.AuiPaneInfo().
+                      Name("task_info").Caption("Task Info").
+                      Layer(1).Position(2).BestSize(wx.Size(100, 300)).
+                      Float().Position(5).CloseButton(True))
+        self._mgr.Update()
+
         self.Bind(wx.EVT_MENU, self.OnChangeTask, id=ID_CHANGE)
 
         self.CreateTaskMenu()
@@ -185,13 +192,8 @@ class TaskMixin(object):
             kwargs['organization'] = task['organization'] or cfg.get('username')
             kwargs['project'] = task['project'] or 'prueba'
             gh = connector.GitHub(**kwargs)
-            panel = TaskPanel(self)            
-            self._mgr.AddPane(panel, aui.AuiPaneInfo().
-                              Name("task_info").Caption("Task Info").
-                              Layer(1).Position(2).BestSize(wx.Size(100, 300)).
-                              Float().Position(5).CloseButton(True))
-            self._mgr.Update()
-            wx.CallLater(3000, panel.Load, gh, {"name": '1'})
+            # get the current panel, or create a new one:
+            wx.CallLater(3000, self.task_panel.Load, gh, {"name": '1'})
 
 
     def deactivate_task(self):
