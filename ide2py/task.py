@@ -23,7 +23,7 @@ import images
 
 DEBUG = False
 
-ID_CREATE, ID_ACTIVATE, ID_DELETE, ID_TASK_LABEL, ID_CONTEXT = \
+ID_CREATE, ID_CHANGE, ID_DELETE, ID_TASK_LABEL, ID_CONTEXT = \
     [wx.NewId() for i in range(5)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
@@ -39,7 +39,7 @@ class TaskMixin(object):
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
         self.db.create("task", task_id=int, task_name=str, task_uuid=str,
-                               repo_path=str, 
+                               repo_path=str, closed=bool,
                                connector=str, organization=str, project=str)    
 
         self.db.create("context_file", context_file_id=int, task_id=int, 
@@ -68,13 +68,15 @@ class TaskMixin(object):
             self.activate_task(None, self.task_id)
         self.task_id = task_id
 
+        self.Bind(wx.EVT_MENU, self.OnChangeTask, id=ID_CHANGE)
+
         self.CreateTaskMenu()
 
     def CreateTaskMenu(self):
         # create the menu items
         task_menu = self.menu['task'] = wx.Menu()
         task_menu.Append(ID_CREATE, "Create Task")
-        task_menu.Append(ID_ACTIVATE, "Activate Task")
+        task_menu.Append(ID_CHANGE, "Change Task")
         task_menu.Append(ID_DELETE, "Delete Task")
         task_menu.AppendSeparator()
         #task_menu.Append(ID_UP, "Upload activity")
@@ -94,7 +96,7 @@ class TaskMixin(object):
         if WX_VERSION < (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddSpacer(200)        
         tb4.AddLabel(-1, "Task:", width=30)
-        tb4.AddSimpleTool(ID_ACTIVATE, "Task", images.month.GetBitmap(),
+        tb4.AddSimpleTool(ID_CHANGE, "Task", images.month.GetBitmap(),
                          short_help_string="Change current Task")
         tb4.AddLabel(ID_TASK_LABEL, "create a task...", width=100)
 
@@ -115,15 +117,17 @@ class TaskMixin(object):
         self.task_event_log_file.write("%s\r\n" % msg)
         self.task_event_log_file.flush()
 
-    def OnActivateTask(self, event):
-        "List available projects, change to selected one and load/save context"
-        tasks = self.get_tasks()
-        dlg = wx.SingleChoiceDialog(self, 'Select a project', 'PSP Project',
-                                    projects, wx.CHOICEDLG_STYLE)
+    def OnChangeTask(self, event):
+        "List available task, change to selected one and load/save context"
+        tasks = self.db["task"].select(task_id=int, task_name=str, closed=False)
+        tasks_dict = dict([("%(task_name)s [%(task_id)s]" % it, it["task_id"]) 
+                           for it in tasks])
+        dlg = wx.SingleChoiceDialog(self, 'Select a Task', 'Task Change',
+                                    tasks_dict.keys(), wx.CHOICEDLG_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
-            self.psp_save_project()
-            project_name = dlg.GetStringSelection()
-            self.psp_load_project(project_name)
+            task_name = dlg.GetStringSelection()
+            task_id = tasks_dict[task_name]
+            self.activate_task(task_name, task_id)
         dlg.Destroy()
 
     def activate_task(self, task_name=None, task_id=None):
