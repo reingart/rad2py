@@ -70,7 +70,18 @@ class Debugger(qdb.Frontend):
         address = (host, port)     # family is deduced to be 'AF_INET'
         self.address = (host, port)
         self.authkey = authkey
-        self.listener = Listener(address, authkey=authkey)
+        try:
+            self.listener = Listener(address, authkey=authkey)
+        except IOError as e:
+            dlg = wx.MessageDialog(self.gui, 
+                   "Exception raised: %s\n\n"
+                   "Check that no other instance of the IDE is running."
+                   % unicode(e.strerror), 
+                   "Unable to start the debugger, exiting...",
+                   wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal() 
+            dlg.Destroy()
+            wx.GetApp().Exit()
         wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
 
 
