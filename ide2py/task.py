@@ -131,9 +131,10 @@ class TaskMixin(object):
 
     def OnChangeTask(self, event):
         "List available task, change to selected one and load/save context"
-        tasks = self.db["task"].select(task_id=int, task_name=str, closed=False)
-        tasks_dict = dict([("%(task_name)s [%(task_id)s]" % it, it["task_id"]) 
-                           for it in tasks])
+        tasks = self.db["task"].select(task_id=int, task_name=str, project=str,
+                                       organization=str, closed=False)
+        fmt = "%(task_name)s - %(organization)s/%(project)s [%(task_id)s]"
+        tasks_dict = dict([(fmt % it, it["task_id"]) for it in tasks])
         dlg = wx.SingleChoiceDialog(self, 'Select a Task', 'Task Change',
                                     tasks_dict.keys(), wx.CHOICEDLG_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
@@ -203,6 +204,7 @@ class TaskMixin(object):
         if task_id:
             # get the task for a given id
             task = self.db["task"][task_id]
+            task_name = task['task_name']
         else:
             # search the task using the given name
             task = self.db["task"](task_name=task_name)
@@ -401,7 +403,7 @@ class TaskPanel(ScrolledPanel):
         self.title.SetValue(item.get("title", ""))
         self.description.SetValue(item.get("description", ""))
         if item['type']:
-            self.task_type.SetSelection(self.types.index(int(item['type'])))
+            self.task_type.SetSelection(self.types.index(item['type']))
         if item['resolution']:
             self.resolution.SetSelection(self.resols.index(item['resolution']))
         
