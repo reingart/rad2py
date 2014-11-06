@@ -23,8 +23,8 @@ import images
 
 DEBUG = False
 
-ID_CREATE, ID_CHANGE, ID_DELETE, ID_TASK_LABEL, ID_CONTEXT = \
-    [wx.NewId() for i in range(5)]
+ID_CREATE, ID_CHANGE, ID_DELETE, ID_SYNC, ID_TASK_LABEL, ID_CONTEXT = \
+    [wx.NewId() for i in range(6)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -40,6 +40,9 @@ class TaskMixin(object):
         self.db = wx.GetApp().get_db()
         self.db.create("task", task_id=int, task_name=str, task_uuid=str,
                                repo_path=str, closed=bool,
+                               title=str, description=str, type=str,
+                               resolution=str, owner=str, assignee=str,                               
+                               started=str, completed=str, milestone=str,
                                connector=str, organization=str, project=str)    
 
         self.db.create("context_file", context_file_id=int, task_id=int, 
@@ -76,6 +79,7 @@ class TaskMixin(object):
         self._mgr.Update()
 
         self.Bind(wx.EVT_MENU, self.OnChangeTask, id=ID_CHANGE)
+        self.Bind(wx.EVT_MENU, self.OnSyncTasks, id=ID_SYNC)
 
         self.CreateTaskMenu()
 
@@ -85,6 +89,7 @@ class TaskMixin(object):
         task_menu.Append(ID_CREATE, "Create Task")
         task_menu.Append(ID_CHANGE, "Change Task")
         task_menu.Append(ID_DELETE, "Delete Task")
+        task_menu.Append(ID_SYNC, "Synchronize Tasks")
         task_menu.AppendSeparator()
         #task_menu.Append(ID_UP, "Upload activity")
         #task_menu.Append(ID_DOWN, "Download activity")
@@ -136,6 +141,60 @@ class TaskMixin(object):
             task_id = tasks_dict[task_name]
             self.activate_task(task_name, task_id)
         dlg.Destroy()
+
+    def OnSyncTasks(self, event):
+        "Retrieve available tasks and insert them in the local database"
+        # get default project url
+        cfg = wx.GetApp().get_config("TASK")
+        url = cfg.get("URL") or "https://github.com/reingart/pyfactura"
+        # ask
+        dlg = wx.TextEntryDialog(
+                self, 'Project URL',
+                'Synchronize tasks', url)
+        url = dlg.GetValue() if dlg.ShowModal() == wx.ID_OK else None
+        dlg.Destroy()
+        # remember url (TODO: list of used repositories?)
+        if not url:
+            return
+        wx.GetApp().config.set("TASK", "URL", url)
+        # sanity check:
+        if not url.startswith("https://github.com/"):
+            dlg = wx.MessageDialog(self, "URL not supported: %s\n" % url +
+                                         "Only GitHub is supported right now.", 
+                                         "Synchronize tasks",
+               wx.OK | wx.ICON_INFORMATION)
+            dlg.ShowModal()
+            dlg.Destroy()  
+            return
+        # create a connector 
+        cfg = wx.GetApp().get_config("GITHUB")
+        kwargs = {}
+        kwargs['username'] = cfg.get("username")
+        kwargs['password'] = cfg.get("password")
+        kwargs['organization'], kwargs['project'] = url.split("/")[3:5]
+        gh = connector.GitHub(**kwargs)
+        for data in gh.list_tasks():
+            print "TASK!!!", data
+            task = self.db["task"](task_name=data['name'], 
+                                   organization=kwargs['organization'],
+                                   project=kwargs['project'],
+                                   connector="github")
+            if not task:
+                # add the new task
+                task = self.db["task"].new(task_name=data['name'], 
+                                           task_uuid=str(uuid.uuid1()),
+                                           connector="github",
+                                           organization=kwargs['organization'],
+                                           project=kwargs['project'])
+                task.save()
+            # update the task
+            for k, v in data.items():
+                if k in task.keys():
+                    task[k] = v
+            task['closed'] = data['status']=='closed'
+            task.save()
+        self.db.commit()
+        
 
     def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"
