@@ -541,9 +541,6 @@ class PSPMixin(object):
         self._current_psp_phase = None
        
         tb4 = self.CreatePSPToolbar()
-        self._mgr.AddPane(tb4, aui.AuiPaneInfo().
-                          Name("psp_toolbar").Caption("PSP Toolbar").
-                          ToolbarPane().Top().Position(4).CloseButton(True))
 
         grid = self.CreatePSPPlanSummaryGrid(filename=psp_times)
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
@@ -597,7 +594,7 @@ class PSPMixin(object):
 
     def CreatePSPMenu(self):
         # create the menu items
-        psp_menu = self.menu['psp'] = wx.Menu()
+        psp_menu = self.menu['task']
         psp_menu.Append(ID_PHASE, "Change PSP Phase")
         psp_menu.Append(ID_PROJECT, "Change Project")
         psp_menu.Append(ID_UP, "Upload metrics")
@@ -611,8 +608,7 @@ class PSPMixin(object):
         psp_menu.Append(ID_CHECK, "Check Completion\tCtrl-F5")
         psp_menu.Append(ID_METADATA, "Show Metadata")
         psp_menu.Append(ID_DIFF, "Diff && Count LOC")
-        self.menubar.Insert(self.menubar.FindMenu("&Help")-1, psp_menu, "&PSP")
-
+        
         self.menu['run'].InsertSeparator(2)
         self.menu['run'].Insert(3, ID_COMPILE, "Compile && Check\tCtrl-F5", 
                                    "Check syntax, PEP8 style and PyFlakes static analysis")
@@ -623,8 +619,7 @@ class PSPMixin(object):
         
     def CreatePSPToolbar(self):
         # old version of wx, dont use text text
-        tb4 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
-                             wx.TB_FLAT | wx.TB_NODIVIDER)
+        tb4 = self.task_toolbar
 
         tsize = wx.Size(16, 16)
         GetBmp = lambda id: wx.ArtProvider.GetBitmap(id, wx.ART_TOOLBAR, tsize)
@@ -632,14 +627,7 @@ class PSPMixin(object):
 
         if WX_VERSION < (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddSpacer(200)        
-        tb4.AddLabel(-1, "PSP:", width=30)
 
-        tb4.AddSimpleTool(ID_UP, "Upload", GetBmp(wx.ART_GO_UP),
-                          short_help_string="send metrics to remote server")
-        tb4.AddSimpleTool(ID_DOWN, "Download", GetBmp(wx.ART_GO_DOWN),
-                          short_help_string="receive metrics from remote server")
-
-        
         tb4.AddSimpleTool(ID_START, "Start", images.record.GetBitmap(),
                          short_help_string="Start stopwatch (start phase)")
         tb4.AddCheckTool(ID_PAUSE, "Pause", images.pause.GetBitmap(), wx.NullBitmap,
@@ -690,7 +678,6 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnWikiPSP, id=ID_WIKI)
         
         tb4.Realize()
-        self.psp_toolbar = tb4
 
         return tb4
 
@@ -760,9 +747,9 @@ class PSPMixin(object):
     def OnStartPSP(self, event):
         self.timer.Start(1000)
         self.psp_log_event("start")
-        self.psp_toolbar.EnableTool(ID_START, False)
-        self.psp_toolbar.EnableTool(ID_PAUSE, True)
-        self.psp_toolbar.EnableTool(ID_STOP, True)
+        self.task_toolbar.EnableTool(ID_START, False)
+        self.task_toolbar.EnableTool(ID_PAUSE, True)
+        self.task_toolbar.EnableTool(ID_STOP, True)
         self.show_psp_plan_pane()
 
     def PSPInterrupt(self, message=""):
@@ -774,9 +761,9 @@ class PSPMixin(object):
         if self.psp_interruption is None:
             self.psp_interruption = 0
             self.psp_log_event("pausing!", comment=message)
-            self.psp_toolbar.ToggleTool(ID_PAUSE, True)
-            self.psp_toolbar.Refresh(False)
-            self.psp_toolbar.Update()
+            self.task_toolbar.ToggleTool(ID_PAUSE, True)
+            self.task_toolbar.Refresh(False)
+            self.task_toolbar.Update()
 
     def PSPResume(self, message=""):
         "Disable the PSP interruption counter"
@@ -790,9 +777,9 @@ class PSPMixin(object):
             if message:
                 self.psptimetable.comment(phase, message, self.psp_interruption)
             self.psp_log_event("resuming", comment=message)
-            self.psp_toolbar.ToggleTool(ID_PAUSE, False)
-            self.psp_toolbar.Refresh(False)
-            self.psp_toolbar.Update()
+            self.task_toolbar.ToggleTool(ID_PAUSE, False)
+            self.task_toolbar.Refresh(False)
+            self.task_toolbar.Update()
 
     def OnPausePSP(self, event):
         # check if we are in a interruption delta or not:
@@ -812,10 +799,10 @@ class PSPMixin(object):
         self.psp_log_event("stop")
         if self.psp_interruption: 
             self.OnPausePSP(event)
-            self.psp_toolbar.ToggleTool(ID_PAUSE, False)
-        self.psp_toolbar.EnableTool(ID_START, True)
-        self.psp_toolbar.EnableTool(ID_PAUSE, False)
-        self.psp_toolbar.EnableTool(ID_STOP, False)
+            self.task_toolbar.ToggleTool(ID_PAUSE, False)
+        self.task_toolbar.EnableTool(ID_START, True)
+        self.task_toolbar.EnableTool(ID_PAUSE, False)
+        self.task_toolbar.EnableTool(ID_STOP, False)
         self.show_psp_plan_pane()
                     
     def TimerHandler(self, event):
