@@ -401,6 +401,16 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def GotoLineOffset(self, lineno, offset):
         self.GotoPos(self.PositionFromLine(lineno-1) + offset - 1)
+
+    def GotoPos(self, pos):
+        "Set caret to a position and ensure it is visible (unfolding)"
+        # enforce line visibility (expands any header line hiding it):
+        lineno = self.LineFromPosition(pos)
+        self.EnsureVisibleEnforcePolicy(lineno)
+        stc.StyledTextCtrl.GotoPos(self, pos)
+        # scroll properly (just in case, should not be necessary)!
+        self.EnsureCaretVisible()
+        # TODO: SetFocus?
     
     def OnSave(self, event=None):
         if self.filename:
