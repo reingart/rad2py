@@ -140,7 +140,7 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
             key_time = "interruption"
         else:
             key_time = "actual"
-        value = self.cells.get(phase, {}).get(key_time, 0) + 1
+        value = (self.cells.get(phase, {}).get(key_time) or 0) + 1
         self.cells.setdefault(key_phase, {})[key_time] = value
         self.cells.sync()
         row = PSP_PHASES.index(phase)
@@ -814,25 +814,29 @@ class PSPMixin(object):
             # register variation and calculate total elapsed time
             psp_times = self.psptimetable.count(phase, self.psp_interruption,
                                                 active)
-            actual = psp_times.get('actual', 0)
-            interruption = psp_times.get('interruption', 0)
-            plan = float(psp_times.get('plan', 0))
+            actual = psp_times.get('actual') or 0
+            interruption = psp_times.get('interruption') or 0
+            plan = float(psp_times.get('plan') or 0)
             total = float(max(plan, (actual + interruption)))
             # Draw progress bar accordingly
-            self.psp_gauge.SetRange(total)
-            self.psp_gauge.SetValue([interruption, interruption + actual])
-            # TODO: properly use effects (incremental Update):
-            self.psp_gauge.Refresh()
-            # NOTE: percentage could be bigger than > 100 % (plan < elapsed)
-            percentage = int((actual + interruption) / plan * 100.)
-            if percentage < 75:
-                colour = wx.BLUE
-            elif percentage <= 100:
-                colour = wx.NamedColour("ORANGE")
+            if total and plan:
+                self.psp_gauge.SetRange(total)
+                self.psp_gauge.SetValue([interruption, interruption + actual])
+                # TODO: properly use effects (incremental Update):
+                self.psp_gauge.Refresh()
+                # NOTE: percentage could be bigger than > 100 % (plan < elapsed)
+                percentage = int((actual + interruption) / plan * 100.)
+                if percentage < 75:
+                    colour = wx.BLUE
+                elif percentage <= 100:
+                    colour = wx.NamedColour("ORANGE")
+                else:
+                    colour = wx.RED
+                self.psp_gauge.SetDrawValue(font=wx.SMALL_FONT, colour=colour,
+                                            formatString="%d %%" % percentage)
             else:
-                colour = wx.RED
-            self.psp_gauge.SetDrawValue(font=wx.SMALL_FONT, colour=colour,
-                                        formatString="%d %%" % percentage)
+                self.psp_gauge.SetRange(100)
+                self.psp_gauge.SetValue([0, 0])
             if not self.psp_interruption:
                 self.psp_defect_list.count(phase)
             
