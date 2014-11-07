@@ -119,9 +119,8 @@ class TaskMixin(object):
 
     def OnChangeTask(self, event):
         "List available task, change to selected one and load/save context"
-        tasks = self.db["task"].select(task_id=int, task_name=str, project=str,
-                                       organization=str, closed=False)
-        fmt = "%(task_name)s - %(organization)s/%(project)s [%(task_id)s]"
+        tasks = self.db["task"].select(task_id=int, task_name=str, closed=False)
+        fmt = "%(task_name)s [%(task_id)s]"
         tasks_dict = dict([(fmt % it, it["task_id"]) for it in tasks])
         dlg = wx.SingleChoiceDialog(self, 'Select a Task', 'Task Change',
                                     tasks_dict.keys(), wx.CHOICEDLG_STYLE)
@@ -240,7 +239,7 @@ class TaskMixin(object):
             kwargs['project'] = task['project'] or 'prueba'
             gh = connector.GitHub(**kwargs)
             # get the current panel, or create a new one:
-            wx.CallLater(3000, self.task_panel.Load, gh, {"name": '1'})
+            wx.CallLater(3000, self.task_panel.Load, gh, {"name": task['task_name']})
 
 
     def deactivate_task(self):

@@ -29,6 +29,8 @@ class GitHub(object):
         
         self.gh = github.GitHub(username=username, password=password)
         self.repo = self.gh.repos(organization)(project)
+        self.organization = organization
+        self.project = project
 
     def list_tasks(self, status="open"):
         "Get a list of tasks availables in the project"
@@ -46,7 +48,8 @@ class GitHub(object):
         data = {
                  'id': issue['id'],
                  'title': issue['title'],
-                 'name': "Issue %s" % issue['number'],
+                 'name': "Issue #%s %s/%s" % (issue['number'],
+                                              self.organization, self.project),
                  'description': issue['body'],
                  'status': issue['state'],
                  'type': tags.get('type'),
@@ -66,8 +69,8 @@ class GitHub(object):
                 'body': data.get('description'),
                 }
         if 'name' in data:
-             issue['number'] = ''.join([s for s in data['name'] 
-                                          if s.isdigit()])
+            s = data['name'].split(" ")[1]
+            issue['number'] = ''.join([s for s in s if s.isdigit()])
         return issue
 
     def create_task(self, data):
