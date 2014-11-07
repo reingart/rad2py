@@ -34,7 +34,8 @@ class TaskMixin(object):
     
     def __init__(self):
         
-        cfg = wx.GetApp().get_config("PSP")
+        cfg = wx.GetApp().get_config("TASK")
+        self.task_id = None
         
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
@@ -66,11 +67,6 @@ class TaskMixin(object):
         self.AppendWindowMenuItem('Task',
             ('task_list', 'task_detail', 'task_toolbar', ), self.OnWindowMenu)
         
-        task_id = cfg.get("task_id")
-        if task_id:
-            self.activate_task(None, self.task_id)
-        self.task_id = task_id
-
         self.task_panel = TaskPanel(self)
         self._mgr.AddPane(self.task_panel, aui.AuiPaneInfo().
                       Name("task_info").Caption("Task Info").
@@ -82,6 +78,11 @@ class TaskMixin(object):
         self.Bind(wx.EVT_MENU, self.OnSyncTasks, id=ID_SYNC)
 
         self.CreateTaskMenu()
+
+        # if configured, load the last task (later as PSP has to be initialized)
+        task_id = cfg.get("task_id")
+        if task_id:
+            wx.CallAfter(lambda: self.activate_task(None, task_id))
 
     def CreateTaskMenu(self):
         # create the menu items
@@ -115,19 +116,6 @@ class TaskMixin(object):
         tb4.Realize()
         self.task_toolbar = tb4
         return tb4
-            
-    def __del__(self):
-        self.psp_event_log_file.close()
-        self.task_list.close()
-
-    def task_log_event(self, event, uuid="-", comment=""):
-        phase = self.GetPSPPhase()
-        timestamp = str(datetime.datetime.now())
-        msg = PSP_EVENT_LOG_FORMAT % {'timestamp': timestamp, 'phase': phase, 
-            'event': event, 'comment': comment, 'uuid': uuid}
-        if DEBUG: print msg
-        self.task_event_log_file.write("%s\r\n" % msg)
-        self.task_event_log_file.flush()
 
     def OnChangeTask(self, event):
         "List available task, change to selected one and load/save context"
@@ -175,7 +163,6 @@ class TaskMixin(object):
         kwargs['organization'], kwargs['project'] = url.split("/")[3:5]
         gh = connector.GitHub(**kwargs)
         for data in gh.list_tasks():
-            print "TASK!!!", data
             task = self.db["task"](task_name=data['name'], 
                                    organization=kwargs['organization'],
                                    project=kwargs['project'],
@@ -195,7 +182,6 @@ class TaskMixin(object):
             task['closed'] = data['status']=='closed'
             task.save()
         self.db.commit()
-        
 
     def activate_task(self, task_name=None, task_id=None):
         "Set task name in toolbar and uuid in config file"

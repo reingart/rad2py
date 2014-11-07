@@ -40,8 +40,8 @@ PSP_EVENT_LOG_FORMAT = "%(timestamp)s %(uuid)s %(phase)s %(event)s %(comment)s"
 
 ID_START, ID_PAUSE, ID_STOP, ID_CHECK, ID_METADATA, ID_DIFF, ID_PHASE, \
 ID_DEFECT, ID_DEL, ID_DEL_ALL, ID_EDIT, ID_FIXED, ID_WONTFIX, ID_FIX, \
-ID_PROJECT, ID_UP, ID_DOWN, ID_WIKI, ID_COMPILE, ID_TEST \
-    = [wx.NewId() for i in range(20)]
+ID_UP, ID_DOWN, ID_WIKI, ID_COMPILE, ID_TEST \
+    = [wx.NewId() for i in range(19)]
 
 WX_VERSION = tuple([int(v) for v in wx.version().split()[0].split(".")])
 
@@ -563,9 +563,6 @@ class PSPMixin(object):
         # web2py json rpc client
         self.psp_rpc_client = simplejsonrpc.ServiceProxy(cfg.get("server_url"))
         self.psp_wiki_url = cfg.get("wiki_url")
-        self.psp_project_name = cfg.get("project_name")
-        if self.psp_project_name:
-            self.psp_set_project(self.psp_project_name)
 
         self.Bind(wx.EVT_CHOICE, self.OnPSPPhaseChoice, self.psp_phase_choice)
         self.SetPSPPhase(cfg.get("current_phase"))
@@ -596,7 +593,6 @@ class PSPMixin(object):
         # create the menu items
         psp_menu = self.menu['task']
         psp_menu.Append(ID_PHASE, "Change PSP Phase")
-        psp_menu.Append(ID_PROJECT, "Change Project")
         psp_menu.Append(ID_UP, "Upload metrics")
         psp_menu.Append(ID_DOWN, "Download metrics")
         psp_menu.AppendSeparator()
@@ -669,7 +665,6 @@ class PSPMixin(object):
         self.Bind(wx.EVT_MENU, self.OnPausePSP, id=ID_PAUSE)
         self.Bind(wx.EVT_MENU, self.OnStopPSP, id=ID_STOP)
         self.Bind(wx.EVT_MENU, self.OnDefectPSP, id=ID_DEFECT)
-        self.Bind(wx.EVT_MENU, self.OnProjectPSP, id=ID_PROJECT)
         self.Bind(wx.EVT_MENU, self.OnUploadProjectPSP, id=ID_UP)
         self.Bind(wx.EVT_MENU, self.OnDownloadProjectPSP, id=ID_DOWN)
         self.Bind(wx.EVT_MENU, self.OnCheckPSP, id=ID_CHECK)
@@ -896,44 +891,26 @@ class PSPMixin(object):
         self.psp_event_log_file.write("%s\r\n" % msg)
         self.psp_event_log_file.flush()
 
-    def OnProjectPSP(self, event):
-        "Fetch available projects, change to selected one and load/save metrics"
-        try:
-            projects = self.psp_rpc_client.get_projects()
-        except Exception, e:
-            projects = []
-            dlg = wx.MessageDialog(self, u"Exception: %s\n\n" 
-                       "Configure server_url in [PSP] section "
-                       "and start web2py server" % unicode(e, "utf8", "ignore"), 
-                       "Cannot connect to psp2py application server!",
-                       wx.OK | wx.ICON_EXCLAMATION)
-            dlg.ShowModal()
-            dlg.Destroy()
+    def deactivate_task(self):
+        self.psp_save_project()
+        super(PSPMixin, self).deactivate_task()
 
-        dlg = wx.SingleChoiceDialog(self, 'Select a project', 'PSP Project',
-                                    projects, wx.CHOICEDLG_STYLE)
-        if dlg.ShowModal() == wx.ID_OK:
-            self.psp_save_project()
-            project_name = dlg.GetStringSelection()
-            self.psp_load_project(project_name)
-        dlg.Destroy()
+    def activate_task(self, *args, **kwargs):
+        super(PSPMixin, self).activate_task(*args, **kwargs)
+        self.psp_load_project()
 
     def OnUploadProjectPSP(self, event):
         self.psp_save_project()
     
     def OnDownloadProjectPSP(self, event):
-        self.psp_load_project(self.psp_project_name)
+        self.psp_load_project()
 
     def psp_save_project(self):
         "Send metrics to remote server (times and defects)"
         # convert to plain dictionaries to be searialized and sent to web2py DAL
         # remove GUI implementation details, match psp2py database model
-        dlg = wx.MessageDialog(self, "Send Metrics to psp2py support app?",
-                               "PSP Project Change", 
-                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-        result = dlg.ShowModal() == wx.ID_YES
-        dlg.Destroy()
-        if result and self.psp_project_name:
+        if self.task_id:
+            task = self.db["task"][self.task_id]
             defects = []
             for defect in self.psp_defect_list.data.values():
                 defect = defect.copy()
@@ -949,20 +926,19 @@ class PSPMixin(object):
                     comment = {'phase': phase, 'message': message, 'delta': delta}
                     comments.append(comment)
                 time_summaries.append(time_summary)
-            self.psp_rpc_client.save_project(self.psp_project_name, defects, time_summaries, comments)
-        return result
+            self.psp_rpc_client.save_project(task['task_name'], 
+                                             defects, 
+                                             time_summaries, 
+                                             comments)
+            return True
 
     def psp_update_project(self, locs, objects):
         "Update metrics to remote server (only size now)"
         # convert to plain dictionaries to be searialized and sent to web2py DAL
         # remove GUI implementation details, match psp2py database model
         # this function is supposed to be called on postmortem phase (diff)
-        dlg = wx.MessageDialog(self, "Update metrics into psp2py support app?",
-                               "PSP Project Update", 
-                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-        result = dlg.ShowModal() == wx.ID_YES
-        dlg.Destroy()
-        if result:
+        if self.task_id:
+            task = self.db["task"][self.task_id]
             # data received:
             # objects = [[7, 'Test', '__init__', 1, 'filename.py'], 
             # locs = {'new': 0, 'total': 6, 'modified': 1, 'comments': 1})
@@ -978,21 +954,17 @@ class PSPMixin(object):
                     "loc": obj[3],
                     }
                 reuse_library_entries.append(entry)
-            self.psp_rpc_client.update_project(self.psp_project_name, 
+            self.psp_rpc_client.update_project(task['task_name'], 
                                                actual_loc,
                                                reuse_library_entries)
-        return result
+            return True
 
-    def psp_load_project(self, project_name):
+    def psp_load_project(self):
         "Receive metrics from remote server (times and defects)"
         # fetch and deserialize web2py rows to GUI data structures
-        dlg = wx.MessageDialog(self, "Receive Metrics from psp2py support app?", 
-                               "PSP Project Change", 
-                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-        result = dlg.ShowModal() == wx.ID_YES
-        dlg.Destroy()
-        if result:
-            defects, time_summaries, comments = self.psp_rpc_client.load_project(project_name)
+        if self.task_id:
+            task = self.db["task"][self.task_id]
+            defects, time_summaries, comments = self.psp_rpc_client.load_project(task['task_name'])
             self.psp_defect_list.DeleteAllItems()
             defects.sort(key=lambda defect: int(defect['number']))
             for defect in defects:
@@ -1005,16 +977,7 @@ class PSPMixin(object):
                 phase, message, delta = comment['phase'], comment['message'], comment['delta']
                 self.psptimetable.comment(str(phase), message, delta)
             self.psptimetable.UpdateValues()
-            self.psp_set_project(project_name)
-        return result
-
-    def psp_set_project(self, project_name):
-        "Set project_name in toolbar and config file"
-        self.psp_project_name = project_name
-        self.activate_task(project_name)
-        # store project name in config file
-        wx.GetApp().config.set('PSP', 'project_name', project_name)
-        wx.GetApp().write_config()
+            return True
 
     def OnCheckPSP(self, event):
         "Find defects and errors, if complete, change to the next phase"
