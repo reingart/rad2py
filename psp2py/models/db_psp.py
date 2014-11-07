@@ -41,6 +41,7 @@ db.define_table("psp_time_summary",
     Field("phase", "string", requires=IS_IN_SET(PSP_PHASES)),
     Field("plan", "integer"),
     Field("actual", "integer"),
+    Field("off_task", "integer"),
     Field("interruption", "integer"),
     )
 
