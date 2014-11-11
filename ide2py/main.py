@@ -68,10 +68,10 @@ except ImportError:
         pass
 
 try:
-    from browser import SimpleBrowserPanel
+    from browser import BrowserPanel
     ADDONS.append("webbrowser")
 except ImportError:
-    SimpleBrowserPanel = None
+    BrowserPanel = None
 
 try:
     from web2py import Web2pyMixin
@@ -385,7 +385,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         self.browser = self.CreateBrowserCtrl()
         if self.browser:
             self._mgr.AddPane(self.browser, aui.AuiPaneInfo().Name("browser").
-                          Caption("Simple Browser").Right().CloseButton(True))
+                          Caption("Browser").Float().FloatingSize(wx.Size(400, 100)).CloseButton(True))
 
         self.shell = Shell(self, debugger=self.debugger)
         self._mgr.AddPane(self.shell, aui.AuiPaneInfo().Name("shell").
@@ -956,8 +956,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                            wx.NO_BORDER | wx.TE_MULTILINE)
 
     def CreateBrowserCtrl(self):
-        if SimpleBrowserPanel:
-            return SimpleBrowserPanel(self)
+        if BrowserPanel:
+            return BrowserPanel(self)
 
     def CreateGrid(self):
         grid = wx.grid.Grid(self, -1, wx.Point(0, 0), wx.Size(150, 250),

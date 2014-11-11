@@ -7,8 +7,7 @@ __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
  
-# Based on wxPython examples (webkit panel adapted by Marcelo Fidel Fernández)
-# http://www.marcelofernandez.info & http://wiki.wxpython.org/wxGTKWebKit
+# Based on wxPython examples (HTML2 using IE on Windows and webkit on Linux)
 
  
 import os
@@ -17,112 +16,119 @@ import wx
 
 DEFAULT_URL = 'http://www.python.org'
 
-
-if wx.Platform in ('__WXGTK__', '__WXMAC__'):
-    import gobject
-    gobject.threads_init()
-    import gtk, gtk.gdk
-    import webkit
+import wx.html2 as webview
 
 
-    class BrowserPanel(wx.Panel):
-        """wxWebkitGTK - Componente wxPython que embebe un navegador
-        """
+class BrowserPanel(wx.Panel):
+    """wxWebView - Componente wxPython que embebe un navegador (IE/WebKit)
+    """
+    def __init__(self, *args, **kwargs): 
+        wx.Panel.__init__(self, *args, **kwargs)
+        self.current = "http://wxPython.org"
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        btnSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.webview = webview.WebView.New(self)
+        self.Bind(webview.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating, self.webview)
+        self.Bind(webview.EVT_WEBVIEW_LOADED, self.OnWebViewLoaded, self.webview)
+    
+        btn = wx.Button(self, -1, "Open", style=wx.BU_EXACTFIT)
+        self.Bind(wx.EVT_BUTTON, self.OnOpenButton, btn)
+        btnSizer.Add(btn, 0, wx.EXPAND|wx.ALL, 2)
 
-        def __init__(self, *args, **kwargs):
-            wx.Panel.__init__(self, *args, **kwargs)
-            # Aquí es donde se hace la "magia" de embeber webkit en wxGTK.
-            whdl = self.GetHandle()
-            window = gtk.gdk.window_lookup(whdl)
-            # Debemos mantener la referencia a "pizza", sino obtenemos un segfault.
-            self.pizza = window.get_user_data()
-            # Obtengo el padre de la clase GtkPizza, un gtk.ScrolledWindow
-            self.scrolled_window = self.pizza.parent
-            # Saco el objeto GtkPizza para poner un WebView en su lugar
-            self.scrolled_window.remove(self.pizza)
-            self.webview = webkit.WebView()
-            self.scrolled_window.add(self.webview)
-            self.scrolled_window.show_all()
+        btn = wx.Button(self, -1, "<--", style=wx.BU_EXACTFIT)
+        self.Bind(wx.EVT_BUTTON, self.OnPrevPageButton, btn)
+        btnSizer.Add(btn, 0, wx.EXPAND|wx.ALL, 2)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnCheckCanGoBack, btn)
 
-        # Podemos acceder a todos los métods del objeto WebView
-        # http://webkitgtk.org/reference/webkitgtk-webkitwebview.html
-        def LoadURL(self, url):
-            self.webview.load_uri(url)
-            
+        btn = wx.Button(self, -1, "-->", style=wx.BU_EXACTFIT)
+        self.Bind(wx.EVT_BUTTON, self.OnNextPageButton, btn)
+        btnSizer.Add(btn, 0, wx.EXPAND|wx.ALL, 2)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnCheckCanGoForward, btn)
 
-elif wx.Platform == '__WXMSW__':
-    import wx.lib.iewin as iewin
+        btn = wx.Button(self, -1, "Stop", style=wx.BU_EXACTFIT)
+        self.Bind(wx.EVT_BUTTON, self.OnStopButton, btn)
+        btnSizer.Add(btn, 0, wx.EXPAND|wx.ALL, 2)
 
+        btn = wx.Button(self, -1, "Refresh", style=wx.BU_EXACTFIT)
+        self.Bind(wx.EVT_BUTTON, self.OnRefreshPageButton, btn)
+        btnSizer.Add(btn, 0, wx.EXPAND|wx.ALL, 2)
 
-    class BrowserPanel(wx.Panel):
-        "Internet Explorer Browser Panel (windows)"
-        def __init__(self, parent):
-            wx.Panel.__init__(
-                self, parent, -1,
-                style=wx.TAB_TRAVERSAL|wx.CLIP_CHILDREN|wx.NO_FULL_REPAINT_ON_RESIZE
-                )
-            self.ie = iewin.IEHtmlWindow(self)
+        txt = wx.StaticText(self, -1, "Location:")
+        btnSizer.Add(txt, 0, wx.CENTER|wx.ALL, 2)
 
-            sizer = wx.BoxSizer(wx.VERTICAL)
-            sizer.Add(self.ie, 1, wx.EXPAND)
-            # Since this is a wx.Window we have to call Layout ourselves
-            self.Bind(wx.EVT_SIZE, self.OnSize)
-            self.SetSizer(sizer)
-            ## Hook up the event handlers for the IE window.  
-            self.ie.AddEventSink(self)
+        self.location = wx.ComboBox(
+            self, -1, "", style=wx.CB_DROPDOWN|wx.TE_PROCESS_ENTER)
+        self.location.AppendItems(['http://wxPython.org',
+                                   'http://wxwidgets.org',
+                                   'http://google.com'])
+        self.Bind(wx.EVT_COMBOBOX, self.OnLocationSelect, self.location)
+        self.location.Bind(wx.EVT_TEXT_ENTER, self.OnLocationEnter)
+        btnSizer.Add(self.location, 1, wx.EXPAND|wx.ALL, 2)
 
-        def LoadURL(self, url):
-            #self.ie.LoadUrl(self.current)
-            self.ie.Navigate(url)
-
-        def OnSize(self, evt):
-            self.Layout()
-
-        def BeforeNavigate2(self, this, pDisp, URL, Flags, TargetFrameName,
-                            PostData, Headers, Cancel):
-            print 'BeforeNavigate2: %s\n' % URL[0]
-            if URL[0] == 'http://www.microsoft.com/':
-                if wx.MessageBox("Are you sure you want to visit Microsoft?",
-                                 style=wx.YES_NO|wx.ICON_QUESTION) == wx.NO:
-                    # This is how you can cancel loading a page. 
-                    Cancel[0] = True
-                    
-
-        def NewWindow3(self, this, pDisp, Cancel, Flags, urlContext, URL):
-            print 'NewWindow3: %s\n' % URL
-            Cancel[0] = True   # Veto the creation of a  new window.
-
-        #def ProgressChange(self, this, progress, progressMax):
-        #    self.log.write('ProgressChange: %d of %d\n' % (progress, progressMax))
-            
-        def DocumentComplete(self, this, pDisp, URL):
-            self.current = URL[0]
-
-
-class SimpleBrowserPanel(wx.Panel):
- 
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
-        self.TxtUrl = wx.TextCtrl(self, wx.ID_ANY, style=wx.TE_PROCESS_ENTER)
-        self.TxtUrl.Bind(wx.EVT_TEXT_ENTER, self.OnTxtURL)
-        self.Box = wx.BoxSizer(wx.VERTICAL)
-        self.Box.Add(self.TxtUrl, proportion=0, flag=wx.EXPAND)
-        self.SetSizer(self.Box)
-        self.SetSize((800,600))
-        self.Show()
-        self.browser = BrowserPanel(self)
-        self.Box.Add(self.browser, proportion=1, flag=wx.EXPAND)
-        self.SendSizeEvent() 
- 
-    def OnTxtURL(self, event):
-        url = self.TxtUrl.GetValue() 
-        self.browser.LoadURL(url)
-        self.TxtUrl.SetValue(url)
-        #self.SetTitle('wxSimpleBrowser - %s' % url)
+        sizer.Add(btnSizer, 0, wx.EXPAND)
+        sizer.Add(self.webview, 1, wx.EXPAND)
+        self.SetSizer(sizer)
 
     def LoadURL(self, url):
-        self.TxtUrl.SetValue(url)
-        self.browser.LoadURL(url)
+        self.webview.LoadURL(url)
+
+    # WebView events
+    def OnWebViewNavigating(self, evt):
+        # this event happens prior to trying to get a resource
+        if evt.GetURL() == 'http://www.microsoft.com/':
+            if wx.MessageBox("Are you sure you want to visit Microsoft?",
+                             style=wx.YES_NO|wx.ICON_QUESTION) == wx.NO:
+                # This is how you can cancel loading a page.
+                evt.Veto()
+
+    def OnWebViewLoaded(self, evt):
+        # The full document has loaded
+        self.current = evt.GetURL()
+        self.location.SetValue(self.current)
+        
+
+    # Control bar events
+    def OnLocationSelect(self, evt):
+        url = self.location.GetStringSelection()
+        self.webview.LoadURL(url)
+
+    def OnLocationEnter(self, evt):
+        url = self.location.GetValue()
+        self.location.Append(url)
+        self.webview.LoadURL(url)
+
+
+    def OnOpenButton(self, event):
+        dlg = wx.TextEntryDialog(self, "Open Location",
+                                "Enter a full URL or local path",
+                                self.current, wx.OK|wx.CANCEL)
+        dlg.CentreOnParent()
+
+        if dlg.ShowModal() == wx.ID_OK:
+            self.current = dlg.GetValue()
+            self.webview.LoadURL(self.current)
+
+        dlg.Destroy()
+
+    def OnPrevPageButton(self, event):
+        self.webview.GoBack()
+
+    def OnNextPageButton(self, event):
+        self.webview.GoForward()
+
+    def OnCheckCanGoBack(self, event):
+        event.Enable(self.webview.CanGoBack())
+        
+    def OnCheckCanGoForward(self, event):
+        event.Enable(self.webview.CanGoForward())
+
+    def OnStopButton(self, evt):
+        self.webview.Stop()
+
+    def OnRefreshPageButton(self, evt):
+        self.webview.Reload()
+
+
 
 class SimpleBrowser(wx.Frame):
 
