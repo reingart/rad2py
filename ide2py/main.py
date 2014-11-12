@@ -92,6 +92,7 @@ ID_COMMENT = wx.NewId()
 ID_GOTO = wx.NewId()
 ID_GOTO_DEF = wx.NewId()
 ID_OPEN_MODULE = wx.NewId()
+ID_OPEN_BROWSER = wx.NewId()
 ID_FOLD = wx.NewId()
 
 ID_RUN = wx.NewId()
@@ -157,6 +158,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         file_menu.Append(wx.ID_NEW, "&New\tCtrl-N")
         file_menu.Append(wx.ID_OPEN, "&Open File\tCtrl-O")
         file_menu.Append(ID_OPEN_MODULE, "Open &Module\tCtrl-M")
+        file_menu.Append(ID_OPEN_BROWSER, "Open &Browser\tCtrl-B")
         file_menu.Append(wx.ID_SAVE, "&Save\tCtrl-S")
         file_menu.Append(wx.ID_SAVEAS, "Save &As")
         file_menu.Append(wx.ID_CLOSE, "&Close\tCtrl-w")
@@ -307,6 +309,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             (wx.ID_NEW, self.OnNew),
             (wx.ID_OPEN, self.OnOpen),
             (ID_OPEN_MODULE, self.OnOpenModule),
+            (ID_OPEN_BROWSER, self.OnOpenBrowser),
             (wx.ID_SAVE, self.OnSave),
             (wx.ID_SAVEAS, self.OnSaveAs),
             (wx.ID_CLOSE, self.OnCloseChild),
@@ -622,7 +625,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         event.Skip()
 
     def OnNew(self, event):
-        child = AUIChildFrame(self, "")
+        child = AUIChildFrameEditor(self, "")
         child.Show()
         self.children.append(child)
         return child
@@ -680,6 +683,21 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             dlg.Destroy()
         finally:
             os.chdir(cwd)
+
+    def OnOpenBrowser(self, event=None):
+        url = arg = (self.active_child.GetSelectedText().strip() 
+                     if self.active_child else "")
+        dlg = wx.TextEntryDialog(self,
+             "Enter the URL for the new browser tab:",
+             'Open Browser', url)
+        if dlg.ShowModal() == wx.ID_OK:
+            url = dlg.GetValue()
+        dlg.Destroy()
+        if url:
+            url = url.strip()
+        if not url:
+            return
+        self.DoOpen(url)
             
     def OnFileHistory(self, evt):
         # get the file based on the menu ID
@@ -690,18 +708,22 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         self.filehistory.AddFileToHistory(filepath)
 
     def DoOpen(self, filename, title=""):
-        if not (self.debugger and self.debugger.is_remote()):
+        is_url = filename.startswith(("http://", "https://"))
+        if not (self.debugger and self.debugger.is_remote()) and not is_url:
             # normalize filename for local files! (mostly fix path separator)
             filename = os.path.abspath(filename)
         found = [child for child in self.children if child.GetFilename()==filename]
         if not found:
-            child = AUIChildFrame(self, filename, title)
+            if is_url:
+                child = AUIChildFrameBrowser(self, filename, title)
+            else:
+                child = AUIChildFrameEditor(self, filename, title)
+                if self.explorer:
+                    wx.CallAfter(self.explorer.ParseFile, filename)
             child.Show()
             self.children.append(child)
             if self.task_id:
                 self.load_task_context(filename, child)
-            if self.explorer:
-                wx.CallAfter(self.explorer.ParseFile, filename)
         else:
             child = found[0]
             # do not interfere with shell focus
@@ -735,15 +757,17 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             self.active_child.OnSaveAs(event)
 
     def DoClose(self, child, filename):
-        self.children.remove(child)
+        if child in self.children:
+            self.children.remove(child)
         if self.task_id or True:
             self.save_task_context(filename, child)
-        if self.explorer:
+        if self.explorer and not filename.startswith(("http://", "https://")):
             wx.CallAfter(self.explorer.RemoveFile, filename)
 
     def OnExplorer(self, event):
-        if self.active_child:
-            self.explorer.ParseFile(self.active_child.GetFilename())
+        filename = self.active_child.GetFilename() if self.active_child else "" 
+        if not filename.startswith(("http://", "https://")):
+            self.explorer.ParseFile(filename)
             self._mgr.GetPane("explorer").Show(True)
             self._mgr.Update()
             self.explorer.SetFocus()
@@ -1065,7 +1089,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if 'repo' in ADDONS:
             wx.PostEvent(self, RepoEvent(filename, action, status))
         # notify the explorer to refresh the module symbols
-        if self.explorer:
+        if self.explorer and not filename.startswith(("http://", "https://")):
             self.explorer.ParseFile(filename, refresh=True)
 
     def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, 
@@ -1152,7 +1176,7 @@ class CustomStatusBar(wx.StatusBar):
 
 
 
-class AUIChildFrame(aui.AuiMDIChildFrame):
+class AUIChildFrameEditor(aui.AuiMDIChildFrame):
 
     def __init__(self, parent, filename, title=""):
         self.filename = filename
@@ -1160,7 +1184,7 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
                                          title="")  
         app = wx.GetApp()
-        
+
         self.editor = EditorCtrl(self,-1, filename=filename,    
                                  debugger=parent.debugger,
                                  lang="python", 
@@ -1289,6 +1313,117 @@ class AUIChildFrame(aui.AuiMDIChildFrame):
     
     def ToggleBlanks(self, visible):
         self.editor.ToggleBlanks(visible)
+
+
+class AUIChildFrameBrowser(aui.AuiMDIChildFrame):
+
+    def __init__(self, parent, filename, title=""):
+        self.filename = filename
+        self.parent = parent
+        aui.AuiMDIChildFrame.__init__(self, parent, -1,
+                                         title="")  
+        app = wx.GetApp()
+
+        self.browser = BrowserPanel(self)
+        self.browser.LoadURL(filename)
+
+        sizer = wx.BoxSizer()
+        sizer.Add(self.browser, 1, wx.EXPAND)
+        self.SetSizer(sizer)
+        wx.CallAfter(self.Layout)
+
+    def OnCloseWindow(self, event):
+        self.parent.DoClose(self, self.GetFilename())
+        self.browser.Destroy()  # fix to re-paint correctly
+        aui.AuiMDIChildFrame.OnCloseWindow(self, event)
+
+    def OnSave(self, event):
+        pass
+
+    def OnSaveAs(self, event):
+        pass
+
+    def OnEditAction(self, event):
+        "Dispatch a top level event to the active child editor"
+        # Menu events (received by the main frame)
+        handlers = {
+            wx.ID_UNDO: self.browser.DoBuiltIn,
+            wx.ID_REDO: self.browser.DoBuiltIn,
+            wx.ID_FIND: self.browser.DoBuiltIn,
+            wx.ID_REPLACE: self.browser.DoBuiltIn,
+            wx.ID_COPY: self.browser.DoBuiltIn,
+            wx.ID_PASTE: self.browser.DoBuiltIn,
+            wx.ID_CUT: self.browser.DoBuiltIn,
+            }
+        if event.GetId() in handlers:
+            handlers[event.GetId()](event)
+
+    def GetFilename(self):
+        return self.browser.current
+
+    def GetCodeObject(self,):
+        return None
+
+    def GetSelectedText(self,):
+        return ""
+
+    def GetCurrentLine(self):
+        return 0
+    
+    def GetLineText(self, lineno):
+        return ""
+
+    def GetWord(self):
+        return ""
+
+    def GetDefinition(self):
+        return None
+        
+    def SynchCurrentLine(self, lineno):
+        pass
+
+    def GotoLineOffset(self, lineno, offset):
+        pass
+
+    def HighlightLines(self, line_numbers, style=0):
+        pass
+
+    def NotifyDefect(self, *args, **kwargs):
+        pass
+    
+    def NotifyRepo(self, *args, **kwargs):
+        pass
+
+    def GetBreakpoints(self):
+        return {}
+
+    def ToggleBreakpoint(self, **kwargs):
+        pass
+
+    def SetFold(self, **kwargs):
+        pass
+
+    def FoldAll(self, expanding=False):
+        pass
+                
+    def GetFoldAll(self):
+        return []
+
+    def UpdateStatusBar(self, statustext, eolmode, encoding):
+        self.parent.statusbar.SetStatusText(statustext, 1)
+        self.parent.statusbar.SetStatusText(self.filename, 2)
+        self.parent.statusbar.eol_choice.SetSelection(eolmode)
+        self.parent.statusbar.SetStatusText(encoding, 5)
+
+    def ShowInfoBar(self, message, flags=wx.ICON_INFORMATION, key=None, parent=None):
+        # TODO: add the infobar to the notebook
+        pass
+        
+    def ChangeEOL(self, eol):
+        pass
+    
+    def ToggleBlanks(self, visible):
+        pass
 
 
 # Configuration Helper to Encapsulate common config read scenarios:
