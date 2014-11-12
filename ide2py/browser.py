@@ -22,8 +22,10 @@ import wx.html2 as webview
 class BrowserPanel(wx.Panel):
     """wxWebView - Componente wxPython que embebe un navegador (IE/WebKit)
     """
-    def __init__(self, *args, **kwargs): 
-        wx.Panel.__init__(self, *args, **kwargs)
+    def __init__(self, parent, *args, **kwargs): 
+        wx.Panel.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
         self.current = "http://wxPython.org"
         sizer = wx.BoxSizer(wx.VERTICAL)
         btnSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -75,17 +77,14 @@ class BrowserPanel(wx.Panel):
     # WebView events
     def OnWebViewNavigating(self, evt):
         # this event happens prior to trying to get a resource
-        if evt.GetURL() == 'http://www.microsoft.com/':
-            if wx.MessageBox("Are you sure you want to visit Microsoft?",
-                             style=wx.YES_NO|wx.ICON_QUESTION) == wx.NO:
-                # This is how you can cancel loading a page.
-                evt.Veto()
+        pass
+        #evt.Veto()
 
     def OnWebViewLoaded(self, evt):
         # The full document has loaded
         self.current = evt.GetURL()
         self.location.SetValue(self.current)
-        
+        self.parent.SetTitle(self.webview.GetCurrentTitle())
 
     # Control bar events
     def OnLocationSelect(self, evt):
@@ -96,7 +95,6 @@ class BrowserPanel(wx.Panel):
         url = self.location.GetValue()
         self.location.Append(url)
         self.webview.LoadURL(url)
-
 
     def OnOpenButton(self, event):
         dlg = wx.TextEntryDialog(self, "Open Location",
@@ -128,6 +126,26 @@ class BrowserPanel(wx.Panel):
     def OnRefreshPageButton(self, evt):
         self.webview.Reload()
 
+    def DoBuiltIn(self, event):
+        evtid = event.GetId()
+        if evtid == wx.ID_COPY:
+            self.webview.Copy()
+        elif evtid == wx.ID_PASTE:
+            self.webview.Paste()
+        elif evtid == wx.ID_CUT:
+            self.webview.Cut()
+        elif evtid == wx.ID_DELETE:
+            self.webview.DeleteSelection()
+        elif evtid == wx.ID_UNDO:
+            self.webview.Undo()
+        elif evtid == wx.ID_REDO:
+            self.webview.Redo()
+        elif evtid == wx.ID_FIND:
+            dlg = wx.TextEntryDialog(self, 'Search:', 'Find', '')
+            if dlg.ShowModal() == wx.ID_OK:
+                text = dlg.GetValue()
+                self.webview.Find(text)
+            dlg.Destroy()
 
 
 class SimpleBrowser(wx.Frame):
@@ -135,7 +153,7 @@ class SimpleBrowser(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None)
         self.Show()
-        self.panel = SimpleBrowserPanel(self)
+        self.panel = BrowserPanel(self)
 
 
 if __name__ == '__main__':
