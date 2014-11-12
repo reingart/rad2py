@@ -31,7 +31,7 @@ def save_project(project_name, defects, time_summaries, comments):
     # clean and store defects:
     db(db.psp_defect.project_id==project_id).delete()
     for defect in defects:
-        defect['project_id'] = project.project_id
+        defect['project_id'] = project_id
         defect.pop("id", None)
         defect.pop("defect_id", None)
         db.psp_defect.insert(**defect)
