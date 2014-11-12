@@ -209,13 +209,14 @@ class TaskMixin(object):
         # pre-load all task contexts (open an editor if necessary):
         rows = self.db['context_file'].select(task_id=self.task_id)
         # sort in the most relevant order (max total_time, reversed):
-        context_files = sorted(rows, key=lambda it: -it['total_time'])
+        context_files = sorted(rows, key=lambda it: (-(it['total_time'] or 0)))
         first = None
         for row in context_files:
             filename = row['filename']
             if filename:
                 ctx = self.get_task_context(filename)
-                if not ctx['closed'] and os.path.exists(filename):
+                is_url = filename.startswith(("http://", "https://"))
+                if not ctx['closed'] and (is_url or os.path.exists(filename)):
                     if first is None:
                         first = filename
                     self.DoOpen(filename)
