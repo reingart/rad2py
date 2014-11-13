@@ -9,6 +9,7 @@ __license__ = "GPL 3.0"
 
 import os
 import compiler
+import _ast
 
 import pep8
 import pyflakes.checker
@@ -49,7 +50,8 @@ class PEP8(pep8.Checker):
 class PyFlakes(object):
 
     def __init__(self, filename):
-        tree = compiler.parse(open(filename).read())
+        code_string = open(filename).read()
+        tree = compile(code_string, filename, "exec", _ast.PyCF_ONLY_AST)
         self.checker = pyflakes.checker.Checker(tree, filename)
         self.checker.messages.sort(lambda a, b: cmp(a.lineno, b.lineno))
 
