@@ -16,13 +16,11 @@ import pyflakes.checker
 
 # PEP8 Coding Standar
 
-class Options(object):
-    pass
-
 class PEP8(pep8.Checker):
     def __init__(self, filename, lines=None):
         self.errors = []
-        options = pep8.options = Options()
+        pep8style = pep8.StyleGuide(parse_argv=False, config_file=False)
+        options = pep8style.options
         options.prog = os.path.basename(filename)
         options.exclude = []
         options.filename = filename
@@ -30,8 +28,6 @@ class PEP8(pep8.Checker):
         options.ignore = []
         options.verbose = 0
         #options.ignore = pep8.DEFAULT_IGNORE.split(',')
-        options.physical_checks = pep8.find_checks('physical_line')
-        options.logical_checks = pep8.find_checks('logical_line')
         options.counters = {'physical lines': 0, 'logical lines': 0,}
         options.messages = {}
         pep8.Checker.__init__(self, filename)
