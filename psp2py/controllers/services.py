@@ -34,6 +34,9 @@ def save_project(project_name, defects, time_summaries, comments):
         defect['project_id'] = project_id
         defect.pop("id", None)
         defect.pop("defect_id", None)
+        # JSON seems adding time ("2014-11-12 00:00:00"), remove it 
+        if ' ' in defect['date']:
+            defect['date'] = defect['date'].split(' ')[0]
         db.psp_defect.insert(**defect)
 
     # clean and store time summaries:
