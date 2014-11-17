@@ -911,10 +911,21 @@ class PSPMixin(object):
     def deactivate_task(self):
         self.psp_save_project()
         super(PSPMixin, self).deactivate_task()
+        self.OnStopPSP(None)
 
     def activate_task(self, *args, **kwargs):
         super(PSPMixin, self).activate_task(*args, **kwargs)
         self.psp_load_project()
+        self.OnStartPSP(None)
+
+    def suspend_task(self):
+        super(PSPMixin, self).suspend_task()
+        self.OnStopPSP(None)
+        self.psp_automatic_stopwatch = False
+
+    def resume_task(self):
+        super(PSPMixin, self).resume_task()
+        self.OnStartPSP(None)
 
     def OnUploadProjectPSP(self, event):
         self.psp_save_project()
