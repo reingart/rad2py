@@ -36,6 +36,7 @@ class TaskMixin(object):
         
         cfg = wx.GetApp().get_config("TASK")
         self.task_id = None
+        self.task_suspended = True
         
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
@@ -75,6 +76,8 @@ class TaskMixin(object):
         self._mgr.Update()
 
         self.Bind(wx.EVT_MENU, self.OnChangeTask, id=ID_CHANGE)
+        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnDropDownChangeTask, 
+                  id=ID_CHANGE)
         self.Bind(wx.EVT_MENU, self.OnSyncTasks, id=ID_SYNC)
 
         self.CreateTaskMenu()
@@ -109,10 +112,11 @@ class TaskMixin(object):
         if WX_VERSION < (2, 8, 11): # TODO: prevent SEGV!
             tb4.AddSpacer(200)        
         tb4.AddLabel(-1, "Task:", width=30)
-        tb4.AddSimpleTool(ID_CHANGE, "Task", images.month.GetBitmap(),
-                         short_help_string="Change current Task")
+        tb4.AddCheckTool(ID_CHANGE, "Task", images.month.GetBitmap(),
+                         wx.NullBitmap, short_help_string="Change current Task")
+        tb4.ToggleTool(ID_CHANGE, False)
+        tb4.SetToolDropDown(ID_CHANGE, True)
         tb4.AddLabel(ID_TASK_LABEL, "create a task...", width=100)
-
         tb4.Realize()
         self.task_toolbar = tb4
         return tb4
@@ -129,6 +133,37 @@ class TaskMixin(object):
             task_id = tasks_dict[task_name]
             self.activate_task(task_name, task_id)
         dlg.Destroy()
+
+    def OnDropDownChangeTask(self, event):
+
+        if event.IsDropDownClicked():
+            tb = event.GetEventObject()
+            tb.SetToolSticky(event.GetId(), True)
+            # create the popup menu
+            popup = wx.Menu()
+            m1 = wx.MenuItem(popup, wx.NewId(), "Suspend Task")
+            popup.Bind(wx.EVT_MENU, lambda event: self.suspend_task(),
+                      id=m1.GetId())
+            popup.AppendItem(m1)
+            m1.Enable(not self.task_suspended)
+            m2 = wx.MenuItem(popup, wx.NewId(), "Resume Task")
+            popup.Bind(wx.EVT_MENU, lambda event: self.resume_task(),
+                      id=m2.GetId())
+            popup.AppendItem(m2)
+            m2.Enable(self.task_suspended)
+            m3 = wx.MenuItem(popup, wx.NewId(), "Deactivate Task")
+            popup.Bind(wx.EVT_MENU, lambda event: self.deactivate_task(),
+                      id=m3.GetId())
+            popup.AppendItem(m3)
+            m3.Enable(self.task_id)
+            # line up our menu with the button
+            rect = tb.GetToolRect(event.GetId())
+            pt = tb.ClientToScreen(rect.GetBottomLeft())
+            pt = self.ScreenToClient(pt)
+            self.PopupMenu(popup, pt)
+            # make sure the button is "un-stuck"
+            tb.SetToolSticky(event.GetId(), False)
+
 
     def OnSyncTasks(self, event):
         "Retrieve available tasks and insert them in the local database"
@@ -186,6 +221,7 @@ class TaskMixin(object):
         "Set task name in toolbar and uuid in config file"
         # deactivate the current active task to update context if required:
         self.deactivate_task()
+        if DEBUG: print "ACTIVATING TASK",  task_name, task_id
         if task_id:
             # get the task for a given id
             task = self.db["task"][task_id]
@@ -200,6 +236,7 @@ class TaskMixin(object):
                 task.save()
                 self.db.commit()
         self.task_id = task['task_id']
+        self.resume_task()
         if DEBUG: print "TASK ID", self.task_id, task.data_in
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
@@ -242,14 +279,34 @@ class TaskMixin(object):
             # get the current panel, or create a new one:
             wx.CallLater(3000, self.task_panel.Load, gh, {"name": task['task_name']})
 
-
     def deactivate_task(self):
         # store the opened repository to the current active task (if any):
+        if DEBUG: print "DE-ACTIVATING TASK", self.task_id
+        self.suspend_task()
         if self.task_id:
             task = self.db["task"][self.task_id]
             task['repo_path'] = self.repo_path
             task.save()
             self.db.commit()
+        self.task_toolbar.SetToolLabel(ID_TASK_LABEL, "")
+        self.task_toolbar.Refresh()
+        self.task_id = None
+
+    def suspend_task(self):
+        if DEBUG: print "SUSPENDING TASK", self.task_id, self.task_suspended
+        if self.task_id and not self.task_suspended:
+            self.task_suspended = True
+            self.task_toolbar.ToggleTool(ID_CHANGE, False)
+            self.task_toolbar.Refresh(False)
+            self.task_toolbar.Update()
+
+    def resume_task(self):
+        if DEBUG: print "RESUMING TASK", self.task_id, self.task_suspended
+        if self.task_id and self.task_suspended:
+            self.task_suspended = False
+            self.task_toolbar.ToggleTool(ID_CHANGE, True)
+            self.task_toolbar.Refresh(False)
+            self.task_toolbar.Update()
 
     def get_task_context(self, filename):
         "Fetch the current record for this context file (or create a new one)"
@@ -310,7 +367,7 @@ class TaskMixin(object):
 
     def tick_task_context(self):
         "Update task context file timings"
-        if self.active_child:
+        if self.active_child and not self.task_suspended:
             #lineno = self.active_child.GetCurrentLine()
             filename = self.active_child.GetFilename()
             ctx = self.get_task_context(filename)
