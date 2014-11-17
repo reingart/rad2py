@@ -556,6 +556,7 @@ class PSPMixin(object):
         # flags for time not spent on psp task
         self.psp_interruption = None
         self.psp_off_task = 0
+        self.psp_automatic_stopwatch = True
 
         self.AppendWindowMenuItem('PSP', 
             ('psp_plan', 'psp_defects', 'psp_toolbar', ), self.OnWindowMenu)
@@ -740,6 +741,8 @@ class PSPMixin(object):
         dlg.Destroy()
 
     def OnStartPSP(self, event):
+        # check if the user manually clicked the button (not the camera sensor):
+        self.psp_automatic_stopwatch = event is None
         self.timer.Start(1000)
         self.psp_log_event("start")
         self.task_toolbar.EnableTool(ID_START, False)
@@ -749,6 +752,9 @@ class PSPMixin(object):
 
     def PSPInterrupt(self, message=""):
         "Start the PSP interruption counter"
+        # Do not track time if user manually turned off the stopwatch:
+        if not self.psp_automatic_stopwatch:
+            return
         # if PSP time tracking is not started, activate it:
         if not self.timer.IsRunning():
             self.OnStartPSP(None)
@@ -762,6 +768,9 @@ class PSPMixin(object):
 
     def PSPResume(self, message=""):
         "Disable the PSP interruption counter"
+        # Do not track time if user manually turned off the stopwatch:
+        if not self.psp_automatic_stopwatch:
+            return
         # if PSP time tracking is not started, activate it:
         if not self.timer.IsRunning():
             self.OnStartPSP(None)
@@ -777,6 +786,8 @@ class PSPMixin(object):
             self.task_toolbar.Update()
 
     def OnPausePSP(self, event):
+        # check if the user manually clicked the button (not the camera sensor):
+        self.psp_automatic_stopwatch = event is None
         # check if we are in a interruption delta or not:
         if self.psp_interruption is not None:
             dlg = wx.TextEntryDialog(self, 
@@ -790,6 +801,8 @@ class PSPMixin(object):
         self.show_psp_plan_pane()
 
     def OnStopPSP(self, event):
+        # check if the user manually clicked the button (not the camera sensor):
+        self.psp_automatic_stopwatch = event is None
         self.timer.Stop()
         self.psp_log_event("stop")
         if self.psp_interruption: 
