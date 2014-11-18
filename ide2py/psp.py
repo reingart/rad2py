@@ -823,7 +823,7 @@ class PSPMixin(object):
         if self.task_id and active and not self.psp_interruption:
             self.tick_task_context()
         phase = self.GetPSPPhase()
-        if phase:
+        if phase and self.task_id and not self.task_suspended:
             # register variation and calculate total elapsed time
             psp_times = self.psptimetable.count(phase, self.psp_interruption,
                                                 active)
@@ -909,14 +909,18 @@ class PSPMixin(object):
         self.psp_event_log_file.flush()
 
     def deactivate_task(self):
+        # store current data:
         self.psp_save_project()
         super(PSPMixin, self).deactivate_task()
         self.OnStopPSP(None)
+        # clean up previous data:
+        self.psp_load_project()
 
     def activate_task(self, *args, **kwargs):
         super(PSPMixin, self).activate_task(*args, **kwargs)
-        self.psp_load_project()
-        self.OnStartPSP(None)
+        if self.task_id:
+            self.psp_load_project()
+            self.OnStartPSP(None)
 
     def suspend_task(self):
         super(PSPMixin, self).suspend_task()
@@ -989,16 +993,17 @@ class PSPMixin(object):
 
     def psp_load_project(self):
         "Receive metrics from remote server (times and defects)"
+        # clean up any previous metrics data:
+        self.psp_defect_list.DeleteAllItems()
+        self.psptimetable.cells.clear()
         # fetch and deserialize web2py rows to GUI data structures
         if self.task_id:
             task = self.db["task"][self.task_id]
             defects, time_summaries, comments = self.psp_rpc_client.load_project(task['task_name'])
-            self.psp_defect_list.DeleteAllItems()
             defects.sort(key=lambda defect: int(defect['number']))
             for defect in defects:
                 defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
                 self.psp_defect_list.AddItem(defect)
-            self.psptimetable.cells.clear()
             for time_summary in time_summaries:
                 self.psptimetable.cells[str(time_summary['phase'])] = time_summary
             for comment in comments:
