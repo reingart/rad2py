@@ -753,7 +753,7 @@ class PSPMixin(object):
     def PSPInterrupt(self, message=""):
         "Start the PSP interruption counter"
         # Do not track time if user manually turned off the stopwatch:
-        if not self.psp_automatic_stopwatch:
+        if not self.psp_automatic_stopwatch or self.task_suspended:
             return
         # if PSP time tracking is not started, activate it:
         if not self.timer.IsRunning():
@@ -769,7 +769,7 @@ class PSPMixin(object):
     def PSPResume(self, message=""):
         "Disable the PSP interruption counter"
         # Do not track time if user manually turned off the stopwatch:
-        if not self.psp_automatic_stopwatch:
+        if not self.psp_automatic_stopwatch or self.task_suspended:
             return
         # if PSP time tracking is not started, activate it:
         if not self.timer.IsRunning():
