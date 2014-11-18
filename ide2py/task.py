@@ -155,7 +155,7 @@ class TaskMixin(object):
             popup.Bind(wx.EVT_MENU, lambda event: self.deactivate_task(),
                       id=m3.GetId())
             popup.AppendItem(m3)
-            m3.Enable(self.task_id)
+            m3.Enable(bool(self.task_id))
             # line up our menu with the button
             rect = tb.GetToolRect(event.GetId())
             pt = tb.ClientToScreen(rect.GetBottomLeft())
@@ -226,7 +226,7 @@ class TaskMixin(object):
             # get the task for a given id
             task = self.db["task"][task_id]
             task_name = task['task_name']
-        else:
+        elif task_name:
             # search the task using the given name
             task = self.db["task"](task_name=task_name)
             if not task:
@@ -235,14 +235,31 @@ class TaskMixin(object):
                                            task_uuid=str(uuid.uuid1()))
                 task.save()
                 self.db.commit()
-        self.task_id = task['task_id']
-        self.resume_task()
-        if DEBUG: print "TASK ID", self.task_id, task.data_in
+        else:
+            task = None
+
+        self.set_task(task)
+        if task:
+            self.task_id = task['task_id']
+            self.resume_task()
+            if DEBUG: print "TASK ID", self.task_id, task.data_in
+            self.preload_task(task)
+
+    def set_task(self, task):
+        task_id = task['task_id'] if task else None
+        task_name = task['task_name'] if task else ""
         self.task_toolbar.SetToolLabel(ID_TASK_LABEL, task_name)
         self.task_toolbar.Refresh()
-        # store project name in config file
-        wx.GetApp().config.set('TASK', 'task_id', task_id)
-        wx.GetApp().write_config()
+        if not wx.GetApp().closing:
+            # store project name in config file
+            if task_id:
+                wx.GetApp().config.set('TASK', 'task_id', task_id)
+            else:
+                wx.GetApp().config.remove_option('TASK', 'task_id')
+            wx.GetApp().write_config()
+        self.task_id = task_id
+            
+    def preload_task(self, task):
         # pre-load all task contexts (open an editor if necessary):
         rows = self.db['context_file'].select(task_id=self.task_id)
         # sort in the most relevant order (max total_time, reversed):
@@ -288,9 +305,7 @@ class TaskMixin(object):
             task['repo_path'] = self.repo_path
             task.save()
             self.db.commit()
-        self.task_toolbar.SetToolLabel(ID_TASK_LABEL, "")
-        self.task_toolbar.Refresh()
-        self.task_id = None
+        self.set_task(None)
 
     def suspend_task(self):
         if DEBUG: print "SUSPENDING TASK", self.task_id, self.task_suspended
