@@ -541,6 +541,8 @@ class Qdb(bdb.Bdb):
     def isatty(self):
         return 0
 
+    def encoding(self):
+        return None  # use default, 'utf-8' should be better...
 
 class QueuePipe(object):
     "Simulated pipe for threads (using two queues)"
