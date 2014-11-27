@@ -276,6 +276,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
                 val = pretty_time(val)
             elif isinstance(val, str):
                 val = val.decode("utf8", "replace")
+            elif isinstance(val, unicode):
+                val = val
             elif val is not None:
                 val = str(val)
             else:
