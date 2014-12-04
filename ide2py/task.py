@@ -411,6 +411,7 @@ class TaskPanel(ScrolledPanel):
 
         grid1 = wx.FlexGridSizer( 0, 2, 5, 5 )
         grid1.AddGrowableCol(1)
+        grid1.AddGrowableRow(2)
 
         self.image = wx.StaticBitmap(self, size=(32, 32))
         self.label = wx.StaticText(self, -1, "Task Nº\ndate\nowner\nstatus")
