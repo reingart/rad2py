@@ -342,9 +342,11 @@ class Shelf(UserDict.DictMixin):
         self.close()
 
     def sync(self):
+        "Write back all the changes to the database" 
         for row in self.dict.values():
             row.save()
-    
+        self.db.commit()
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
