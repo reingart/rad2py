@@ -280,7 +280,7 @@ class Row():
 
     def __contains__(self, key):
         return key in self.data_in or field in self.data_out
-        
+
 
 class Shelf(UserDict.DictMixin):
     "Database shelve replacement implementation (dictionary-like object)"
@@ -324,6 +324,13 @@ class Shelf(UserDict.DictMixin):
         value[self.key_field_name] = key
         row.update(value)
         self.dict[key] = row
+        
+    def setdefault(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = default
+            return self[key]
 
     def __delitem__(self, key):
         raise NotImplementedError
@@ -374,14 +381,15 @@ if __name__ == "__main__":
     s = Shelf(db, "t2", "s", t1_id=id1)
     s['hola'] = {'n': 1, 'f': 3.14}
     s['chau'] = {'n': 2}
+    s['hola']['n'] = 3
+    s.setdefault('nana', {})['n'] = 4
     s.close()
-    print "Closed!"
     s = Shelf(db, "t2", "s", t1_id=id1)
-    assert s['hola']['n'] == 1
+    assert s['hola']['n'] == 3
     assert s['hola']['t1_id'] == id1
     assert s['chau']['n'] == 2
     assert s['chau']['t1_id'] == id1
-    s['hola']['n'] = 3
+    assert s['nana']['n'] == 4
     s.close()
     print "Closed!"
     
