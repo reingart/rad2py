@@ -223,7 +223,13 @@ class Row():
     
     def update(self, other):
         self.data_out.update(other)
-            
+
+    def get(self, field, default=None):
+        try:
+            return self.__getitem__(field)
+        except KeyError:
+            return default
+        
     def __getitem__(self, field):
         "Read the field value for this record"
         if not (self.primary_key or self.query):
