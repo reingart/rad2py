@@ -205,7 +205,7 @@ class Row():
         if not self.data_out:
             # no modification, abort any SQL
             new_id = None
-        elif self.primary_key and self.primary_key[pk] is not None:
+        elif self.primary_key:
             self.data_out.update(self.primary_key)
             self.db.update(self.table_name, **self.data_out)
             new_id = self.primary_key.values()[0]
@@ -213,8 +213,9 @@ class Row():
             new_id = self.db.insert(self.table_name, **self.data_out)
             # store the new id so the record could be re-fetched on next access
             self.primary_key = self.query = {pk: new_id}
+            self.data_in.update(self.primary_key)
         # assume data was written correctly and update internal cache:
-        self.data_in = self.data_in.update(self.data_out)
+        self.data_in.update(self.data_out)
         self.data_out = {}
         return new_id
     
@@ -224,7 +225,10 @@ class Row():
         return self.data_in.keys() if self.data_in else self.data_out.keys()
     
     def update(self, other):
-        self.data_out.update(other)
+        # selective update: do not modify if value didn't changed
+        for k, v in other.items():
+            if not k in self.data_in or self.data_in[k] != v:
+                self.data_out[k] = v
 
     def get(self, field, default=None):
         try:
@@ -273,6 +277,9 @@ class Row():
         if not self.data_in:
             self.load()
         return len(self.data_in)
+
+    def __contains__(self, key):
+        return key in self.data_in or field in self.data_out
         
 
 class Shelf(UserDict.DictMixin):
@@ -348,7 +355,7 @@ if __name__ == "__main__":
     print rows[0]["sum(f)"]
     
     # dict-like syntax (inspired by shelve):
-    r = db['t1'].new(f=0, s='hola')    
+    r = db['t1'].new(f=0, s='hola')
     t1_id = r.save()
     print t1_id
     assert r['t1_id'] == t1_id
@@ -370,7 +377,6 @@ if __name__ == "__main__":
     s.close()
     print "Closed!"
     s = Shelf(db, "t2", "s", t1_id=id1)
-    import pdb; pdb.set_trace()
     assert s['hola']['n'] == 1
     assert s['hola']['t1_id'] == id1
     assert s['chau']['n'] == 2
