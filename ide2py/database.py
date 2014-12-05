@@ -10,9 +10,10 @@ __license__ = "GPL 3.0"
 
 import os
 import sqlite3
+import UserDict
 
 
-DEBUG = False
+DEBUG = True
 SQL_TYPE_MAP = {int: "INTEGER", float: "REAL", str: "TEXT", bool: "BOOLEAN"}
 
 
@@ -201,9 +202,10 @@ class Row():
     def save(self):
         "Write the modified values to the database"
         pk = self.table_name + "_id"
-        if self.primary_key:
-            if not self.primary_key:
-                self.primary_key[pk] = self.data_in[pk]
+        if not self.data_out:
+            # no modification, abort any SQL
+            new_id = None
+        elif self.primary_key and self.primary_key[pk] is not None:
             self.data_out.update(self.primary_key)
             self.db.update(self.table_name, **self.data_out)
             new_id = self.primary_key.values()[0]
@@ -273,10 +275,67 @@ class Row():
         return len(self.data_in)
         
 
+class Shelf(UserDict.DictMixin):
+    "Database shelve replacement implementation (dictionary-like object)"
+
+    def __init__(self, db, table_name, key_field_name, **filters):
+        self.dict = {}
+        self.db = db
+        self.table_name = table_name
+        self.key_field_name = key_field_name
+        self.filters = filters
+        # populate the internal dictionary:
+        for r in self.db.select(self.table_name, **filters):
+            row = Row(self.db, self.table_name)
+            row.load(r)
+            self.dict[r[key_field_name]] = row
+
+    def keys(self):
+        return self.dict.keys()
+
+    def __len__(self):
+        return len(self.dict)
+
+    def has_key(self, key):
+        return key in self.dict
+
+    def __contains__(self, key):
+        return key in self.dict
+
+    def get(self, key, default=None):
+        if key in self.dict:
+            return self.dict[key]
+        return default
+
+    def __getitem__(self, key):
+        return self.dict[key]
+
+    def __setitem__(self, key, value):
+        # create a new Row proxy (value should be a dict!)
+        row = Row(self.db, self.table_name)
+        value.update(self.filters)
+        value[self.key_field_name] = key
+        row.update(value)
+        self.dict[key] = row
+
+    def __delitem__(self, key):
+        raise NotImplementedError
+
+    def close(self):
+        self.sync()
+
+    def __del__(self):
+        self.close()
+
+    def sync(self):
+        for row in self.dict.values():
+            row.save()
+    
+
 if __name__ == "__main__":
     db = Database(path="test.db")
     t1 = db.create("t1", t1_id=int, f=float, s=str)
-    db.create("t2", t2_id=int, f=float, s=str, t1_id=int)
+    db.create("t2", t2_id=int, f=float, s=str, n=int, t1_id=int)
     id1 = db.insert("t1", f=3.14159265359, s="pi")
     id1 = db.insert("t1", f=2.71828182846, s="e")
     id2 = db.insert("t2", f=2.71828182846, s="e", t1_id=id1)
@@ -304,3 +363,20 @@ if __name__ == "__main__":
     r['f'] = 98
     print r['t1_id']
     r.save()
+    # test shelve replacement (dict of dict):
+    s = Shelf(db, "t2", "s", t1_id=id1)
+    s['hola'] = {'n': 1, 'f': 3.14}
+    s['chau'] = {'n': 2}
+    s.close()
+    print "Closed!"
+    s = Shelf(db, "t2", "s", t1_id=id1)
+    import pdb; pdb.set_trace()
+    assert s['hola']['n'] == 1
+    assert s['hola']['t1_id'] == id1
+    assert s['chau']['n'] == 2
+    assert s['chau']['t1_id'] == id1
+    s['hola']['n'] = 3
+    s.close()
+    print "Closed!"
+    
+
