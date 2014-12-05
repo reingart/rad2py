@@ -12,7 +12,6 @@ __license__ = "GPL 3.0"
 
 import datetime
 import os, os.path
-import pickle, shelve
 import sys
 import hashlib, uuid
 import wx
@@ -23,6 +22,7 @@ from wx.lib.agw.pygauge import PyGauge
 
 import images
 import simplejsonrpc
+from database import Shelf
 
 try:
     from camera import Camera           # camera sensor needs OpenCV
@@ -82,16 +82,17 @@ def parse_time(user_input):
 
 class PlanSummaryTable(wx.grid.PyGridTableBase):
     "PSP Planning tracking summary (actual vs estimated)"
-    def __init__(self, grid, filename="psp_summary.dat"):
+    def __init__(self, grid):
         wx.grid.PyGridTableBase.__init__(self)
         self.rows = PSP_PHASES
         self.cols = PSP_TIMES
-        self.cells = shelve.open(filename, writeback=True)
+        self.Clear()
         self.grid = grid
         self.UpdateValues()
 
     def __del__(self):
-        self.cells.close()
+        if self.data is not None:
+            self.data.close()
 
     def GetNumberRows(self):
         return len(self.rows)
@@ -102,26 +103,29 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
     def IsEmptyCell(self, row, col):
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
-        return self.cells.get(key_phase, {}).get(key_time, {}) and True or False
+        if not self.data:
+            return None
+        return self.data.get(key_phase, {}).get(key_time, {}) and True or False
 
     def GetValue(self, row, col):
         key_phase = PSP_PHASES[row]
         key_time = PSP_TIMES[col]
-        val = self.cells.get(key_phase, {}).get(key_time, 0)
-        if key_time != "comments":
-            return pretty_time(val)
-        elif val:
-            return '; '.join(['%s %s' % (msg, pretty_time(delta)) 
-                                for msg, delta in val])
-        else:
-            return ''
+        if self.data is not None:
+            val = self.data.get(key_phase, {}).get(key_time, 0)
+            if key_time != "comments":
+                return pretty_time(val)
+            elif val:
+                return '; '.join(['%s %s' % (msg, pretty_time(delta)) 
+                                    for msg, delta in val])
+        return ''
 
-    def SetValue(self, row, col, value):    
-        value = parse_time(value)
-        key_phase = PSP_PHASES[row]
-        key_time = PSP_TIMES[col]
-        self.cells.setdefault(key_phase, {})[key_time] = value
-        self.cells.sync()
+    def SetValue(self, row, col, value):
+        if self.data is not None:
+            value = parse_time(value)
+            key_phase = PSP_PHASES[row]
+            key_time = PSP_TIMES[col]
+            self.data.setdefault(key_phase, {})[key_time] = value
+            self.data.sync()
         
     def GetColLabelValue(self, col):
         return self.cols[col].capitalize()
@@ -131,32 +135,34 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
 
     def count(self, phase, interruption, active=True):
         "Increment actual user time according selected phase"
-        key_phase = phase
-        key_time = "plan"
-        plan = self.cells.get(key_phase, {}).get(key_time, 0)
-        if not active:
-            key_time = "off_task"
-        elif interruption:
-            key_time = "interruption"
-        else:
-            key_time = "actual"
-        value = (self.cells.get(phase, {}).get(key_time) or 0) + 1
-        self.cells.setdefault(key_phase, {})[key_time] = value
-        self.cells.sync()
-        row = PSP_PHASES.index(phase)
-        col = PSP_TIMES.index(key_time)
-        self.UpdateValues(row, col)
-        self.grid.SelectRow(-1)
-        self.grid.SelectRow(row)
-        return self.cells.get(phase, {})
+        if self.data is not None:
+            key_phase = phase
+            key_time = "plan"
+            plan = self.data.get(key_phase, {}).get(key_time, 0)
+            if not active:
+                key_time = "off_task"
+            elif interruption:
+                key_time = "interruption"
+            else:
+                key_time = "actual"
+            value = (self.data.get(phase, {}).get(key_time) or 0) + 1
+            self.data.setdefault(key_phase, {})[key_time] = value
+            self.data.sync()
+            row = PSP_PHASES.index(phase)
+            col = PSP_TIMES.index(key_time)
+            self.UpdateValues(row, col)
+            self.grid.SelectRow(-1)
+            self.grid.SelectRow(row)
+            return self.data.get(phase, {})
 
     def comment(self, phase, message, delta):
         "Record the comment of an interruption in selected phase"
+        return
         key_phase = phase
-        comments = self.cells.get(key_phase, {}).get('comments', [])
+        comments = self.data.get(key_phase, {}).get('comments', [])
         comments.append((message, delta))
-        self.cells[key_phase]['comments'] = comments
-        self.cells.sync()
+        self.data[key_phase]['comments'] = comments
+        self.data.sync()
         row = PSP_PHASES.index(phase)
         self.UpdateValues(row)
         self.grid.SelectRow(row)
@@ -171,10 +177,17 @@ class PlanSummaryTable(wx.grid.PyGridTableBase):
             #self.grid.ForceRefresh()
             self.grid.EndBatch()
 
+    def Clear(self):
+        self.data = None
+
+    def Load(self, data):
+        self.data = data
+        self.UpdateValues()
+
         
 class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
     "Defect recording log facilities"
-    def __init__(self, parent, filename=""):
+    def __init__(self, parent):
         wx.ListCtrl.__init__(self, parent, -1, 
             style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_ALIGN_LEFT)
         ListCtrlAutoWidthMixin.__init__(self)
@@ -212,11 +225,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.selecteditemindex = None
         self.key_map = {}  # pos -> key
         
-        self.data = shelve.open(filename, writeback=True)
-        defects = self.data.items()
-        defects.sort(key=lambda d: int(d[1]['number']))
-        for key, item in defects:
-            self.AddItem(item, key)
+        self.data = None
 
         # make a popup-menu
         self.menu = wx.Menu()
@@ -239,9 +248,13 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.selected_index = None
 
     def __del__(self):
-        self.data.close()
+        if self.data is not None:
+            self.data.close()
 
     def AddItem(self, item, key=None):
+        # ignore defect if psp task was not selected
+        if self.data is None:
+            return
         # check for duplicates (if defect already exists, do not add again!)
         if key is None:
             for defect in self.data.values():
@@ -253,8 +266,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
                     key = defect['uuid']
                     self.parent.psp_log_event("dup_defect", uuid=key, comment=str(item))
                     return
-        if "_checked" not in item:
-            item["_checked"] = False
+        if "checked" not in item:
+            item["checked"] = False
         index = self.InsertStringItem(sys.maxint, str(item["number"]))
         # calculate max number + 1
         if item['number'] is None:
@@ -285,7 +298,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self.SetStringItem(index, col_def[0], val)
         self.key_map[long(index)] = key
         self.SetItemData(index, long(index))
-        if item["_checked"]:
+        if item["checked"]:
             self.ToggleItem(index)
 
     def OnRightClick(self, event):
@@ -314,7 +327,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         key = self.key_map[pos]
         item = self.data[key]
         title = item["number"]
-        if item.get("_checked") != flag:
+        if item.get("checked") != flag:
             if wontfix:
                 item["fix_time"] = None
                 col_key = 'fix_time' # clean fix time (wontfix mark)
@@ -330,7 +343,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             else:
                 what = "unchecked"
             self.parent.psp_log_event("%s_defect" % what, uuid=key)
-            item["_checked"] = flag
+            item["checked"] = flag
             self.data.sync()
 
     def OnKeyDown(self, event):
@@ -377,7 +390,6 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         if dlg.ShowModal() == wx.ID_OK:
             item.update(dlg.GetValue())
             self.UpdateItem(self.selected_index, item)
-        self.data[key] = item
         self.data.sync()
 
     def UpdateItem(self, index, item):
@@ -392,12 +404,10 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self.SetStringItem(index, col_def[0], val)
 
     def DeleteAllItems(self):
-        for key in self.data:
-            del self.data[key]
-        self.data.sync()
+        self.data = None
         self.selected_index = None
         wx.ListCtrl.DeleteAllItems(self)
-       
+
     def OnItemSelected(self, evt):
         self.selected_index = evt.m_itemIndex
         
@@ -412,12 +422,18 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             key = self.key_map[pos]
             col_key = "fix_time"
             col_index = self.col_defs[col_key][0]
-            flag =  self.data[key]["_checked"]
+            flag =  self.data[key]["checked"]
             if not flag:
                 value = self.data[key][col_key] + 1
                 self.data[key][col_key] = value
                 self.data.sync()
                 self.SetStringItem(index, col_index, pretty_time(value))
+
+    def Load(self, data):
+        self.data = data
+        # refresh UI
+        for key, item in data.items():
+            self.AddItem(item, key)
         
 
 class DefectDialog(wx.Dialog):
@@ -524,10 +540,16 @@ class PSPMixin(object):
     def __init__(self):
         cfg = wx.GetApp().get_config("PSP")
         
-        # shelves (persistent dictionaries)
-        psp_defects = cfg.get("psp_defects", "psp_defects.dat")
-        psp_times = cfg.get("psp_times", "psp_times.dat")
-        psp_summary = cfg.get("psp_summary", "psp_summary.dat")
+        # create psp tables structure
+        self.db.create("defect", defect_id=int, task_id=int,
+                       number=int, summary=str, description=str,
+                       date=str, type=int, inject_phase=str, remove_phase=str,
+                       fix_time=float, fix_defect=int, checked=bool,
+                       filename=str, lineno=int, offset=int, uuid=str)
+        
+        self.db.create("time_summary", time_summary_id=int, task_id=int,
+                       phase=str, plan=float, actual=float, off_task=float,
+                       interruption=float, )
 
         # metadata directory (convert to full path)
         self.psp_metadata_dir = cfg.get("metadata", "medatada")
@@ -544,12 +566,12 @@ class PSPMixin(object):
        
         tb4 = self.CreatePSPToolbar()
 
-        grid = self.CreatePSPPlanSummaryGrid(filename=psp_times)
+        grid = self.CreatePSPPlanSummaryGrid()
         self._mgr.AddPane(grid, aui.AuiPaneInfo().
                           Caption("PSP Plan Summary Times").Name("psp_plan").
                           Bottom().Position(1).Row(2).
                           FloatingSize(wx.Size(200, 200)).CloseButton(True).MaximizeButton(True))
-        self.psp_defect_list = self.CreatePSPDefectRecordingLog(filename=psp_defects)
+        self.psp_defect_list = self.CreatePSPDefectRecordingLog()
         self._mgr.AddPane(self.psp_defect_list, aui.AuiPaneInfo().
                           Caption("PSP Defect Recording Log").Name("psp_defects").
                           Bottom().Row(2).
@@ -582,14 +604,14 @@ class PSPMixin(object):
         if Camera:
             wx.CallLater(1000., self.CreatePSPCamera)
 
-    def CreatePSPPlanSummaryGrid(self, filename):
+    def CreatePSPPlanSummaryGrid(self):
         grid = wx.grid.Grid(self)
-        self.psptimetable = PlanSummaryTable(grid, filename)
+        self.psptimetable = PlanSummaryTable(grid)
         grid.SetTable(self.psptimetable, True)
         return grid
 
-    def CreatePSPDefectRecordingLog(self, filename):
-        list = DefectListCtrl(self, filename)
+    def CreatePSPDefectRecordingLog(self):
+        list = DefectListCtrl(self)
         return list
 
     def CreatePSPMenu(self):
@@ -829,6 +851,8 @@ class PSPMixin(object):
             # register variation and calculate total elapsed time
             psp_times = self.psptimetable.count(phase, self.psp_interruption,
                                                 active)
+            if not psp_times:
+                return
             actual = psp_times.get('actual') or 0
             interruption = psp_times.get('interruption') or 0
             plan = float(psp_times.get('plan') or 0)
@@ -945,15 +969,24 @@ class PSPMixin(object):
         # remove GUI implementation details, match psp2py database model
         if self.task_id:
             task = self.db["task"][self.task_id]
+            
+            self.psp_defect_list.data.sync()
+            self.psptimetable.data.sync()
+            
+            if self.psp_rpc_client:
+                pass  ##self.psp_save_project_rpc(task["task_name"]):
+            return True
+
+    def psp_save_project_rpc(self, task_name):
             defects = []
             for defect in self.psp_defect_list.data.values():
                 defect = defect.copy()
                 defect['date'] = str(defect['date'])
-                del defect['_checked']
+                del defect['checked']
                 defects.append(defect)
             time_summaries = []
             comments = []
-            for phase, times in self.psptimetable.cells.items():
+            for phase, times in self.psptimetable.data.items():
                 time_summary = {'phase': phase}
                 time_summary.update(times)
                 for message, delta in time_summary.pop('comments', []):
@@ -997,22 +1030,30 @@ class PSPMixin(object):
         "Receive metrics from remote server (times and defects)"
         # clean up any previous metrics data:
         self.psp_defect_list.DeleteAllItems()
-        self.psptimetable.cells.clear()
-        # fetch and deserialize web2py rows to GUI data structures
+        self.psptimetable.Clear()
+        # fetch and deserialize database internal rows to GUI data structures
         if self.task_id:
             task = self.db["task"][self.task_id]
-            defects, time_summaries, comments = self.psp_rpc_client.load_project(task['task_name'])
-            defects.sort(key=lambda defect: int(defect['number']))
-            for defect in defects:
-                defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
-                self.psp_defect_list.AddItem(defect)
-            for time_summary in time_summaries:
-                self.psptimetable.cells[str(time_summary['phase'])] = time_summary
-            for comment in comments:
-                phase, message, delta = comment['phase'], comment['message'], comment['delta']
-                self.psptimetable.comment(str(phase), message, delta)
-            self.psptimetable.UpdateValues()
-            return True
+            data = Shelf(self.db, "defect", "uuid", task_id=self.task_id)
+            self.psp_defect_list.Load(data)
+            data = Shelf(self.db, "time_summary", "phase", task_id=self.task_id)
+            self.psptimetable.Load(data)
+            if self.psp_rpc_client:
+                pass ##self.psp_load_project_rpc(task['task_name'])
+  
+    def psp_load_project_rpc(self, task_name):
+        defects, times, comments = self.psp_rpc_client.load_project(task_name)
+        defects.sort(key=lambda defect: int(defect['number']))
+        for defect in defects:
+            defect["date"] = datetime.datetime.strptime(defect["date"], "%Y-%m-%d")
+            self.psp_defect_list.AddItem(defect)
+        for time_summary in time_summaries:
+            self.psptimetable.data[str(time_summary['phase'])] = time_summary
+        for comment in comments:
+            phase, message, delta = comment['phase'], comment['message'], comment['delta']
+            self.psptimetable.comment(str(phase), message, delta)
+        self.psptimetable.UpdateValues()
+        return True
 
     def OnCheckPSP(self, event):
         "Find defects and errors, if complete, change to the next phase"
@@ -1027,7 +1068,7 @@ class PSPMixin(object):
             errors = []     # sanity checks (planning & postmortem)
             if phase == "planning":
                 # check plan summary completeness
-                for phase, times in self.psptimetable.cells.items():
+                for phase, times in self.psptimetable.data.items():
                     if not times['plan']:
                         errors.append("Complete %s estimate time!" % phase)
             elif phase == "design" or phase == "code":
