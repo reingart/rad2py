@@ -41,7 +41,7 @@ class TaskMixin(object):
         # create the structure for the task-based database:
         self.db = wx.GetApp().get_db()
         self.db.create("task", task_id=int, task_name=str, task_uuid=str,
-                               repo_path=str, closed=bool,
+                               repo_path=str, closed=bool, status=str,
                                title=str, description=str, type=str,
                                resolution=str, owner=str, assignee=str,                               
                                started=str, completed=str, milestone=str,
@@ -197,9 +197,17 @@ class TaskMixin(object):
         kwargs['organization'], kwargs['project'] = url.split("/")[3:5]
         gh = connector.GitHub(**kwargs)
         for data in gh.list_tasks():
+            print data
             task = self.db["task"](task_name=data['name'], 
                                    organization=kwargs['organization'],
                                    project=kwargs['project'],
+                                   description=data['description'],
+                                   type=data['type'],
+                                   resolution=data['resolution'],
+                                   started=data['started'],
+                                   owner=data['owner'], 
+                                   status=data['status'], 
+                                   ##assignee=data['assignee'],
                                    connector="github")
             if not task:
                 # add the new task
@@ -207,6 +215,13 @@ class TaskMixin(object):
                                            task_uuid=str(uuid.uuid1()),
                                            connector="github",
                                            organization=kwargs['organization'],
+                                           description=data['description'],
+                                           type=data['type'],
+                                           resolution=data['resolution'],
+                                           started=data['started'],
+                                           owner=data['owner'],
+                                           status=data['status'], 
+                                           ##assignee=data['assignee'],
                                            project=kwargs['project'])
                 task.save()
             # update the task
@@ -294,7 +309,7 @@ class TaskMixin(object):
             kwargs['project'] = task['project'] or 'prueba'
             gh = connector.GitHub(**kwargs)
             # get the current panel, or create a new one:
-            wx.CallLater(3000, self.task_panel.Load, gh, {"name": task['task_name']})
+            wx.CallLater(3000, self.task_panel.Load, gh, task)
 
     def deactivate_task(self):
         # store the opened repository to the current active task (if any):
@@ -303,6 +318,8 @@ class TaskMixin(object):
         if self.task_id:
             task = self.db["task"][self.task_id]
             task['repo_path'] = self.repo_path
+            # get data from task pane:
+            self.task_panel.Save()
             task.save()
             self.db.commit()
         self.set_task(None)
@@ -474,15 +491,18 @@ class TaskPanel(ScrolledPanel):
                 }
         return item
 
-    def Load(self, connector, data):
+    def Load(self, connector, data, force=False):
         self.connector = connector
-        self.data = connector.get_task(data)
+        # do not request GitHub data to speed up startup time
+        self.data = connector.get_task(data) if force else data
         self.SetValue(self.data)
         self.image.SetBitmap(images.github_mark_32px.GetBitmap())
 
-    def OnSubmit(self, event):
+    def Save(self):
         self.data.update(self.GetValue())
-        print self.data
+
+    def OnSubmit(self, event):
+        self.Save()
         self.connector.update_task(self.data)
 
 
