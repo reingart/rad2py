@@ -254,7 +254,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                 
             # load text (unicode!)
             self.SetText(text)
-            self.uuids = [str(uuid.uuid1()) 
+            # generate internal uuid + column origin (0) for each line:
+            self.uuids = [[str(uuid.uuid1()), 0] 
                           for i in range(self.GetLineCount())]
             
             # remote text cannot be modified:
@@ -1127,27 +1128,49 @@ class EditorCtrl(stc.StyledTextCtrl):
     def OnModified(self, evt):
         "Handle modifications to keep track of line identifiers (uuid)"
         # TODO: copy/paste (clipboard) and undo/redo
-        # NOTE: possibly this should check inserted chars within the line 
-        # (not only the cursor position, a good approximate but not so accurate)
+        # uses line origin (initially 0) to detect boundaries of inserted text 
         mod_type = evt.GetModificationType()
         pos = evt.GetPosition()
         lineno = self.LineFromPosition(pos)
         count = abs(evt.GetLinesAdded())
-        offset = self.PositionFromLine(lineno)
-        # add the line after the current if not at the very begging
-        # if at the beggin, the current line is moved down
-        # (this preserves the correct uuid either when inserting or deleting)
-        after = 1 if offset != pos else 0
-        if mod_type & stc.STC_MOD_INSERTTEXT:
-            ##print "Inserted %d @ %d %d %d" % (count, lineno, pos, offset)
-            for i in range(count):
-                new_uuid = str(uuid.uuid1())
-                self.uuids.insert(lineno + i + after, new_uuid)
-            ##print '\n'.join(self.uuids)
-        if mod_type & stc.STC_MOD_DELETETEXT:
-            ##print "Removed %d lines @ %d" % (count, lineno)
-            del self.uuids[lineno + after:count + lineno + after]
-            ##print '\n'.join(self.uuids)
+        offset = self.PositionFromLine(lineno) 
+        
+        if count:
+            # adjust with the column origin
+            if lineno < len(self.uuids):
+                offset += self.uuids[lineno][1]
+                self.uuids[lineno][1] = 0
+            # add the line after the current if not at the very begging
+            # if at the beggin, the current line is moved down
+            # (this preserves the correct uuid when inserting or deleting)
+            after = 1 if offset < pos else 0
+            if mod_type & stc.STC_MOD_INSERTTEXT:
+                ##print "Inserted %d @ %d %d %d" % (count, lineno, pos, offset)
+                for i in range(count):
+                    new_uuid = str(uuid.uuid1())
+                    self.uuids.insert(lineno + i + after, [new_uuid, 0])
+            if mod_type & stc.STC_MOD_DELETETEXT:
+                ##print "Removed %d lines @ %d" % (count, lineno)
+                del self.uuids[lineno + after:count + lineno + after]
+        else:
+            # no newline, track insert and deletes (moving origin column)
+            u = self.uuids[lineno][0]
+            origin = self.uuids[lineno][1]
+            if mod_type & stc.STC_MOD_INSERTTEXT:
+                new_origin = (pos - offset) + evt.GetLength()
+                if new_origin > origin:
+                    self.uuids[lineno][1] = new_origin
+                    print "changed!"
+            elif mod_type & stc.STC_MOD_DELETETEXT:
+                new_origin = (pos - offset)
+                if new_origin < origin:
+                    self.uuids[lineno][1] = new_origin
+                    print "changed!"
+            else:
+                new_origin = None
+            ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
+        ##print '\n'.join([str(u) + self.GetLine(i) for i, u in enumerate(self.uuids)])
+
 
 class StandaloneEditor(wx.Frame):
 
