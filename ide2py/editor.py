@@ -477,6 +477,12 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.SetSelection(newpos, newpos)
         elif key == wx.WXK_SPACE and control and not self.AutoCompActive():
             self.AutoComplete()
+        elif key == ord('X') and control and not alt:
+            self.Cut()
+        elif key == ord('C') and control and not alt:
+            self.Copy()
+        elif key == ord('V') and control and not alt:
+            self.Paste()
         else:
             event.Skip()
 
@@ -1066,11 +1072,11 @@ class EditorCtrl(stc.StyledTextCtrl):
     def DoBuiltIn(self, event):
         evtid = event.GetId()
         if evtid == wx.ID_COPY:
-            self.CmdKeyExecute(wx.stc.STC_CMD_COPY)
+            self.Copy()
         elif evtid == wx.ID_PASTE:
             self.Paste()
         elif evtid == wx.ID_CUT:
-            self.CmdKeyExecute(wx.stc.STC_CMD_CUT)
+            self.Cut()
         elif evtid == wx.ID_DELETE:
             self.CmdKeyExecute(wx.stc.STC_CMD_CLEAR)
         elif evtid == wx.ID_UNDO:
@@ -1078,6 +1084,37 @@ class EditorCtrl(stc.StyledTextCtrl):
         elif evtid == wx.ID_REDO:
             self.CmdKeyExecute(stc.STC_CMD_REDO)  
     
+    def Cut(self):
+        "Override default Cut to track lines using an internal clipboard"
+        start = self.LineFromPosition(self.GetSelectionStart())
+        end = self.LineFromPosition(self.GetSelectionEnd())
+        # store the uuids and line text to check on pasting:
+        original_text_lines = [self.GetLine(i) for i in range(start, end)]
+        self.clipboard = original_text_lines, self.uuids[start:end]
+        # call the default method:
+        return stc.StyledTextCtrl.Cut(self)
+
+    def Copy(self):
+        "Override default Copy to track lines using an internal clipboard"
+        # just clean internal clipboard as lines will be new when pasted
+        self.clipboard = None
+        return stc.StyledTextCtrl.Copy(self)
+        
+    def Paste(self):
+        "Override default Paste to track lines using an internal clipboard"
+        start = self.LineFromPosition(self.GetSelectionStart())
+        ret = stc.StyledTextCtrl.Paste(self)
+        # only restore uuids if text is the same (not copied from other app):
+        if self.clipboard:
+            original_text_lines, uuids_saved = self.clipboard
+            end = start + len(uuids_saved)
+            new_text_lines = [self.GetLine(i) for i in range(start, end)]
+            if uuids_saved and original_text_lines == new_text_lines:
+                ##print "restoring", start, uuids_saved
+                self.uuids[start:start+end] = uuids_saved
+                self.clipboard = None
+        return ret
+        
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
         if self.debugger and self.debugger.attached and evt.GetPosition() >= 0:
@@ -1169,7 +1206,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             else:
                 new_origin = None
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
-        ##print '\n'.join([str(u) + self.GetLine(i) for i, u in enumerate(self.uuids)])
+        ##print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
+        ##               for i, u in enumerate(self.uuids)])
 
 
 class StandaloneEditor(wx.Frame):
