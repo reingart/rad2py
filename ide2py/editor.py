@@ -85,6 +85,9 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.calltip = 0
         self.breakpoints = {}
         self.uuids = []             # line tracking
+        self.clipboard = None       # lines text and uuids (cut)
+        self.actions_buffer = []    # insertions / deletions for undo and redo
+        self.actions_pointer = 0
         app = wx.GetApp()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
@@ -1115,6 +1118,9 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.clipboard = None
         return ret
         
+    def Undo(self):
+        print "UNDO!"
+        
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
         if self.debugger and self.debugger.attached and evt.GetPosition() >= 0:
@@ -1171,7 +1177,9 @@ class EditorCtrl(stc.StyledTextCtrl):
         lineno = self.LineFromPosition(pos)
         count = abs(evt.GetLinesAdded())
         offset = self.PositionFromLine(lineno) 
-        
+        undo = mod_type & stc.STC_PERFORMED_UNDO
+        redo = mod_type & stc.STC_PERFORMED_REDO
+
         if count:
             # adjust with the column origin
             if lineno < len(self.uuids):
@@ -1183,12 +1191,37 @@ class EditorCtrl(stc.StyledTextCtrl):
             after = 1 if offset < pos else 0
             if mod_type & stc.STC_MOD_INSERTTEXT:
                 ##print "Inserted %d @ %d %d %d" % (count, lineno, pos, offset)
+                if undo:
+                    action_info = self.get_last_action()
+                elif redo:
+                    action_info = self.get_next_action()
+                else:
+                    action_info = {}
                 for i in range(count):
-                    new_uuid = str(uuid.uuid1())
-                    self.uuids.insert(lineno + i + after, [new_uuid, 0])
+                    j = lineno + i + after
+                    if undo or redo:
+                        # restore previous uuid and origin
+                        new_uuid, origin = action_info[j]
+                    else:
+                        # create a new UUID
+                        new_uuid, origin = str(uuid.uuid1()), 0
+                    self.uuids.insert(j, [new_uuid, origin])
+                    if not undo and not redo:
+                        action_info[j] = [new_uuid, origin]
+                if not undo and not redo:
+                    self.store_action(action_info)
             if mod_type & stc.STC_MOD_DELETETEXT:
                 ##print "Removed %d lines @ %d" % (count, lineno)
+                if not undo and not redo:
+                    action_info = {}
+                    for i in range(count):
+                        j = lineno + i + after
+                        action_info[j] = self.uuids[j]
+                    self.store_action(action_info)
                 del self.uuids[lineno + after:count + lineno + after]
+            # move action buffer (history) pointer ahead or back accordingly 
+            if undo or redo:
+                self.actions_pointer += 1 if redo else -1
         else:
             # no newline, track insert and deletes (moving origin column)
             u = self.uuids[lineno][0]
@@ -1206,8 +1239,28 @@ class EditorCtrl(stc.StyledTextCtrl):
             else:
                 new_origin = None
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
-        ##print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
-        ##               for i, u in enumerate(self.uuids)])
+        print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
+                       for i, u in enumerate(self.uuids)])
+
+    def store_action(self, action_info):
+        "Save the action info to perorm a Undo / Redo"
+        # remove further actions (in case they were undone)
+        del self.actions_buffer[self.actions_pointer:]
+        self.actions_buffer.append(action_info)
+        print "saving action info", self.actions_pointer, action_info
+        self.actions_pointer += 1
+
+    def get_last_action(self):
+        "Return the action info needed to perform an Undo"
+        action_info = self.actions_buffer[self.actions_pointer - 1]
+        print "loading action info", self.actions_pointer - 1, action_info
+        return action_info
+
+    def get_next_action(self):
+        "Return the action info needed to perform a Redo"
+        action_info = self.actions_buffer[self.actions_pointer]
+        print "loading action info", self.actions_pointer, action_info
+        return action_info
 
 
 class StandaloneEditor(wx.Frame):
