@@ -1170,18 +1170,21 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def OnModified(self, evt):
         "Handle modifications to keep track of line identifiers (uuid)"
-        # TODO: copy/paste (clipboard) and undo/redo
+        # TODO: drag and drop 
+        # cut and paste is handled in their own methods (post-modification)
+        # undo and redo is handled using the action buffer (history)
+        # insertions and deletions are mapped to a list of uuids
         # uses line origin (initially 0) to detect boundaries of inserted text 
         mod_type = evt.GetModificationType()
         pos = evt.GetPosition()
         lineno = self.LineFromPosition(pos)
-        count = abs(evt.GetLinesAdded())
+        count = abs(evt.GetLinesAdded())            # negative on deletions
         offset = self.PositionFromLine(lineno) 
         undo = mod_type & stc.STC_PERFORMED_UNDO
         redo = mod_type & stc.STC_PERFORMED_REDO
-
+        # track lines only if there are lines inserted / deleted (count)
         if count:
-            # adjust with the column origin
+            # adjust offest with the origin column
             if lineno < len(self.uuids):
                 offset += self.uuids[lineno][1]
                 self.uuids[lineno][1] = 0
@@ -1219,10 +1222,11 @@ class EditorCtrl(stc.StyledTextCtrl):
                         action_info[j] = self.uuids[j]
                     self.store_action(action_info)
                 del self.uuids[lineno + after:count + lineno + after]
-            # move action buffer (history) pointer ahead or back accordingly 
+            # move action buffer (history) pointer ahead/backwards accordingly
             if undo or redo:
+                # note: a STC undo action could involve several pointer units
                 self.actions_pointer += 1 if redo else -1
-        else:
+        elif self.uuids:
             # no newline, track insert and deletes (moving origin column)
             u = self.uuids[lineno][0]
             origin = self.uuids[lineno][1]
@@ -1230,36 +1234,36 @@ class EditorCtrl(stc.StyledTextCtrl):
                 new_origin = (pos - offset) + evt.GetLength()
                 if new_origin > origin:
                     self.uuids[lineno][1] = new_origin
-                    print "changed!"
             elif mod_type & stc.STC_MOD_DELETETEXT:
                 new_origin = (pos - offset)
                 if new_origin < origin:
                     self.uuids[lineno][1] = new_origin
-                    print "changed!"
             else:
                 new_origin = None
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
-        print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
-                       for i, u in enumerate(self.uuids)])
+        # output some debugging messages (uuid internal representation):
+        if False:
+            print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
+                           for i, u in enumerate(self.uuids)])
 
     def store_action(self, action_info):
         "Save the action info to perorm a Undo / Redo"
         # remove further actions (in case they were undone)
         del self.actions_buffer[self.actions_pointer:]
         self.actions_buffer.append(action_info)
-        print "saving action info", self.actions_pointer, action_info
+        ##print "saving action info", self.actions_pointer, action_info
         self.actions_pointer += 1
 
     def get_last_action(self):
         "Return the action info needed to perform an Undo"
         action_info = self.actions_buffer[self.actions_pointer - 1]
-        print "loading action info", self.actions_pointer - 1, action_info
+        ##print "loading action info", self.actions_pointer - 1, action_info
         return action_info
 
     def get_next_action(self):
         "Return the action info needed to perform a Redo"
         action_info = self.actions_buffer[self.actions_pointer]
-        print "loading action info", self.actions_pointer, action_info
+        ##print "loading action info", self.actions_pointer, action_info
         return action_info
 
 
