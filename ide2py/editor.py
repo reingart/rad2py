@@ -84,8 +84,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.modified = None
         self.calltip = 0
         self.breakpoints = {}
-        self.uuids = []             # line tracking
-        self.clipboard = None       # lines text and uuids (cut)
+        self.metadata = []          # dict of uuid, origin for line tracking
+        self.clipboard = None       # lines text and metadata for cut/paste
         self.actions_buffer = []    # insertions / deletions for undo and redo
         self.actions_pointer = 0
         app = wx.GetApp()
@@ -232,7 +232,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         for key, value in cfg_styles.items():
             self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
 
-    def LoadFile(self, filename, encoding=None):
+    def LoadFile(self, filename, encoding=None, metadata=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"
         # open the file with universal line-endings support
         f = None
@@ -257,9 +257,13 @@ class EditorCtrl(stc.StyledTextCtrl):
                 
             # load text (unicode!)
             self.SetText(text)
-            # generate internal uuid + column origin (0) for each line:
-            self.uuids = [[str(uuid.uuid1()), 0] 
-                          for i in range(self.GetLineCount())]
+            # 
+            if metadata:
+                self.metadata = metadata
+            else:
+                # generate internal uuid + column origin (0) for each line:
+                self.metadata = [{'uuid': str(uuid.uuid1()), 'origin': 0} 
+                                  for i in range(self.GetLineCount())]
             
             # remote text cannot be modified:
             if readonly:  
@@ -1093,7 +1097,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         end = self.LineFromPosition(self.GetSelectionEnd())
         # store the uuids and line text to check on pasting:
         original_text_lines = [self.GetLine(i) for i in range(start, end)]
-        self.clipboard = original_text_lines, self.uuids[start:end]
+        self.clipboard = original_text_lines, self.metadata[start:end]
         # call the default method:
         return stc.StyledTextCtrl.Cut(self)
 
@@ -1109,12 +1113,12 @@ class EditorCtrl(stc.StyledTextCtrl):
         ret = stc.StyledTextCtrl.Paste(self)
         # only restore uuids if text is the same (not copied from other app):
         if self.clipboard:
-            original_text_lines, uuids_saved = self.clipboard
-            end = start + len(uuids_saved)
+            original_text_lines, metadata_saved = self.clipboard
+            end = start + len(metadata_saved)
             new_text_lines = [self.GetLine(i) for i in range(start, end)]
-            if uuids_saved and original_text_lines == new_text_lines:
-                ##print "restoring", start, uuids_saved
-                self.uuids[start:start+end] = uuids_saved
+            if metadata_saved and original_text_lines == new_text_lines:
+                ##print "restoring", start, metadata_saved
+                self.metadata[start:start+end] = metadata_saved
                 self.clipboard = None
         return ret
         
@@ -1185,9 +1189,9 @@ class EditorCtrl(stc.StyledTextCtrl):
         # track lines only if there are lines inserted / deleted (count)
         if count:
             # adjust offest with the origin column
-            if lineno < len(self.uuids):
-                offset += self.uuids[lineno][1]
-                self.uuids[lineno][1] = 0
+            if lineno < len(self.metadata):
+                offset += self.metadata[lineno]["origin"]
+                self.metadata[lineno]["origin"] = 0
             # add the line after the current if not at the very begging
             # if at the beggin, the current line is moved down
             # (this preserves the correct uuid when inserting or deleting)
@@ -1204,13 +1208,14 @@ class EditorCtrl(stc.StyledTextCtrl):
                     j = lineno + i + after
                     if undo or redo:
                         # restore previous uuid and origin
-                        new_uuid, origin = action_info[j]
+                        new_uuid = action_info[j]["uuid"]
+                        origin = action_info[j]["origin"]
                     else:
                         # create a new UUID
                         new_uuid, origin = str(uuid.uuid1()), 0
-                    self.uuids.insert(j, [new_uuid, origin])
+                    self.metadata.insert(j, {"uuid": new_uuid, "origin": origin})
                     if not undo and not redo:
-                        action_info[j] = [new_uuid, origin]
+                        action_info[j] = {"uuid": new_uuid, "origin": origin}
                 if not undo and not redo:
                     self.store_action(action_info)
             if mod_type & stc.STC_MOD_DELETETEXT:
@@ -1219,32 +1224,34 @@ class EditorCtrl(stc.StyledTextCtrl):
                     action_info = {}
                     for i in range(count):
                         j = lineno + i + after
-                        action_info[j] = self.uuids[j]
+                        action_info[j] = self.metadata[j]
                     self.store_action(action_info)
-                del self.uuids[lineno + after:count + lineno + after]
+                del self.metadata[lineno + after:count + lineno + after]
             # move action buffer (history) pointer ahead/backwards accordingly
             if undo or redo:
                 # note: a STC undo action could involve several pointer units
                 self.actions_pointer += 1 if redo else -1
-        elif self.uuids:
+        elif self.metadata:
             # no newline, track insert and deletes (moving origin column)
-            u = self.uuids[lineno][0]
-            origin = self.uuids[lineno][1]
+            u = self.metadata[lineno]["uuid"]
+            origin = self.metadata[lineno]["origin"]
             if mod_type & stc.STC_MOD_INSERTTEXT:
                 new_origin = (pos - offset) + evt.GetLength()
                 if new_origin > origin:
-                    self.uuids[lineno][1] = new_origin
+                    self.metadata[lineno]["origin"] = new_origin
             elif mod_type & stc.STC_MOD_DELETETEXT:
                 new_origin = (pos - offset)
                 if new_origin < origin:
-                    self.uuids[lineno][1] = new_origin
+                    self.metadata[lineno]["origin"] = new_origin
             else:
                 new_origin = None
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:
-            print ''.join(["%s%4d: %s" % (u, i+1, self.GetLine(i)) 
-                           for i, u in enumerate(self.uuids)])
+            for i, m in enumerate(self.metadata):
+                txt = self.GetLine(i).replace("\n", "")
+                lineno = i + 1
+                print "%s %s%4d:%s" % (m["uuid"], m["origin"], lineno, txt)
 
     def store_action(self, action_info):
         "Save the action info to perorm a Undo / Redo"
