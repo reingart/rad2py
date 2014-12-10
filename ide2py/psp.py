@@ -22,7 +22,7 @@ from wx.lib.agw.pygauge import PyGauge
 
 import images
 import simplejsonrpc
-from database import Shelf
+from database import DictShelf
 
 try:
     from camera import Camera           # camera sensor needs OpenCV
@@ -1034,9 +1034,9 @@ class PSPMixin(object):
         # fetch and deserialize database internal rows to GUI data structures
         if self.task_id:
             task = self.db["task"][self.task_id]
-            data = Shelf(self.db, "defect", "uuid", task_id=self.task_id)
+            data = DictShelf(self.db, "defect", "uuid", task_id=self.task_id)
             self.psp_defect_list.Load(data)
-            data = Shelf(self.db, "time_summary", "phase", task_id=self.task_id)
+            data = DictShelf(self.db, "time_summary", "phase", task_id=self.task_id)
             self.psptimetable.Load(data)
             if self.psp_rpc_client:
                 pass ##self.psp_load_project_rpc(task['task_name'])

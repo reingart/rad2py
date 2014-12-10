@@ -94,6 +94,7 @@ class Database():
         values = [v for k, v in items]
         sql = "DELETE FROM %s WHERE %s" % (table, placemarks)
         cur = self.cursor()
+        if DEBUG: print sql, values
         cur.execute(sql, values)
         return cur.rowcount
 
@@ -219,6 +220,14 @@ class Row():
         self.data_out = {}
         return new_id
     
+    def erase(self):
+        "Remove a record from the database"
+        if self.primary_key:
+            self.db.delete(self.table_name, **self.primary_key)
+        else:
+            # record not inserted yet!!!
+            pass
+    
     def keys(self):
         if not self.data_in and self.query:
             self.load()
@@ -282,7 +291,7 @@ class Row():
         return key in self.data_in or field in self.data_out
 
 
-class Shelf(UserDict.DictMixin):
+class DictShelf(UserDict.DictMixin):
     "Database shelve replacement implementation (dictionary-like object)"
 
     def __init__(self, db, table_name, key_field_name, **filters):
@@ -319,10 +328,13 @@ class Shelf(UserDict.DictMixin):
 
     def __setitem__(self, key, value):
         # create a new Row proxy (value should be a dict!)
-        row = Row(self.db, self.table_name)
-        value.update(self.filters)
-        value[self.key_field_name] = key
-        row.update(value)
+        if not isinstance(value, Row):
+            row = Row(self.db, self.table_name)
+            value.update(self.filters)
+            row.update(value)
+        else:
+            row = value
+        row[self.key_field_name] = key
         self.dict[key] = row
         
     def setdefault(self, key, default=None):
@@ -333,7 +345,9 @@ class Shelf(UserDict.DictMixin):
             return self[key]
 
     def __delitem__(self, key):
-        raise NotImplementedError
+        row = self.dict[key]
+        row.erase()
+        del self.dict[key]
 
     def close(self):
         self.sync()
@@ -346,6 +360,43 @@ class Shelf(UserDict.DictMixin):
         for row in self.dict.values():
             row.save()
         self.db.commit()
+
+
+class ListShelf(DictShelf):
+    "Database shelve replacement implementation (list-like object)"
+    
+    def insert(self, pos, value):
+        # relocate
+        for i in range(len(self), pos, -1):
+            self[i] = self[i - 1]
+        self[pos] = value
+    
+    def append(self, value):
+        pos = len(self) 
+        self[pos] = value
+
+    def __setitem__(self, index, item):
+        return DictShelf.__setitem__(self, index + 1, item)
+
+    def __getitem__(self, index):
+        return DictShelf.__getitem__(self, index + 1)
+
+    def __delitem__(self, index):
+        if isinstance(index, slice):
+            if index.step is not None:
+                raise NotImplementedError
+            # remove one by one
+            for i in range(index.stop - 1, index.start - 1, -1):
+                del self[i]
+        else:
+            max_index = len(self) - 1
+            # delete the item in the database
+            DictShelf.__delitem__(self, index + 1)
+            # relocate elements
+            for i in range(index, max_index):
+                self[i] = self[i + 1]
+            # soft unlink (do not delete on the database):
+            del self.dict[max_index + 1]
 
 
 if __name__ == "__main__":
@@ -380,19 +431,33 @@ if __name__ == "__main__":
     print r['t1_id']
     r.save()
     # test shelve replacement (dict of dict):
-    s = Shelf(db, "t2", "s", t1_id=id1)
+    s = DictShelf(db, "t2", "s", t1_id=id1)
     s['hola'] = {'n': 1, 'f': 3.14}
     s['chau'] = {'n': 2}
     s['hola']['n'] = 3
     s.setdefault('nana', {})['n'] = 4
     s.close()
-    s = Shelf(db, "t2", "s", t1_id=id1)
+    s = DictShelf(db, "t2", "s", t1_id=id1)
     assert s['hola']['n'] == 3
     assert s['hola']['t1_id'] == id1
     assert s['chau']['n'] == 2
     assert s['chau']['t1_id'] == id1
     assert s['nana']['n'] == 4
+    s['hola']['n'] = 1
+    s['nana']['n'] = 3
     s.close()
     print "Closed!"
     
+    # test shelve replacement (list of dict):
+    l = ListShelf(db, "t2", "n", t1_id=id1)
+    assert l[0]['s'] == 'hola'
+    assert l[1]['s'] == 'chau'
+    l.insert(2, {'s': 'lola', 'f': 8.50})
+    assert l[3]['s'] == 'nana'
+    del l[0]
+    assert l[0]['s'] == 'chau'
+    assert l[1]['s'] == 'lola'
+    del l[0:2]
+    assert l[0]['s'] == 'nana'
+    s.close()
 
