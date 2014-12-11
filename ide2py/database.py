@@ -365,10 +365,15 @@ class DictShelf(UserDict.DictMixin):
 class ListShelf(DictShelf):
     "Database shelve replacement implementation (list-like object)"
     
+    # synchronization of changes in list position is done in the "key" field
+    base = 1    # python is 0 based, database records are 1 based
+    
     def insert(self, pos, value):
-        # relocate
+        # relocate the items 
         for i in range(len(self), pos, -1):
             self[i] = self[i - 1]
+            # soft unlink (or next modification will update the item)
+            del self.dict[i + self.base - 1]
         self[pos] = value
     
     def append(self, value):
@@ -376,10 +381,40 @@ class ListShelf(DictShelf):
         self[pos] = value
 
     def __setitem__(self, index, item):
-        return DictShelf.__setitem__(self, index + 1, item)
+        if isinstance(index, slice):
+            if index.step is not None:
+                raise NotImplementedError
+            delete_indexes = []
+            # store a list of items (one at a time)
+            for j, i in enumerate(range(index.start, index.stop)):
+                if j > len(item) - 1:
+                    delete_indexes.append(i)
+                else:
+                    self[i] = item[j]
+            # if the list is smaller, delete the rest of the items 
+            for i in reversed(delete_indexes):
+                del self[i]
+            return
+        # if there is a item already, do not create a new row (preserve pk)
+        if (index + self.base) in self.dict:
+            row = DictShelf.__getitem__(self, index + self.base)
+            row.update(dict(item))
+            item = row
+        # store the item (calling the base class)
+        return DictShelf.__setitem__(self, index + self.base, item)
 
     def __getitem__(self, index):
-        return DictShelf.__getitem__(self, index + 1)
+        if isinstance(index, slice):
+            if index.step is not None:
+                raise NotImplementedError
+            ret = []
+            # fetch a list of items (one at a time)
+            for i in range(index.start, index.stop):
+                ret.append(self[i])
+            return ret
+        else:
+            # fetch an individual item
+            return DictShelf.__getitem__(self, index + self.base)
 
     def __delitem__(self, index):
         if isinstance(index, slice):
@@ -391,12 +426,12 @@ class ListShelf(DictShelf):
         else:
             max_index = len(self) - 1
             # delete the item in the database
-            DictShelf.__delitem__(self, index + 1)
+            DictShelf.__delitem__(self, index + self.base)
             # relocate elements
             for i in range(index, max_index):
                 self[i] = self[i + 1]
-            # soft unlink (do not delete on the database):
-            del self.dict[max_index + 1]
+                # soft unlink as moved (do not delete on the database):
+                del self.dict[i + 1 + self.base]
 
 
 if __name__ == "__main__":
@@ -459,5 +494,9 @@ if __name__ == "__main__":
     assert l[1]['s'] == 'lola'
     del l[0:2]
     assert l[0]['s'] == 'nana'
+    l[0]['s'] = 'prueba'
+    t2_id = l[0]['t2_id']
+    l[0] = {'s': 'nada'}
+    assert t2_id == l[0]['t2_id']
     s.close()
 
