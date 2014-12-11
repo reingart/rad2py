@@ -1186,7 +1186,8 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
         app = wx.GetApp()
 
         self.editor = EditorCtrl(self,-1, filename=filename,    
-                                 debugger=parent.debugger,
+                                 debugger=parent.debugger, 
+                                 metadata=parent.get_metadata(filename),
                                  lang="python", 
                                  title=title,
                                  cfg=app.get_config("EDITOR"),

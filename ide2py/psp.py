@@ -14,6 +14,7 @@ import datetime
 import os, os.path
 import sys
 import hashlib, uuid
+import cPickle as pickle
 import wx
 import wx.grid
 from wx.lib.mixins.listctrl import CheckListCtrlMixin, ListCtrlAutoWidthMixin
@@ -22,7 +23,7 @@ from wx.lib.agw.pygauge import PyGauge
 
 import images
 import simplejsonrpc
-from database import DictShelf
+from database import DictShelf, ListShelf
 
 try:
     from camera import Camera           # camera sensor needs OpenCV
@@ -542,14 +543,17 @@ class PSPMixin(object):
         
         # create psp tables structure
         self.db.create("defect", defect_id=int, task_id=int,
-                       number=int, summary=str, description=str,
+                       number=int, summary=str, description=str, line_uuid=str,
                        date=str, type=int, inject_phase=str, remove_phase=str,
                        fix_time=float, fix_defect=int, checked=bool,
                        filename=str, lineno=int, offset=int, uuid=str)
         
         self.db.create("time_summary", time_summary_id=int, task_id=int,
                        phase=str, plan=float, actual=float, off_task=float,
-                       interruption=float, )
+                       interruption=float, total_time=float)
+
+        self.db.create("metadata", metadata_id=int, filename=str, uuid=str,
+                       lineno=int, origin=int, phase=str, text=str)
 
         # metadata directory (convert to full path)
         self.psp_metadata_dir = cfg.get("metadata", "medatada")
@@ -1177,6 +1181,10 @@ class PSPMixin(object):
             filename = self.active_child.GetFilename()
             if filename:
                 self.update_metadata(filename, show)
+    
+    def get_metadata(self, filename):
+        "Build a persistent list of dicts with line metadata (uuid, phase, ...)"
+        return ListShelf(self.db, "metadata", "lineno", filename=filename)
         
     def update_metadata(self, filename, show=False):
         import fileutil
