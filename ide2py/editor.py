@@ -51,7 +51,7 @@ class EditorCtrl(stc.StyledTextCtrl):
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
-                 style=0, filename=None, debugger=None, cfg={},
+                 style=0, filename=None, debugger=None, cfg={}, metadata=None,
                  lang="python", title="", cfg_styles={}):
         global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
 
@@ -84,7 +84,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.modified = None
         self.calltip = 0
         self.breakpoints = {}
-        self.metadata = []          # dict of uuid, origin for line tracking
+        self.metadata = metadata    # dict of uuid, origin for line tracking
         self.clipboard = None       # lines text and metadata for cut/paste
         self.actions_buffer = []    # insertions / deletions for undo and redo
         self.actions_pointer = 0
@@ -232,7 +232,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         for key, value in cfg_styles.items():
             self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
 
-    def LoadFile(self, filename, encoding=None, metadata=None):
+    def LoadFile(self, filename, encoding=None):
         "Replace STC.LoadFile for non-unicode files and BOM support"
         # open the file with universal line-endings support
         f = None
@@ -254,16 +254,21 @@ class EditorCtrl(stc.StyledTextCtrl):
             
             # set line endings mode
             self.SetEOLMode(self.eol)
-                
+
+            # if metadata is given, avoid updating it in the initial inserts
+            if self.metadata:
+                mask = self.GetModEventMask()
+                # disable modification events
+                self.SetModEventMask(0)
+            else:
+                mask = None
+            
             # load text (unicode!)
             self.SetText(text)
-            # 
-            if metadata:
-                self.metadata = metadata
-            else:
-                # generate internal uuid + column origin (0) for each line:
-                self.metadata = [{'uuid': str(uuid.uuid1()), 'origin': 0} 
-                                  for i in range(self.GetLineCount())]
+            
+            # re-enable modification events (if disabled):
+            if mask is not None:
+                self.SetModEventMask(mask)
             
             # remote text cannot be modified:
             if readonly:  
@@ -314,6 +319,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         else:
             # file not loaded correctly, empty its name (assume new)
             self.filename = None
+            self.metadata = None
 
     def GetTitle(self):
         if self.title:
@@ -1118,7 +1124,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             new_text_lines = [self.GetLine(i) for i in range(start, end)]
             if metadata_saved and original_text_lines == new_text_lines:
                 ##print "restoring", start, metadata_saved
-                self.metadata[start:start+end] = metadata_saved
+                self.metadata[start:end] = metadata_saved
                 self.clipboard = None
         return ret
         
@@ -1213,7 +1219,9 @@ class EditorCtrl(stc.StyledTextCtrl):
                     else:
                         # create a new UUID
                         new_uuid, origin = str(uuid.uuid1()), 0
-                    self.metadata.insert(j, {"uuid": new_uuid, "origin": origin})
+                    datum = {"uuid": new_uuid, "origin": origin}
+                    datum["text"] = self.GetLine(j)
+                    self.metadata.insert(j, datum)
                     if not undo and not redo:
                         action_info[j] = {"uuid": new_uuid, "origin": origin}
                 if not undo and not redo:
