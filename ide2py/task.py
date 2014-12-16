@@ -412,9 +412,9 @@ class TaskMixin(object):
         total_time_sum = sum([ctx['total_time'] or 0.0
                               for ctx in self.task_context_files.values()], 0.0)
         # check if it is a context file (do not track if never was activated)
-        if filename in self.task_context_files:
+        if filename in self.task_context_files and total_time_sum:
             ctx = self.task_context_files[filename]
-            relevance = ctx['total_time'] / total_time_sum  * 100
+            relevance = (ctx['total_time'] or 0.0) / total_time_sum  * 100
             if DEBUG: print "Relevance", filename, relevance, total_time_sum
         else:
             relevance = 0
