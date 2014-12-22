@@ -104,8 +104,8 @@ class Database():
         basic_types = tuple(SQL_TYPE_MAP.keys())
         aggregate_types = {sum: 'sum', len: 'count', min: 'min', max: 'max'}
         all_types = basic_types + tuple(aggregate_types.keys())
-        where = ' AND '.join(["%s=?" % k for k, v in items
-                                         if v not in all_types])
+        where = ' AND '.join(["%s %s ?" % (k, "=" if v is not None else " is ") 
+                              for k, v in items if v not in all_types])
         fields = ', '.join([(k if v in basic_types 
                                else "%s(%s)" % (aggregate_types[v], k))
                             for k, v in items 
