@@ -433,6 +433,11 @@ class ListShelf(DictShelf):
                 # soft unlink as moved (do not delete on the database):
                 del self.dict[i + 1 + self.base]
 
+    def __iter__(self):
+        "Iterate values in list order"
+        for i in sorted(self.dict.keys()):
+            yield self.dict[i]
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
