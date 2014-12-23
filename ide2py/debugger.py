@@ -274,7 +274,6 @@ class Debugger(qdb.Frontend):
             return True
         if self.filename and self.lineno:
             curr_line = self.gui.GetLineText(self.filename, self.lineno)
-            curr_line = curr_line.strip().strip("\r").strip("\n")
         # check if no exception raised
         if self.unrecoverable_error:
             dlg = wx.MessageDialog(self.gui, 
