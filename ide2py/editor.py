@@ -264,6 +264,11 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.SetModEventMask(0)
             else:
                 mask = None
+                # add the metadata for the first line (even empty files has one) 
+                phase = self.get_current_phase()
+                datum = {"uuid": str(uuid.uuid1()), "origin": 0, "phase": phase}
+                datum["text"] = ""
+                self.metadata.insert(0, datum)
             
             # load text (unicode!)
             self.SetText(text)
