@@ -896,7 +896,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         # used by the debugger to detect modifications runtime
         child = self.DoOpen(filename)
         if child:
-            return child.GetLineText(lineno)
+            return child.GetLineText(lineno, encode=True)
 
     def Readline(self):
         # ensure "console" pane is visible
