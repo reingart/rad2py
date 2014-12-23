@@ -555,18 +555,12 @@ class PSPMixin(object):
         self.db.create("metadata", metadata_id=int, filename=str, uuid=str,
                        lineno=int, origin=int, phase=str, text=str)
 
-        # metadata directory (convert to full path)
-        self.psp_metadata_dir = cfg.get("metadata", "medatada")
-        self.psp_metadata_dir = os.path.abspath(self.psp_metadata_dir)
-        self.psp_metadata_cache = {}     # filename: (filestamp, metadata)
-        if not os.path.exists(self.psp_metadata_dir):
-            os.makedirs(self.psp_metadata_dir)
-
         # text recording logs
         psp_event_log_filename = cfg.get("psp_event_log", "psp_event_log.txt")
         self.psp_event_log_file = open(psp_event_log_filename, "a")
 
         self._current_psp_phase = None
+        self.psp_metadata_cache = {}
        
         tb4 = self.CreatePSPToolbar()
 
@@ -900,8 +894,8 @@ class PSPMixin(object):
             filename = self.active_child.GetFilename()
             lineno = self.active_child.GetCurrentLine()
             if filename and lineno:
-                metadata = self.update_metadata(filename)
-                phase, line = metadata[lineno-1]
+                metadata = self.get_metadata(filename)
+                phase = metadata[lineno-1]['phase']
         dlg.SetValue({'inject_phase': phase})
         if dlg.ShowModal() == wx.ID_OK:
             item = dlg.GetValue()
@@ -916,8 +910,8 @@ class PSPMixin(object):
         no = None
         # if filename and line number, get injected psp phase from metadata
         if filename and lineno and not filename.startswith("<"):
-            metadata = self.update_metadata(filename)
-            phase, line = metadata[lineno-1]
+            metadata = self.get_metadata(filename)
+            phase = metadata[lineno-1]['phase']
         else:
             phase = "" #self.GetPSPPhase()
         item = {'number': no, 'summary': summary, "date": datetime.date.today(), 
@@ -1180,62 +1174,22 @@ class PSPMixin(object):
         if self.active_child:
             filename = self.active_child.GetFilename()
             if filename:
-                self.update_metadata(filename, show)
+                self.get_metadata(filename, show)
     
-    def get_metadata(self, filename):
+    def get_metadata(self, filename, show=False):
         "Build a persistent list of dicts with line metadata (uuid, phase, ...)"
-        return ListShelf(self.db, "metadata", "lineno", filename=filename)
-        
-    def update_metadata(self, filename, show=False):
-        import fileutil
-        import diffutil
-        
-        # check if file was modified (cache stale):
-        timestamp, metadata = self.psp_metadata_cache.get(filename, (None, None))
-        if timestamp is None or timestamp != os.stat(filename).st_mtime:
-            timestamp = os.stat(filename).st_mtime
-            metadata = None
 
-        # if not metadata valid in cached, rebuild it:
+        # check if it is in cache:
+        metadata = self.psp_metadata_cache.get(filename)
+
+        # if not metadata valid in cache, query the database:
         if metadata is None:
-            # read current text file and split lines
-            with open(filename, "r") as f:
-                text, encoding, bom, eol, newlines = fileutil.unicode_file_read(f, "utf8")
-            # prepare new text lines
-            new = text.split(newlines)
-            # check to see if there is old metadata
-            fn_hash = hashlib.sha224(filename).hexdigest()
-            metadata_fn = os.path.join(self.psp_metadata_dir, "%s.dat" % fn_hash)
-            if not os.path.exists(metadata_fn):
-                # create metadata
-                metadata = dict([(i, (self.current_psp_phase, l)) 
-                                 for i, l in enumerate(new)])
-            else:
-                with open(metadata_fn, 'rb') as pkl:
-                    old_metadata = pickle.load(pkl)
-                # get old text lines
-                old = [l for (phase, l) in old_metadata.values()]
-                # compare new and old lines
-                changes = diffutil.track_lines_changes(old, new)
-                new_metadata = {}
-                for old_lno, new_lno in changes:
-                    if new_lno is not None and old_lno is None:
-                        # new or replaced, change metadata
-                        new_metadata[new_lno] = self.current_psp_phase , new[new_lno]
-                    elif new_lno is not None and old_lno is not None:
-                        # equal, maintain metadata
-                        new_metadata[new_lno] = old_metadata[old_lno][0], new[new_lno]
-                    else:
-                        # deleted, do not copy to new metadata
-                        pass 
-                metadata = new_metadata
-            with open(metadata_fn, 'wb') as pkl:
-                pickle.dump(metadata, pkl)
-    
-            self.psp_metadata_cache[filename] = timestamp, metadata
+            metadata = ListShelf(self.db, "metadata", "lineno", filename=filename)
+            self.psp_metadata_cache[filename] = metadata
 
         if show:
-            msg = '\n'.join(["%10s - %s" % metadata[key] for key in sorted(metadata.keys())])
+            msg = '\n'.join(["%(uuid)s %(phase)10s - %(lineno)5s: %(text)s" % 
+                             metadata[key] for key in sorted(metadata.keys())])
             dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "PSP METADATA")
             dlg.ShowModal()
             dlg.Destroy()
