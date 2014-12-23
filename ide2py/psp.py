@@ -1184,7 +1184,9 @@ class PSPMixin(object):
 
         # if not metadata valid in cache, query the database:
         if metadata is None:
-            metadata = ListShelf(self.db, "metadata", "lineno", filename=filename)
+            # create a new db to isolate the transaction for each file
+            db = wx.GetApp().get_db(new=True)
+            metadata = ListShelf(db, "metadata", "lineno", filename=filename)
             self.psp_metadata_cache[filename] = metadata
 
         if show:
