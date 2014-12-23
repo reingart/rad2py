@@ -438,6 +438,11 @@ class ListShelf(DictShelf):
         for i in sorted(self.dict.keys()):
             yield self.dict[i]
 
+    def keys(self):
+        "Returns the correct keys (index) for compatibility with dict-like uses"
+        for k in self.dict.keys():
+            yield k - self.base
+
 
 if __name__ == "__main__":
     db = Database(path="test.db")
