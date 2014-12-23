@@ -51,7 +51,8 @@ class EditorCtrl(stc.StyledTextCtrl):
    
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
-                 style=0, filename=None, debugger=None, cfg={}, metadata=None,
+                 style=0, filename=None, debugger=None, cfg={}, 
+                 metadata=None, get_current_phase=None,
                  lang="python", title="", cfg_styles={}):
         global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
 
@@ -88,6 +89,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.clipboard = None       # lines text and metadata for cut/paste
         self.actions_buffer = []    # insertions / deletions for undo and redo
         self.actions_pointer = 0
+        self.get_current_phase = get_current_phase or (lambda: None)
         app = wx.GetApp()
         # default encoding and BOM (pep263, prevent syntax error  on new fieles)
         self.encoding = ENCODING 
@@ -1216,14 +1218,17 @@ class EditorCtrl(stc.StyledTextCtrl):
                         # restore previous uuid and origin
                         new_uuid = action_info[j]["uuid"]
                         origin = action_info[j]["origin"]
+                        phase = action_info[j]["phase"]
                     else:
                         # create a new UUID
                         new_uuid, origin = str(uuid.uuid1()), 0
-                    datum = {"uuid": new_uuid, "origin": origin}
+                        phase = self.get_current_phase()
+                    datum = {"uuid": new_uuid, "origin": origin, "phase": phase}
                     datum["text"] = self.GetLine(j)
                     self.metadata.insert(j, datum)
                     if not undo and not redo:
-                        action_info[j] = {"uuid": new_uuid, "origin": origin}
+                        action_info[j] = {"uuid": new_uuid, "origin": origin, 
+                                          "phase": phase}
                 if not undo and not redo:
                     self.store_action(action_info)
             if mod_type & stc.STC_MOD_DELETETEXT:
@@ -1253,6 +1258,9 @@ class EditorCtrl(stc.StyledTextCtrl):
                     self.metadata[lineno]["origin"] = new_origin
             else:
                 new_origin = None
+            # update the current phase of this line as it was modified:
+            if mod_type & (stc.STC_MOD_INSERTTEXT | stc.STC_MOD_INSERTTEXT):
+                self.metadata[lineno]["phase"] = self.get_current_phase()
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:

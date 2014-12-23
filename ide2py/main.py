@@ -1188,6 +1188,7 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
         self.editor = EditorCtrl(self,-1, filename=filename,    
                                  debugger=parent.debugger, 
                                  metadata=parent.get_metadata(filename),
+                                 get_current_phase=parent.get_current_psp_phase,
                                  lang="python", 
                                  title=title,
                                  cfg=app.get_config("EDITOR"),
