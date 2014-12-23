@@ -1540,8 +1540,7 @@ class MainApp(wx.App):
         if not self.config.sections():
             raise RuntimeError("No configuration found, use ide2py.ini.dist!")
         # initialize the internal database
-        db_conf = self.get_config("DATABASE")
-        self.db = Database(**dict(db_conf.items()))        
+        self.db = self.get_db(new=True)
         # create the IDE main window
         self.main_frame = PyAUIFrame(None)
         self.main_frame.Show()
@@ -1555,8 +1554,12 @@ class MainApp(wx.App):
     def write_config(self):
         self.config.write(open(CONFIG_FILE, "w"))
 
-    def get_db(self):
-        return self.db
+    def get_db(self, new=False):
+        if new or not self.db:
+            db_conf = self.get_config("DATABASE")
+            return Database(**dict(db_conf.items()))
+        else:
+            return self.db
 
 
 # search actual installation directory
