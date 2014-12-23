@@ -33,10 +33,14 @@ class Database():
         return self.cur
 
     def commit(self):
-        self.cnn.commit()
+        "Confirm any changes made to the database (if not closed)"
+        if self.cnn:
+            self.cnn.commit()
 
     def rollback(self):
-        self.cnn.rollback()
+        "Revert any changes made to the database (if not closed)"
+        if self.cnn:
+            self.cnn.rollback()
 
     def create(self, table, _auto=True, **fields):
         "Create a table in the database for the given name and fields dict"
@@ -133,6 +137,11 @@ class Database():
     def __del__(self):
         if DEBUG: print "Delayed COMMIT!"
         self.commit()
+
+    def close(self):
+        "Clean up orderly"
+        self.cnn.close()
+        self.cnn = None
 
 
 class Table():
@@ -295,16 +304,19 @@ class DictShelf(UserDict.DictMixin):
     "Database shelve replacement implementation (dictionary-like object)"
 
     def __init__(self, db, table_name, key_field_name, **filters):
-        self.dict = {}
         self.db = db
         self.table_name = table_name
         self.key_field_name = key_field_name
         self.filters = filters
+        self.query()
+    
+    def query(self):
+        self.dict = {}
         # populate the internal dictionary:
-        for r in self.db.select(self.table_name, **filters):
+        for r in self.db.select(self.table_name, **self.filters):
             row = Row(self.db, self.table_name)
             row.load(r)
-            self.dict[r[key_field_name]] = row
+            self.dict[r[self.key_field_name]] = row
 
     def keys(self):
         return self.dict.keys()
@@ -355,11 +367,18 @@ class DictShelf(UserDict.DictMixin):
     def __del__(self):
         self.close()
 
-    def sync(self):
+    def sync(self, commit=True):
         "Write back all the changes to the database" 
-        for row in self.dict.values():
-            row.save()
-        self.db.commit()
+        if commit and self.dict is not None:
+            for row in self.dict.values():
+                row.save()
+            self.db.commit()
+        elif self.dict is not None:
+            # destroy internal dict to avoid commit later (TODO: requery)
+            self.dict = None
+            # revert any changes
+            self.db.rollback()
+            self.db.close()
 
 
 class ListShelf(DictShelf):
