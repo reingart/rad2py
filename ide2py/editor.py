@@ -376,6 +376,9 @@ class EditorCtrl(stc.StyledTextCtrl):
                     event.Veto()
                 else:
                     return None
+        # rollback any change to the metadata
+        if hasattr(self.metadata, "sync"):
+            self.metadata.sync(commit=False)
         return False
 
     def GetCodeObject(self):
@@ -440,6 +443,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.filetimestamp = os.stat(self.filename).st_mtime
             self.SetTitle()
             self.GetCodeObject()
+            if hasattr(self.metadata, "sync"):
+                self.metadata.sync(commit=True)
             return wx.OK
         else:
             return self.OnSaveAs(event)
