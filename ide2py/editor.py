@@ -1261,6 +1261,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             # update the current phase of this line as it was modified:
             if mod_type & (stc.STC_MOD_INSERTTEXT | stc.STC_MOD_INSERTTEXT):
                 self.metadata[lineno]["phase"] = self.get_current_phase()
+                self.metadata[lineno]["text"] = self.GetLine(lineno)
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:
