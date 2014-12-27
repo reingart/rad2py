@@ -1208,6 +1208,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         offset = self.PositionFromLine(lineno) 
         undo = mod_type & stc.STC_PERFORMED_UNDO
         redo = mod_type & stc.STC_PERFORMED_REDO
+        mod_inserted = mod_type & stc.STC_MOD_INSERTTEXT
+        mod_deleted = mod_type & stc.STC_MOD_DELETETEXT 
         # track lines only if there are lines inserted / deleted (count)
         if count:
             # adjust offest with the origin column
@@ -1218,7 +1220,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             # if at the beggin, the current line is moved down
             # (this preserves the correct uuid when inserting or deleting)
             after = 1 if offset < pos else 0
-            if mod_type & stc.STC_MOD_INSERTTEXT:
+            if mod_inserted:
                 ##print "Inserted %d @ %d %d %d" % (count, lineno, pos, offset)
                 if undo:
                     action_info = self.get_last_action()
@@ -1245,7 +1247,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                                           "phase": phase}
                 if not undo and not redo:
                     self.store_action(action_info)
-            if mod_type & stc.STC_MOD_DELETETEXT:
+            if mod_deleted:
                 ##print "Removed %d lines @ %d" % (count, lineno)
                 if not undo and not redo:
                     action_info = {}
@@ -1262,18 +1264,19 @@ class EditorCtrl(stc.StyledTextCtrl):
             # no newline, track insert and deletes (moving origin column)
             u = self.metadata[lineno]["uuid"]
             origin = self.metadata[lineno]["origin"]
-            if mod_type & stc.STC_MOD_INSERTTEXT:
+            if mod_inserted:
                 new_origin = (pos - offset) + evt.GetLength()
                 if new_origin > origin:
                     self.metadata[lineno]["origin"] = new_origin
-            elif mod_type & stc.STC_MOD_DELETETEXT:
+            elif mod_deleted:
                 new_origin = (pos - offset)
                 if new_origin < origin:
                     self.metadata[lineno]["origin"] = new_origin
             else:
                 new_origin = None
             # update the current phase of this line as it was modified:
-            if mod_type & (stc.STC_MOD_INSERTTEXT | stc.STC_MOD_INSERTTEXT):
+            new_text = evt.GetText().strip('\n')
+            if (mod_inserted or mod_deleted) and new_text:
                 self.metadata[lineno]["phase"] = self.get_current_phase()
                 self.metadata[lineno]["text"] = self.GetLineText(lineno+1)
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
