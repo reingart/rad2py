@@ -1209,7 +1209,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         undo = mod_type & stc.STC_PERFORMED_UNDO
         redo = mod_type & stc.STC_PERFORMED_REDO
         mod_inserted = mod_type & stc.STC_MOD_INSERTTEXT
-        mod_deleted = mod_type & stc.STC_MOD_DELETETEXT 
+        mod_deleted = mod_type & stc.STC_MOD_DELETETEXT
+        notify_modification = False
         # track lines only if there are lines inserted / deleted (count)
         if count:
             # adjust offest with the origin column
@@ -1242,6 +1243,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                     datum = {"uuid": new_uuid, "origin": origin, "phase": phase}
                     datum["text"] = self.GetLineText(j+1)
                     self.metadata.insert(j, datum)
+                    notify_modification = True
                     if not undo and not redo:
                         action_info[j] = {"uuid": new_uuid, "origin": origin, 
                                           "phase": phase}
@@ -1254,12 +1256,16 @@ class EditorCtrl(stc.StyledTextCtrl):
                     for i in range(count):
                         j = lineno + i + after
                         action_info[j] = self.metadata[j]
+                    notify_modification = True
                     self.store_action(action_info)
                 del self.metadata[lineno + after:count + lineno + after]
             # move action buffer (history) pointer ahead/backwards accordingly
             if undo or redo:
                 # note: a STC undo action could involve several pointer units
                 self.actions_pointer += 1 if redo else -1
+            # signal to update line numbers
+            if notify_modification:
+                self.parent.NotifyModification(self.filename)
         elif self.metadata:
             # no newline, track insert and deletes (moving origin column)
             u = self.metadata[lineno]["uuid"]

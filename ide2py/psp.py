@@ -912,17 +912,35 @@ class PSPMixin(object):
         if filename and lineno and not filename.startswith("<"):
             metadata = self.get_metadata(filename)
             phase = metadata[lineno-1]['phase']
+            line_uuid = metadata[lineno-1]['uuid']
         else:
             phase = "" #self.GetPSPPhase()
+            line_uuid = None
         item = {'number': no, 'summary': summary, "date": datetime.date.today(), 
             "type": type, "inject_phase": phase, "remove_phase": "", "fix_time": 0, 
             "fix_defect": "", "description": description,
-            "filename": filename, "lineno": lineno, "offset": offset}
+            "filename": filename, "lineno": lineno, "offset": offset,
+            "line_uuid": line_uuid, }
 
         self.psp_defect_list.AddItem(item)
         self._mgr.GetPane("psp_defects").Show(True)
         self._mgr.Update()
 
+    def NotifyModification(self, filename=None):
+        "Update defects line numbers, called by editor on modification events"
+        if filename and not filename.startswith("<"):
+            metadata = self.get_metadata(filename)
+            # reverse map uuid and line numbers (position, zero-based)
+            linenos = [datum['uuid'] for datum in metadata]
+        for item in self.psp_defect_list.data.values():
+            try:
+                # get the new line number (if any)
+                new = linenos.index(item['line_uuid']) + 1
+                item['lineno'] = new + 1 
+            except (KeyError, ValueError):
+                # line has been deleted or uuid is not available, clean it:
+                item['lineno'] = None
+    
     def psp_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
         timestamp = str(datetime.datetime.now())

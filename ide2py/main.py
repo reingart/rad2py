@@ -1279,6 +1279,9 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
 
     def NotifyDefect(self, *args, **kwargs):
         self.parent.NotifyDefect(*args, **kwargs)
+
+    def NotifyModification(self, *args, **kwargs):
+        self.parent.NotifyModification(*args, **kwargs)
     
     def NotifyRepo(self, *args, **kwargs):
         self.parent.NotifyRepo(*args, **kwargs)
