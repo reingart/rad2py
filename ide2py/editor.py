@@ -1277,8 +1277,24 @@ class EditorCtrl(stc.StyledTextCtrl):
             # update the current phase of this line as it was modified:
             new_text = evt.GetText().strip('\n')
             if (mod_inserted or mod_deleted) and new_text:
-                self.metadata[lineno]["phase"] = self.get_current_phase()
+                # restore the phase if undoing or redoing an action:
+                if undo:
+                    action_info = self.get_last_action()
+                    phase = action_info['phase']
+                elif redo:
+                    action_info = self.get_next_action()
+                    phase = action_info['phase']
+                else:
+                    # store current metadata for future use (prior modification)
+                    # NOTE: don't put it directly as it is a mutable dict 
+                    self.store_action({'phase': self.metadata[lineno]['phase']})
+                    phase = self.get_current_phase()
+                self.metadata[lineno]["phase"] = phase
                 self.metadata[lineno]["text"] = self.GetLineText(lineno+1)
+                # update metadata pointer
+                if undo or redo:
+                    self.actions_pointer += 1 if redo else -1
+
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:
