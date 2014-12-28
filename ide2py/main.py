@@ -361,6 +361,20 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                         ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
+        tb6 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
+                             agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_VERT_TEXT)
+        tb6.SetToolBitmapSize(wx.Size(32, 32))
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 1", wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, wx.Size(16, 16)))
+        tb6.AddSeparator()
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 2", wx.ArtProvider.GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16, 16)))
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 3", wx.ArtProvider.GetBitmap(wx.ART_WARNING, wx.ART_OTHER, wx.Size(16, 16)))
+        #tb6.SetCustomOverflowItems(prepend_items, append_items)
+        #tb6.SetToolDropDown(ID_DropDownToolbarItem, True)
+        tb6.Realize()
+        self._mgr.AddPane(tb6, aui.AuiPaneInfo().
+                          Name("tb6").Caption("Sample Vertical Clockwise Rotated Toolbar").
+                          ToolbarPane().Right().GripperTop().TopDockable(False).BottomDockable(False));
+
         wx.GetApp().SetSplashText("Creating Panes...")
 
         self.debugger = Debugger(self)

@@ -381,8 +381,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                     event.Veto()
                 else:
                     return None
-        # rollback any change to the metadata
-        if hasattr(self.metadata, "sync"):
+        # rollback any change to the metadata (if text was not saved to disk)
+        if hasattr(self.metadata, "sync") and self.modified:
             self.metadata.sync(commit=False)
         return False
 
@@ -821,6 +821,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         for handle in self.breakpoints:
             lineno = self.MarkerLineFromHandle(handle)
             self.breakpoints[handle]['lineno'] = lineno + 1
+            self.breakpoints[handle]['line_uuid'] = self.metadata[lineno]['uuid']
         return self.breakpoints
 
     def FoldAll(self, expanding=None):
@@ -861,11 +862,14 @@ class EditorCtrl(stc.StyledTextCtrl):
         while lineno < linecount:
             level = self.GetFoldLevel(lineno)
             if level  & stc.STC_FOLDLEVELHEADERFLAG:
+                end_lineno = self.GetLastChild(lineno, -1)
                 fold = {
                         'level': level,
                         'start_lineno': lineno + 1,
-                        'end_lineno': self.GetLastChild(lineno, -1) + 1,
+                        'end_lineno': end_lineno + 1,
                         'expanded': self.GetFoldExpanded(lineno),
+                        'start_line_uuid': self.metadata[lineno]['uuid'],
+                        'end_line_uuid': self.metadata[end_lineno]['uuid'],
                        }
                 folds.append(fold)
             lineno = lineno + 1

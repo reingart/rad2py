@@ -51,9 +51,11 @@ class TaskMixin(object):
                                        filename=str, lineno=int, total_time=int,
                                        closed=bool)
         self.db.create("breakpoint", breakpoint_id=int, context_file_id=int, 
-                                     lineno=int, temp=bool, cond=str)
+                                     lineno=int, temp=bool, cond=str,
+                                     line_uuid=str, )
         self.db.create("fold", fold_id=int, context_file_id=int, level=int, 
-                               start_lineno=int, end_lineno=int, expanded=bool)
+                               start_lineno=int, end_lineno=int, expanded=bool,
+                               start_line_uuid=str, end_line_uuid=str, )
         
         # internal structure to keep tracking times and other 
         self.task_context_files = {}
@@ -69,10 +71,14 @@ class TaskMixin(object):
             ('task_list', 'task_detail', 'task_toolbar', ), self.OnWindowMenu)
         
         self.task_panel = TaskPanel(self)
-        self._mgr.AddPane(self.task_panel, aui.AuiPaneInfo().
+        pane = aui.AuiPaneInfo()
+        self._mgr.AddPane(self.task_panel, pane.
                       Name("task_info").Caption("Task Info").
                       Layer(1).Position(2).BestSize(wx.Size(100, 300)).
-                      Float().Position(5).CloseButton(True))
+                      Float().Position(5).CloseButton(True).MinimizeButton().
+                      MinimizeMode(aui.AUI_MINIMIZE_CAPT_SMART | aui. AUI_MINIMIZE_POS_SMART | aui.AUI_MINIMIZE_POS_TOOLBAR).
+                      Icon(images.github_mark_32px.GetBitmap()))
+        assert pane.icon.IsOk()
         self._mgr.Update()
 
         self.Bind(wx.EVT_MENU, self.OnChangeTask, id=ID_CHANGE)
@@ -389,6 +395,7 @@ class TaskMixin(object):
         for bp in self.db["breakpoint"].select(**q):
             del bp['context_file_id']
             del bp['breakpoint_id']
+            del bp['line_uuid']
             editor.ToggleBreakpoint(**bp)
         # load all previous folds and restore them:
         editor.FoldAll(expanding=False)
