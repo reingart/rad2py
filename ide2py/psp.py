@@ -224,7 +224,7 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self)
 
         self.selecteditemindex = None
-        self.key_map = {}  # pos -> key
+        self.key_map = {}  # list item data (defect_id) -> key (uuid)
         
         self.data = None
 
@@ -297,8 +297,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             else:
                 val = ""
             self.SetStringItem(index, col_def[0], val)
-        self.key_map[long(index)] = key
-        self.SetItemData(index, long(index))
+        self.key_map[item['defect_id']] = key
+        self.SetItemData(index, item['defect_id'])
         if item["checked"]:
             self.ToggleItem(index)
 
@@ -307,8 +307,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             
     def OnItemActivated(self, evt):
         #self.ToggleItem(evt.m_itemIndex)      
-        pos = long(self.GetItemData(evt.m_itemIndex))
-        key = self.key_map[pos]
+        defect_id = long(self.GetItemData(evt.m_itemIndex))
+        key = self.key_map[defect_id]
         item = self.data[key]
         event = item["filename"], item["lineno"], item["offset"] or 0
         if item["filename"] and item["lineno"]:
@@ -324,8 +324,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
 
     # this is called by the base class when an item is checked/unchecked
     def OnCheckItem(self, index, flag, wontfix=False):
-        pos = long(self.GetItemData(index))
-        key = self.key_map[pos]
+        defect_id = long(self.GetItemData(index))
+        key = self.key_map[defect_id]
         item = self.data[key]
         title = item["number"]
         if item.get("checked") != flag:
@@ -359,8 +359,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
 
     def OnDeleteItem(self, evt):
         if self.selected_index is not None:
-            pos = long(self.GetItemData(self.selected_index))
-            key = self.key_map[pos]
+            defect_id = long(self.GetItemData(self.selected_index))
+            key = self.key_map[defect_id]
             del self.data[key]
             self.DeleteItem(self.selected_index)
             self.data.sync()
@@ -380,8 +380,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         dlg.Destroy()
             
     def OnEditItem(self, evt):
-        pos = long(self.GetItemData(self.selected_index))
-        key = self.key_map[pos]
+        defect_id = long(self.GetItemData(self.selected_index))
+        key = self.key_map[defect_id]
         item = self.data[key]
  
         dlg = DefectDialog(None, -1, "Edit Defect No. %s" % item['number'], 
@@ -393,7 +393,18 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self.UpdateItem(self.selected_index, item)
         self.data.sync()
 
+    def UpdateItems(self):
+        "Refresh all items at once"
+        # do a reverse map lookup for each item data -> index (position)
+        for index in range(self.GetItemCount()):
+            defect_id = long(self.GetItemData(index))
+            print "index, defect_id",  index, defect_id, self.key_map
+            key = self.key_map[defect_id]
+            item = self.data[key]
+            self.UpdateItem(index, item)
+
     def UpdateItem(self, index, item):
+        "Refresh an item given the index and data"
         for col_key, col_def in self.col_defs.items():
             val = item.get(col_key, "")
             if col_key == 'fix_time':
@@ -419,8 +430,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         "Increment actual user time to fix selected defect"
         if self.selecteditemindex is not None:
             index = self.selecteditemindex
-            pos = long(self.GetItemData(index))
-            key = self.key_map[pos]
+            defect_id = long(self.GetItemData(index))
+            key = self.key_map[defect_id]
             col_key = "fix_time"
             col_index = self.col_defs[col_key][0]
             flag =  self.data[key]["checked"]
@@ -940,6 +951,8 @@ class PSPMixin(object):
             except (KeyError, ValueError):
                 # line has been deleted or uuid is not available, clean it:
                 item['lineno'] = None
+        # update the UI
+        self.psp_defect_list.UpdateItems()
     
     def psp_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
