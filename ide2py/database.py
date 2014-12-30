@@ -256,17 +256,18 @@ class Row():
         
     def __getitem__(self, field):
         "Read the field value for this record"
+        # return the most updated value (it could not had reached the db yet)
+        # also avoid early unneeded insert/update (for example, for uuid fields) 
+        if field in self.data_out:
+            return self.data_out[field]            
         if not (self.primary_key or self.query):
             # not inserted yet, first save
             self.save()
         # real record should be in the database, fetch if necessary
         if not self.data_in:
             self.load()
-        # return the most updated value (it could not reach the db yet)
-        if field in self.data_out:
-            return self.data_out[field]
-        else:
-            return self.data_in[field]
+        # return the value stored in the database
+        return self.data_in[field]
 
     def __setitem__(self, field, value):
         "Store the field value for further update (at the destructor)"
