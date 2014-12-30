@@ -308,6 +308,7 @@ class DictShelf(UserDict.DictMixin):
         self.table_name = table_name
         self.key_field_name = key_field_name
         self.filters = filters
+        self.deleted = []
         self.query()
     
     def query(self):
@@ -358,7 +359,7 @@ class DictShelf(UserDict.DictMixin):
 
     def __delitem__(self, key):
         row = self.dict[key]
-        row.erase()
+        self.deleted.append(row)
         del self.dict[key]
 
     def close(self):
@@ -372,6 +373,9 @@ class DictShelf(UserDict.DictMixin):
         if commit and self.dict is not None:
             for row in self.dict.values():
                 row.save()
+            for row in self.deleted:
+                row.erase()
+            self.deleted = []
             self.db.commit()
         elif self.dict is not None:
             # destroy internal dict to avoid commit later (TODO: requery)
