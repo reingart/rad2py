@@ -939,20 +939,21 @@ class PSPMixin(object):
 
     def NotifyModification(self, filename=None):
         "Update defects line numbers, called by editor on modification events"
-        if filename and not filename.startswith("<"):
-            metadata = self.get_metadata(filename)
-            # reverse map uuid and line numbers (position, zero-based)
-            linenos = [datum['uuid'] for datum in metadata]
-        for item in self.psp_defect_list.data.values():
-            try:
-                # get the new line number (if any)
-                new = linenos.index(item['line_uuid']) + 1
-                item['lineno'] = new + 1 
-            except (KeyError, ValueError):
-                # line has been deleted or uuid is not available, clean it:
-                item['lineno'] = None
-        # update the UI
-        self.psp_defect_list.UpdateItems()
+        if self.psp_defect_list.data is not None:
+            if filename and not filename.startswith("<"):
+                metadata = self.get_metadata(filename)
+                # reverse map uuid and line numbers (position, zero-based)
+                linenos = [datum['uuid'] for datum in metadata]
+            for item in self.psp_defect_list.data.values():
+                try:
+                    # get the new line number (if any)
+                    new = linenos.index(item['line_uuid']) + 1
+                    item['lineno'] = new + 1 
+                except (KeyError, ValueError):
+                    # line has been deleted or uuid is not available, clean it:
+                    item['lineno'] = None
+            # update the UI
+            self.psp_defect_list.UpdateItems()
     
     def psp_log_event(self, event, uuid="-", comment=""):
         phase = self.GetPSPPhase()
