@@ -10,9 +10,11 @@ __license__ = "GPL 3.0"
 # initally based on idle, inspired by pythonwin implementation
 
 from multiprocessing.connection import Listener
+from threading import Thread
 import compiler
 import os
 import sys
+import traceback
 import wx
 import wx.gizmos
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
@@ -52,24 +54,16 @@ class LoggingPipeWrapper(object):
         return self.__pipe.poll()
 
         
-class Debugger(qdb.Frontend):
-    "Frontend Visual interface to qdb"
+class DebuggerProxy(object):
+    "Facade for the pool of debuggers (one for each connection)" 
 
-    def __init__(self, gui=None, pipe=None, host='localhost', port=6000, authkey='secret password'):
-        qdb.Frontend.__init__(self, pipe)
-        self.interacting = False    # flag to signal user interaction
-        self.quitting = False       # flag used when Quit is called
-        self.attached = False       # flag to signal remote side availability
+    def __init__(self, gui=None, host='localhost', port=6000, authkey='secret password'):
         self.gui = gui              # wx window for callbacks
         self.post_event = True      # send event to the GUI
-        self.start_continue = True  # continue on first run
-        self.rawinput = None
-        self.filename = self.lineno = None
-        self.unrecoverable_error = False
-        self.pipe = None
-        address = (host, port)     # family is deduced to be 'AF_INET'
-        self.address = (host, port)
-        self.authkey = authkey
+        address = (host, port)      # family is deduced to be 'AF_INET'
+        self.start_continue = None  # continue on first run
+        self.pool = []
+        self.current = None
         try:
             self.listener = Listener(address, authkey=authkey)
         except IOError as e:
@@ -82,6 +76,65 @@ class Debugger(qdb.Frontend):
             dlg.ShowModal() 
             dlg.Destroy()
             wx.GetApp().Exit()
+
+        # create a new thread to listen (it will block between each connection)
+        p = Thread(target=self.listen)
+        p.daemon = True                     # close on exit
+        p.start()
+
+    def listen(self):
+        "Main loop: accept incoming connections and launch new debuggers"
+        # Note: listener doesn't support select/polling, so accept will block
+        while True:
+            # create a new debugger:
+            conn = self.listener.accept()
+            address = self.listener.last_accepted
+            debugger = Debugger(self.gui, proxy=self)
+            debugger.attach(conn, address, self.start_continue)
+            self.pool.append(debugger)
+            if self.current is None:
+                self.current = debugger
+    
+    def __nonzero__(self):
+        "Check if debugger is running (so proxy methods are valid)"
+        return self.current is not None
+    
+    # Public methods 
+    
+    def init(self, cont=False):
+        "Set initial parameters for debuggers to be created"
+        self.start_continue = cont
+    
+    def remove(self, debugger):
+        "Delete detached debugger from the pool"
+        self.pool.remove(debugger)
+        if self.current is debugger:
+            self.current = None
+    
+    def __getattr__(self, attr):
+        "Proxy methods and other attributes to the current active debugger"
+        if self.current:
+            return getattr(self.current, attr)
+        else:
+            traceback.print_exc()
+            raise AttributeError("No current debugger available!")
+
+
+class Debugger(qdb.Frontend):
+    "Frontend Visual interface to qdb"
+
+    def __init__(self, gui=None, pipe=None, proxy=None):
+        qdb.Frontend.__init__(self, pipe)
+        self.interacting = False    # flag to signal user interaction
+        self.quitting = False       # flag used when Quit is called
+        self.attached = False       # flag to signal remote side availability
+        self.gui = gui              # wx window for callbacks
+        self.post_event = True      # send event to the GUI
+        self.rawinput = None
+        self.filename = self.lineno = None
+        self.unrecoverable_error = False
+        self.pipe = None
+        self.proxy = proxy
         wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
 
 
@@ -110,18 +163,11 @@ class Debugger(qdb.Frontend):
             dlg.Destroy()
             self.detach()
 
-    def init(self, cont=False):
-        # restore sane defaults:
-        self.start_continue = cont
-        self.unrecoverable_error = None
+    def attach(self, conn, address, start_continue):
+        self.start_continue = start_continue
+        self.address = address
         self.attached = True
-        self.quitting = False
-        self.post_event = True
-        self.lineno = None
-        
-    def attach(self):
-        print "DEBUGGER waiting for connection to", self.address
-        conn = self.listener.accept()
+        print "DEBUGGER accepted connection from", self.address
         self.pipe = LoggingPipeWrapper(conn)
         print "DEBUGGER connected!"
     
@@ -132,6 +178,9 @@ class Debugger(qdb.Frontend):
         self.clear_interaction()
         # just in case, send a KILL signal to child process
         self.gui.OnKill(None)
+        # notify our proxy to remove this connection
+        if self.proxy:
+            self.proxy.remove(self)
 
     def is_remote(self):
         return (self.attached and 

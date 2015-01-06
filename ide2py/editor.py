@@ -737,7 +737,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                         self.ToggleFold(lineclicked)
 
     def ToggleBreakpoint(self, evt=None, lineno=None, cond=None, temp=False):
-        ok = None
+        # track breakpoints (only if debugger is available)
+        ok = None if self.debugger is None else False
         if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
             # fix the line number (starting at 0 for STC, 1 for debugger):
@@ -1153,7 +1154,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
-        if self.debugger and self.debugger.attached and evt.GetPosition() >= 0:
+        if self.debugger and evt.GetPosition() >= 0:
             # get selected text first:
             expr = self.GetSelectedText()
             if not expr:
