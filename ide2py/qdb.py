@@ -48,6 +48,8 @@ class Qdb(bdb.Bdb):
         self._wait_for_breakpoint = False
         self.mainpyfile = ""
         self._lineno = None     # last listed line numbre
+        # ignore filenames (avoid spurious interaction specially on py2)
+        self.ignore_files = [self.canonic(f) for f in (__file__, bdb.__file__)]
         # replace system standard input and output (send them thru the pipe)
         if redirect_stdio:
             sys.stdin = self
@@ -198,8 +200,11 @@ class Qdb(bdb.Bdb):
         self.frame_locals = frame and frame.f_locals or {}
         # extract current filename and line number
         code, lineno = frame.f_code, frame.f_lineno
-        filename = code.co_filename
+        filename = self.canonic(code.co_filename)
         basename = os.path.basename(filename)
+        # check if interaction should be ignored (i.e. debug modules internals) 
+        if filename in self.ignore_files:
+            return
         message = "%s:%s" % (basename, lineno)
         if code.co_name != "?":
             message = "%s: %s()" % (message, code.co_name)
