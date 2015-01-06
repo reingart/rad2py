@@ -80,7 +80,7 @@ class DebuggerProxy(object):
         # create a new thread to listen (it will block between each connection)
         p = Thread(target=self.listen)
         p.daemon = True                     # close on exit
-        p.start()
+        wx.CallLater(3, p.start)            # give time to the IDE for startup
 
     def listen(self):
         "Main loop: accept incoming connections and launch new debuggers"
