@@ -285,7 +285,7 @@ class Debugger(qdb.Frontend):
             self.filename = self.orig_line = self.lineno = None
             if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
                 self.filename = filename
-                self.orig_line = line.strip().strip("\r").strip("\n")
+                self.orig_line = line.rstrip().rstrip("\r").rstrip("\n")
                 self.lineno = lineno
                 if self.gui and self.post_event:
                     # send the event to mark the current line
