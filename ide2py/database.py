@@ -256,17 +256,18 @@ class Row():
         
     def __getitem__(self, field):
         "Read the field value for this record"
+        # return the most updated value (it could not had reached the db yet)
+        # also avoid early unneeded insert/update (for example, for uuid fields) 
+        if field in self.data_out:
+            return self.data_out[field]            
         if not (self.primary_key or self.query):
             # not inserted yet, first save
             self.save()
         # real record should be in the database, fetch if necessary
         if not self.data_in:
             self.load()
-        # return the most updated value (it could not reach the db yet)
-        if field in self.data_out:
-            return self.data_out[field]
-        else:
-            return self.data_in[field]
+        # return the value stored in the database
+        return self.data_in[field]
 
     def __setitem__(self, field, value):
         "Store the field value for further update (at the destructor)"
@@ -308,6 +309,7 @@ class DictShelf(UserDict.DictMixin):
         self.table_name = table_name
         self.key_field_name = key_field_name
         self.filters = filters
+        self.deleted = []
         self.query()
     
     def query(self):
@@ -358,7 +360,7 @@ class DictShelf(UserDict.DictMixin):
 
     def __delitem__(self, key):
         row = self.dict[key]
-        row.erase()
+        self.deleted.append(row)
         del self.dict[key]
 
     def close(self):
@@ -372,6 +374,9 @@ class DictShelf(UserDict.DictMixin):
         if commit and self.dict is not None:
             for row in self.dict.values():
                 row.save()
+            for row in self.deleted:
+                row.erase()
+            self.deleted = []
             self.db.commit()
         elif self.dict is not None:
             # destroy internal dict to avoid commit later (TODO: requery)

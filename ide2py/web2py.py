@@ -15,11 +15,8 @@ import select
 from wsgiref.simple_server import make_server, demo_app 
 from urlparse import urlparse
 import sys
+import traceback
 import wx
-
-import simplejsonrpc
-
-ID_ATTACH = wx.NewId()
 
 
 if False:
@@ -43,12 +40,6 @@ class Web2pyMixin(object):
     def __init__(self, path="../web2py", port=8006, password="a"):
         "start-up a web2py server instance"
 
-        self.menu['run'].Append(ID_ATTACH, 
-                                "Attach &webserver\tCtrl-W",
-                                "Connect to remote web2py debugger")
-        self.Bind(wx.EVT_MENU, self.OnAttachWebserver, id=ID_ATTACH)
-
-
         # read configuration with safe defaults        
         cfg = wx.GetApp().get_config("WEB2PY")
         path = cfg.get("path", path)
@@ -61,47 +52,41 @@ class Web2pyMixin(object):
             prevdir = os.path.abspath(os.curdir)
            
             try:
+                # update current directory and python path to find web2py:
                 os.chdir(path)
-                sys.path.insert(0, path)
+                sys.path.insert(0, os.path.abspath(os.curdir))
                 from gluon.main import wsgibase, save_password
 
                 # store admin password
                 save_password(password, port)
 
-                # create a wsgi server
-                self.web2py_httpd = make_server(host, port, wsgibase)
-                print "Serving HTTP on port %s..." % port
+                web2py_env = {} ##self.build_web2py_environment()
 
-                # connect to idle event to poll and serve requests
-                ##self.Bind(wx.EVT_IDLE, self.OnIdleServeWeb2py)
+                # Start a alternate web2py in a separate thread (for blocking requests)
+                from threading import Thread
+                def f(host, port, password):
+                    save_password(password, port)
+                    httpd2 = make_server(host, port, wsgibase)
+                    print "THREAD - Serving HTTP on port2 %s..." % port
+                    httpd2.serve_forever()
+
+                p = Thread(target=f, args=(host, port, password))
+                p.daemon = True     # close on exit
+                p.start()
 
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)
                 if self.browser:
-                    #self.browser.LoadURL(url)
+                    self.browser.LoadURL(url)
                     pass
                 else:
-                    # no interna browser, open external one
+                    # no internal browser, open external one
                     try:
                         import webbrowser
                         webbrowser.open(url)
                     except:
                         print 'warning: unable to detect your browser'
-                
-                web2py_env = self.build_web2py_environment()
-
-                if False:
-                    # Start a alternate web2py in a separate thread (for blocking requests)
-                    from threading import Thread
-                    def f(host, port, password):
-                        save_password(password, port)
-                        httpd2 = make_server(host, port, wsgibase)
-                        print "THREAD - Serving HTTP on port2 %s..." % port
-                        httpd2.serve_forever()
-
-                    p = Thread(target=f, args=("127.0.0.1", 8000, password))
-                    p.start()                
-                
+                                
             except Exception, e:
                 self.ShowInfoBar(u"cannot start web2py!: %s" % unicode(e), 
                                  flags=wx.ICON_ERROR, key="web2py")
@@ -110,23 +95,6 @@ class Web2pyMixin(object):
                 # recover original directory
                 os.chdir(prevdir)
             self.web2py_environment = web2py_env
-
-    def OnIdleServeWeb2py(self, event):
-        "If there is a request pending, serve it under debugger control"
-        poll_interval = 0   # return inmediatelly
-        # check if socket is ready to read data (incoming request):
-        r, w, e = select.select([self.web2py_httpd], [], [], poll_interval)
-        if self.web2py_httpd in r and not self.debugging:
-            # prevent reentry on debug critical section (TODO mutex)
-            self.debugging = True
-            # debug, but continue at "full-speed" (set breakpoints!)
-            self.debugger.start_continue = True
-            self.debugger.RunCall(self.web2py_httpd.handle_request, 
-                                  interp=self.shell.interp)
-            # clean running line indication
-            self.GotoFileLine()
-            # allow new request to be served:
-            self.debugging = False
             
     def build_web2py_environment(self):
         "build a namespace suitable for editor autocompletion and calltips"
@@ -134,7 +102,7 @@ class Web2pyMixin(object):
         try:
             from gluon.globals import Request, Response, Session
             from gluon.compileapp import build_environment, DAL
-            request = Request()
+            request = Request({})
             response = Response()
             session = Session()
             # fake request values
@@ -150,38 +118,12 @@ class Web2pyMixin(object):
             ns['crud'] = Crud(db)
             ns['service'] = Service()
         except Exception, e:
-            print e
+            traceback.print_exc()
             ns = {}
         return ns
 
     def web2py_namespace(self):
         return self.web2py_environment
         
-    def OnAttachWebserver(self, event):
-        dlg = wx.TextEntryDialog(self, 
-                'Enter the URL of the web2py admin:', 
-                'Attach debugger to a webserver', 
-                'http://admin:a@localhost:8000/admin/webservices/call/jsonrpc')
-        if dlg.ShowModal() == wx.ID_OK:
-            # detach any running debugger
-            self.debugger.detach()
-            # web2py debugger will break on the model/controller:
-            self.debugger.start_continue = False
-            # get and parse the URL (TODO: better configuration)
-            url = dlg.GetValue()
-            o = urlparse(url)
-            # connect to the remote webserver:
-            r = simplejsonrpc.ServiceProxy(url, verbose=True)
-            host = o.hostname
-            port = 6000
-            authkey = "saraza"
-            ## prevent connecting to an old debugger:
-            r.detach_debugger()
-            # attach local thread (wait for connections)
-            self.debugger.attach(host, port, authkey)
-            # attach remote web2py process:
-            r.attach_debugger(host, port, authkey)
-            # set flag to not start new processes on debug command
-            self.executing = True
-        dlg.Destroy()
+
 

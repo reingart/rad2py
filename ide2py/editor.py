@@ -381,8 +381,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                     event.Veto()
                 else:
                     return None
-        # rollback any change to the metadata
-        if hasattr(self.metadata, "sync"):
+        # rollback any change to the metadata (if text was not saved to disk)
+        if hasattr(self.metadata, "sync") and self.modified:
             self.metadata.sync(commit=False)
         return False
 
@@ -924,14 +924,10 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM+1)
    
-    def GetLineText(self, linenum, encode=False, strip=True):
-        "Get the contents of a line (i.e. used by debugger) LineNum is 1-based"
-        text = self.GetLine(linenum - 1) 
-        if not strip:
-            text = text.strip().strip("\r").strip("\n")
-        if encode:
-            text = text.encode(self.encoding)
-        return text
+    def GetLineText(self, linenum):
+        lstart = self.PositionFromLine(linenum - 1)
+        lend = self.GetLineEndPosition(linenum - 1)
+        return self.GetTextRange(lstart, lend).encode(self.encoding)
 
     def ToggleComment(self, event=None):
         "Toggle the comment of the selected region"
@@ -1118,7 +1114,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         start = self.LineFromPosition(self.GetSelectionStart())
         end = self.LineFromPosition(self.GetSelectionEnd())
         # store the uuids and line text to check on pasting:
-        original_text_lines = [self.GetLineText(i+1) for i in range(start, end)]
+        original_text_lines = [self.GetLine(i) for i in range(start, end)]
         self.clipboard = original_text_lines, self.metadata[start:end]
         # call the default method:
         return stc.StyledTextCtrl.Cut(self)
@@ -1137,7 +1133,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         if self.clipboard:
             original_text_lines, metadata_saved = self.clipboard
             end = start + len(metadata_saved)
-            new_text_lines = [self.GetLineText(i+1) for i in range(start, end)]
+            new_text_lines = [self.GetLine(i) for i in range(start, end)]
             if metadata_saved and original_text_lines == new_text_lines:
                 ##print "restoring", start, metadata_saved
                 self.metadata[start:end] = metadata_saved
@@ -1238,7 +1234,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                         new_uuid, origin = str(uuid.uuid1()), 0
                         phase = self.get_current_phase()
                     datum = {"uuid": new_uuid, "origin": origin, "phase": phase}
-                    datum["text"] = self.GetLineText(j+1)
+                    datum["text"] = self.GetLine(j)
                     self.metadata.insert(j, datum)
                     if not undo and not redo:
                         action_info[j] = {"uuid": new_uuid, "origin": origin, 
@@ -1275,12 +1271,12 @@ class EditorCtrl(stc.StyledTextCtrl):
             # update the current phase of this line as it was modified:
             if mod_type & (stc.STC_MOD_INSERTTEXT | stc.STC_MOD_INSERTTEXT):
                 self.metadata[lineno]["phase"] = self.get_current_phase()
-                self.metadata[lineno]["text"] = self.GetLineText(lineno+1)
+                self.metadata[lineno]["text"] = self.GetLine(lineno)
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:
             for i, m in enumerate(self.metadata):
-                txt = self.GetLineText(i+1)
+                txt = self.GetLine(i).replace("\n", "")
                 lineno = i + 1
                 print "%s %s%4d:%s" % (m["uuid"], m["origin"], lineno, txt)
 

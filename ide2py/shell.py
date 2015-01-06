@@ -39,10 +39,10 @@ class Interpreter(wx.py.interpreter.Interpreter):
         
     def runsource(self, source):
         """Compile and run source code in the interpreter."""
-        text = self.debugger.Exec(source, 
-                                 write=self.stdout.write, 
-                                 readline=self.stdin.readline)
-        if text is not None:
+        if self.debugger:
+            text = self.debugger.Exec(source, 
+                                     write=self.stdout.write, 
+                                     readline=self.stdin.readline)
             self.stdout.write(text)
             self.stdout.write(os.linesep)
             return False    # no line continuation in debug mode by now
@@ -53,16 +53,18 @@ class Interpreter(wx.py.interpreter.Interpreter):
 
     def getAutoCompleteList(self, command='', *args, **kwds):
         root = wx.py.introspect.getRoot(command, terminator=".")
-        l = self.debugger.GetAutoCompleteList(root)
-        if l is None:
+        if self.debugger:
+            l = self.debugger.GetAutoCompleteList(root)
+        else:
             l = wx.py.interpreter.Interpreter.getAutoCompleteList(self, 
                         command, *args, **kwds)
         return l
 
     def getCallTip(self, command='', *args, **kwds):
         root = wx.py.introspect.getRoot(command, terminator="(")
-        calltip = self.debugger.GetCallTip(root)
-        if calltip is None:
+        if self.debugger:
+            calltip = self.debugger.GetCallTip(root)
+        else:
             calltip = wx.py.interpreter.Interpreter.getCallTip(self, 
                         command, *args, **kwds)
         return calltip

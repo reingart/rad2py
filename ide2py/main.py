@@ -44,7 +44,7 @@ import images
 
 from editor import EditorCtrl
 from shell import Shell
-from debugger import Debugger, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
+from debugger import DebuggerProxy, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
                      EnvironmentPanel, StackListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
@@ -100,7 +100,6 @@ ID_DEBUG = wx.NewId()
 ID_EXEC = wx.NewId()
 ID_SETARGS = wx.NewId()
 ID_KILL = wx.NewId()
-ID_ATTACH = wx.NewId()
 
 ID_BREAKPOINT = wx.NewId()
 ID_ALTBREAKPOINT = wx.NewId()
@@ -208,8 +207,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments\tCtrl-A", "sys.argv")
         run_menu.AppendSeparator()
-        run_menu.Append(ID_ATTACH, "Attach debugge&r\tCtrl-R", 
-                                   "Connect to remote debugger")
 
         dbg_menu = self.menu['debug'] = wx.Menu()
         dbg_menu.Append(ID_STEPIN, "&Step Into\tF8",
@@ -317,7 +314,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             (ID_EXEC, self.OnExecute),
             (ID_SETARGS, self.OnSetArgs),
             (ID_KILL, self.OnKill),
-            (ID_ATTACH, self.OnAttachRemoteDebugger),
             (ID_DEBUG, self.OnDebugCommand),
             (ID_EXPLORER, self.OnExplorer),
             (ID_DESIGNER, self.OnDesigner),
@@ -361,9 +357,23 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                         ID_CONTINUETO, ID_INTERRUPT]:
             self.Bind(wx.EVT_MENU, self.OnDebugCommand, id=menu_id)
 
+        tb6 = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
+                             agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_VERT_TEXT)
+        tb6.SetToolBitmapSize(wx.Size(32, 32))
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 1", wx.ArtProvider.GetBitmap(wx.ART_ERROR, wx.ART_OTHER, wx.Size(16, 16)))
+        tb6.AddSeparator()
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 2", wx.ArtProvider.GetBitmap(wx.ART_QUESTION, wx.ART_OTHER, wx.Size(16, 16)))
+        tb6.AddSimpleTool(wx.NewId(), "Clockwise 3", wx.ArtProvider.GetBitmap(wx.ART_WARNING, wx.ART_OTHER, wx.Size(16, 16)))
+        #tb6.SetCustomOverflowItems(prepend_items, append_items)
+        #tb6.SetToolDropDown(ID_DropDownToolbarItem, True)
+        tb6.Realize()
+        self._mgr.AddPane(tb6, aui.AuiPaneInfo().
+                          Name("tb6").Caption("Sample Vertical Clockwise Rotated Toolbar").
+                          ToolbarPane().Right().GripperTop().TopDockable(False).BottomDockable(False));
+
         wx.GetApp().SetSplashText("Creating Panes...")
 
-        self.debugger = Debugger(self)
+        self.debugger = DebuggerProxy(self)
 
         self.x = 0
         self.call_stack = StackListCtrl(self)
@@ -709,7 +719,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
 
     def DoOpen(self, filename, title=""):
         is_url = filename.startswith(("http://", "https://"))
-        if not (self.debugger and self.debugger.is_remote()) and not is_url:
+        if not (self.debugger.current and self.debugger.is_remote()) and not is_url:
             # normalize filename for local files! (mostly fix path separator)
             filename = os.path.abspath(filename)
         found = [child for child in self.children if child.GetFilename()==filename]
@@ -800,9 +810,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                 self.Execute((pythexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
                     filename + '"'  + largs), filen)
                 self.statusbar.SetStatusText("Executing: %s" % (filename), 1)
-                if debug:
-                    self.debugger.attach()
-
             except Exception, e:
                 raise
                 #ShowMessage("Error Setting current directory for Execute")
@@ -896,7 +903,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         # used by the debugger to detect modifications runtime
         child = self.DoOpen(filename)
         if child:
-            return child.GetLineText(lineno, encode=True)
+            return child.GetLineText(lineno)
 
     def Readline(self):
         # ensure "console" pane is visible
@@ -912,7 +919,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         event_id = event.GetId()
 
         # start debugger (if not running):
-        if not self.executing:
+        if not self.executing and not self.debugger:
             print "*** Execute!!!!"
             # should it open debugger inmediatelly or continue?
             cont = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
@@ -1066,24 +1073,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                                   description="", lineno=lineno, offset=1)
             else:
                 print "Not notified!"
-
-    def OnAttachRemoteDebugger(self, event):
-        dlg = wx.TextEntryDialog(self, 
-                'Enter the address of the remote qdb frontend:', 
-                'Attach to remote debugger', 
-                'host="localhost", port=6000, authkey="secret password"')
-        if dlg.ShowModal() == wx.ID_OK:
-            # detach any running debugger
-            self.debugger.detach()
-            # step on connection:
-            self.debugger.start_continue = False
-            # get and parse the URL (TODO: better configuration)
-            d = eval("dict(%s)" % dlg.GetValue(), {}, {})
-            # attach local thread (wait for connections)
-            self.debugger.attach(d['host'], d['port'], d['authkey'])
-            # set flag to not start new processes on debug command
-            self.executing = True
-        dlg.Destroy()
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
@@ -1279,6 +1268,9 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
 
     def NotifyDefect(self, *args, **kwargs):
         self.parent.NotifyDefect(*args, **kwargs)
+
+    def NotifyModification(self, *args, **kwargs):
+        self.parent.NotifyModification(*args, **kwargs)
     
     def NotifyRepo(self, *args, **kwargs):
         self.parent.NotifyRepo(*args, **kwargs)
