@@ -920,7 +920,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         event_id = event.GetId()
 
         # start debugger (if not running):
-        if not self.executing:
+        if not self.executing and not self.debugger:
             print "*** Execute!!!!"
             # should it open debugger inmediatelly or continue?
             cont = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
