@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.03b"
+__version__ = "1.04a"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -513,6 +513,19 @@ class Qdb(bdb.Bdb):
         # send exception information & request interaction
         self.user_exception(frame, info)
 
+    def ping(self):
+        "Minimal method to test that the pipe (connection) is alive"
+        try:
+            # get some non-trivial data to compare:
+            args = (id(object()), )
+            msg = {'method': 'ping', 'args': args, 'id': None}
+            self.pipe.send(msg)
+            msg = self.pipe.recv()
+            # check if data received is ok (alive and synchonized!)
+            return msg['result'] == args
+        except (IOError, EOFError):
+            return None
+        
     # console file-like object emulation
     def readline(self):
         "Replacement for stdin.readline()"
@@ -643,6 +656,8 @@ class Frontend(object):
                 self.write(*request.get("args"))
             elif request.get('method') == 'readline':
                 result = self.readline()
+            elif request.get('method') == 'ping':
+                result = request['args']
             if result:
                 response = {'version': '1.1', 'id': request.get('id'), 
                         'result': result, 
@@ -991,6 +1006,10 @@ def set_trace(host='localhost', port=6000, authkey='secret password'):
     "Simplified interface to debug running programs"
     global qdb, listener, conn
     
+    # destroy the debugger if the previous connection is lost (i.e. broken pipe)
+    if qdb and not qdb.ping():
+        qdb = None
+        
     from multiprocessing.connection import Client
     # only create it if not currently instantiated
     if not qdb:
@@ -1000,7 +1019,6 @@ def set_trace(host='localhost', port=6000, authkey='secret password'):
         # create the backend
         qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
     # start debugger backend:
-    print "set_trace!"
     qdb.set_trace()
 
 
