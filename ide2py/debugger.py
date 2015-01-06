@@ -39,12 +39,14 @@ class LoggingPipeWrapper(object):
         self.__pipe = pipe
     
     def send(self, data):
-        print("PIPE:send: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
+        if isinstance(sys.stdout, file):
+            print("PIPE:send: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
         self.__pipe.send(data)
 
     def recv(self, *args, **kwargs):
         data = self.__pipe.recv(*args, **kwargs)
-        print("PIPE:recv: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
+        if isinstance(sys.stdout, file):
+            print("PIPE:recv: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
         return data
     
     def close(self):
