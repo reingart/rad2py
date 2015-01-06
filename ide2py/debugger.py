@@ -137,6 +137,7 @@ class Debugger(qdb.Frontend):
         self.unrecoverable_error = False
         self.pipe = None
         self.proxy = proxy
+        self.breakpoints = []       # local side to speed-up processing
         wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
 
 
@@ -278,7 +279,8 @@ class Debugger(qdb.Frontend):
         "Start user interaction -show current line- (called by the backend)"
         self.interacting = True
         try:
-            if self.start_continue:
+            # on startup, do not step-by-step if user pressed F5 or similar
+            if self.start_continue and not self.break_here(filename, lineno):
                 self.Continue()
                 self.start_continue = None
                 return
@@ -369,6 +371,10 @@ class Debugger(qdb.Frontend):
                 return False
         return True
 
+    def break_here(self, filename, lineno):
+        "Check to only stop if waiting for breakpoints in the specified line"
+        return (filename, lineno) in self.breakpoints
+
     # Methods to handle user interaction by main thread bellow:
     
     @check_interaction
@@ -422,22 +428,27 @@ class Debugger(qdb.Frontend):
         for filename, bps in self.gui.GetBreakpoints():
             for bp in bps.values():
                 print "loading breakpoint", filename, bp['lineno']
-                self.do_set_breakpoint(filename, bp['lineno'], bp['temp'], bp['cond'])
+                lineno = bp['lineno']
+                self.do_set_breakpoint(filename, lineno, bp['temp'], bp['cond'])
+                self.breakpoints.append((filename, lineno))
 
     @force_interaction
     def SetBreakpoint(self, filename, lineno, temporary=0, cond=None):
         "Set the specified breakpoint (remotelly)"
         self.do_set_breakpoint(filename, lineno, temporary, cond)
+        self.breakpoints.append((filename, lineno))
 
     @force_interaction
     def ClearBreakpoint(self, filename, lineno):
         "Remove the specified breakpoint (remotelly)"
         self.do_clear_breakpoint(filename, lineno)
+        del self.breakpoints[:]
             
     @force_interaction
     def ClearFileBreakpoints(self, filename):
         "Remove all breakpoints set for a file (remotelly)"
         self.do_clear_file_breakpoints(filename)
+        self.breapoints = [bp for bp in self.breapoints if bp[0] != filename]
 
     # modal functions required by Eval (must not block):
     
