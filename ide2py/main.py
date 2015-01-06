@@ -901,9 +901,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
     def GetLineText(self, filename, lineno):
         "Returns source code"
         # used by the debugger to detect modifications runtime
+        print "GetLineText", filename, lineno
         child = self.DoOpen(filename)
         if child:
-            return child.GetLineText(lineno)
+            return child.GetLineText(lineno, encode=True)
 
     def Readline(self):
         # ensure "console" pane is visible
@@ -1244,8 +1245,8 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
     def GetCurrentLine(self):
         return self.editor.GetCurrentLine() + 1
     
-    def GetLineText(self, lineno):
-        return self.editor.GetLineText(lineno)
+    def GetLineText(self, lineno, encode=False):
+        return self.editor.GetLineText(lineno, encode=encode)
 
     def GetWord(self):
         return self.editor.GetWord(whole=True)
@@ -1364,7 +1365,7 @@ class AUIChildFrameBrowser(aui.AuiMDIChildFrame):
     def GetCurrentLine(self):
         return 0
     
-    def GetLineText(self, lineno):
+    def GetLineText(self, lineno, encode=False):
         return ""
 
     def GetWord(self):

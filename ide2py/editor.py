@@ -737,7 +737,8 @@ class EditorCtrl(stc.StyledTextCtrl):
                         self.ToggleFold(lineclicked)
 
     def ToggleBreakpoint(self, evt=None, lineno=None, cond=None, temp=False):
-        ok = None
+        # track breakpoints (only if debugger is available)
+        ok = None if self.debugger is None else False
         if lineno is None:
             lineno = self.LineFromPosition(self.GetCurrentPos())
             # fix the line number (starting at 0 for STC, 1 for debugger):
@@ -821,6 +822,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         for handle in self.breakpoints:
             lineno = self.MarkerLineFromHandle(handle)
             self.breakpoints[handle]['lineno'] = lineno + 1
+            self.breakpoints[handle]['line_uuid'] = self.metadata[lineno]['uuid']
         return self.breakpoints
 
     def FoldAll(self, expanding=None):
@@ -861,11 +863,14 @@ class EditorCtrl(stc.StyledTextCtrl):
         while lineno < linecount:
             level = self.GetFoldLevel(lineno)
             if level  & stc.STC_FOLDLEVELHEADERFLAG:
+                end_lineno = self.GetLastChild(lineno, -1)
                 fold = {
                         'level': level,
                         'start_lineno': lineno + 1,
-                        'end_lineno': self.GetLastChild(lineno, -1) + 1,
+                        'end_lineno': end_lineno + 1,
                         'expanded': self.GetFoldExpanded(lineno),
+                        'start_line_uuid': self.metadata[lineno]['uuid'],
+                        'end_line_uuid': self.metadata[end_lineno]['uuid'],
                        }
                 folds.append(fold)
             lineno = lineno + 1
@@ -924,10 +929,14 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM)
             self.MarkerAdd(linenum, self.CURRENT_LINE_MARKER_NUM+1)
    
-    def GetLineText(self, linenum):
-        lstart = self.PositionFromLine(linenum - 1)
-        lend = self.GetLineEndPosition(linenum - 1)
-        return self.GetTextRange(lstart, lend).encode(self.encoding)
+    def GetLineText(self, linenum, encode=False, strip=True):
+        "Get the contents of a line (i.e. used by debugger) LineNum is 1-based"
+        text = self.GetLine(linenum - 1) 
+        if strip:
+            text = text.rstrip().rstrip("\r").rstrip("\n")
+        if encode:
+            text = text.encode(self.encoding)
+        return text
 
     def ToggleComment(self, event=None):
         "Toggle the comment of the selected region"
@@ -1114,7 +1123,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         start = self.LineFromPosition(self.GetSelectionStart())
         end = self.LineFromPosition(self.GetSelectionEnd())
         # store the uuids and line text to check on pasting:
-        original_text_lines = [self.GetLine(i) for i in range(start, end)]
+        original_text_lines = [self.GetLineText(i+1) for i in range(start, end)]
         self.clipboard = original_text_lines, self.metadata[start:end]
         # call the default method:
         return stc.StyledTextCtrl.Cut(self)
@@ -1133,7 +1142,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         if self.clipboard:
             original_text_lines, metadata_saved = self.clipboard
             end = start + len(metadata_saved)
-            new_text_lines = [self.GetLine(i) for i in range(start, end)]
+            new_text_lines = [self.GetLineText(i+1) for i in range(start, end)]
             if metadata_saved and original_text_lines == new_text_lines:
                 ##print "restoring", start, metadata_saved
                 self.metadata[start:end] = metadata_saved
@@ -1145,7 +1154,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         
     def OnHover(self, evt):
         # Abort if not debugging (cannot eval) or position is invalid
-        if self.debugger and self.debugger.attached and evt.GetPosition() >= 0:
+        if self.debugger and evt.GetPosition() >= 0:
             # get selected text first:
             expr = self.GetSelectedText()
             if not expr:
@@ -1204,6 +1213,9 @@ class EditorCtrl(stc.StyledTextCtrl):
         offset = self.PositionFromLine(lineno) 
         undo = mod_type & stc.STC_PERFORMED_UNDO
         redo = mod_type & stc.STC_PERFORMED_REDO
+        mod_inserted = mod_type & stc.STC_MOD_INSERTTEXT
+        mod_deleted = mod_type & stc.STC_MOD_DELETETEXT
+        notify_modification = False
         # track lines only if there are lines inserted / deleted (count)
         if count:
             # adjust offest with the origin column
@@ -1214,7 +1226,7 @@ class EditorCtrl(stc.StyledTextCtrl):
             # if at the beggin, the current line is moved down
             # (this preserves the correct uuid when inserting or deleting)
             after = 1 if offset < pos else 0
-            if mod_type & stc.STC_MOD_INSERTTEXT:
+            if mod_inserted:
                 ##print "Inserted %d @ %d %d %d" % (count, lineno, pos, offset)
                 if undo:
                     action_info = self.get_last_action()
@@ -1234,49 +1246,71 @@ class EditorCtrl(stc.StyledTextCtrl):
                         new_uuid, origin = str(uuid.uuid1()), 0
                         phase = self.get_current_phase()
                     datum = {"uuid": new_uuid, "origin": origin, "phase": phase}
-                    datum["text"] = self.GetLine(j)
+                    datum["text"] = self.GetLineText(j+1)
                     self.metadata.insert(j, datum)
+                    notify_modification = True
                     if not undo and not redo:
                         action_info[j] = {"uuid": new_uuid, "origin": origin, 
                                           "phase": phase}
                 if not undo and not redo:
                     self.store_action(action_info)
-            if mod_type & stc.STC_MOD_DELETETEXT:
+            if mod_deleted:
                 ##print "Removed %d lines @ %d" % (count, lineno)
                 if not undo and not redo:
                     action_info = {}
                     for i in range(count):
                         j = lineno + i + after
                         action_info[j] = self.metadata[j]
+                    notify_modification = True
                     self.store_action(action_info)
                 del self.metadata[lineno + after:count + lineno + after]
             # move action buffer (history) pointer ahead/backwards accordingly
             if undo or redo:
                 # note: a STC undo action could involve several pointer units
                 self.actions_pointer += 1 if redo else -1
+            # signal to update line numbers
+            if notify_modification:
+                self.parent.NotifyModification(self.filename)
         elif self.metadata:
             # no newline, track insert and deletes (moving origin column)
             u = self.metadata[lineno]["uuid"]
             origin = self.metadata[lineno]["origin"]
-            if mod_type & stc.STC_MOD_INSERTTEXT:
+            if mod_inserted:
                 new_origin = (pos - offset) + evt.GetLength()
                 if new_origin > origin:
                     self.metadata[lineno]["origin"] = new_origin
-            elif mod_type & stc.STC_MOD_DELETETEXT:
+            elif mod_deleted:
                 new_origin = (pos - offset)
                 if new_origin < origin:
                     self.metadata[lineno]["origin"] = new_origin
             else:
                 new_origin = None
             # update the current phase of this line as it was modified:
-            if mod_type & (stc.STC_MOD_INSERTTEXT | stc.STC_MOD_INSERTTEXT):
-                self.metadata[lineno]["phase"] = self.get_current_phase()
-                self.metadata[lineno]["text"] = self.GetLine(lineno)
+            new_text = evt.GetText().strip('\n')
+            if (mod_inserted or mod_deleted) and new_text:
+                # restore the phase if undoing or redoing an action:
+                if undo:
+                    action_info = self.get_last_action()
+                    phase = action_info['phase']
+                elif redo:
+                    action_info = self.get_next_action()
+                    phase = action_info['phase']
+                else:
+                    # store current metadata for future use (prior modification)
+                    # NOTE: don't put it directly as it is a mutable dict 
+                    self.store_action({'phase': self.metadata[lineno]['phase']})
+                    phase = self.get_current_phase()
+                self.metadata[lineno]["phase"] = phase
+                self.metadata[lineno]["text"] = self.GetLineText(lineno+1)
+                # update metadata pointer
+                if undo or redo:
+                    self.actions_pointer += 1 if redo else -1
+
             ##print "Origin", origin, new_origin, evt.GetLength(), pos, offset
         # output some debugging messages (uuid internal representation):
         if False:
             for i, m in enumerate(self.metadata):
-                txt = self.GetLine(i).replace("\n", "")
+                txt = self.GetLineText(i+1)
                 lineno = i + 1
                 print "%s %s%4d:%s" % (m["uuid"], m["origin"], lineno, txt)
 
