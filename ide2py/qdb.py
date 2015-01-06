@@ -942,8 +942,8 @@ def test():
     sys.exit(0)
 
 
-def connect(host="localhost", port=6000, authkey='secret password'):
-    "Connect to a running debugger backend"
+def start(host="localhost", port=6000, authkey='secret password'):
+    "Start the CLI server and wait connection from a running debugger backend"
     
     address = (host, port)
     from multiprocessing.connection import Listener
@@ -961,7 +961,7 @@ def connect(host="localhost", port=6000, authkey='secret password'):
 
 
 def main(host='localhost', port=6000, authkey='secret password'):
-    "Debug a script and accept a remote frontend"
+    "Debug a script (running under the backend) and connect to remote frontend"
     
     if not sys.argv[1:] or sys.argv[1] in ("--help", "-h"):
         print "usage: pdb.py scriptfile [arg] ..."
@@ -1052,7 +1052,7 @@ if __name__ == '__main__':
 
     if not sys.argv[1:]:
         # connect to a remote debbuger
-        connect(**kwargs)
+        start(**kwargs)
     else:
         # start the debugger on a script
         # reimport as global __main__ namespace is destroyed
