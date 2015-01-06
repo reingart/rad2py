@@ -249,6 +249,8 @@ class Qdb(bdb.Bdb):
             frame = sys._getframe().f_back
         self._wait_for_mainpyfile = frame.f_code.co_filename
         self._wait_for_breakpoint = 0
+        # reinitialize debugger internal settings
+        self.fast_continue = False
         bdb.Bdb.set_trace(self, frame)
 
     # Command definitions, called by interaction()
