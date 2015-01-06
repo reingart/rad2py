@@ -989,16 +989,16 @@ def set_trace(host='localhost', port=6000, authkey='secret password'):
     "Simplified interface to debug running programs"
     global qdb, listener, conn
     
-    from multiprocessing.connection import Listener
+    from multiprocessing.connection import Client
     # only create it if not currently instantiated
     if not qdb:
         address = (host, port)     # family is deduced to be 'AF_INET'
-        listener = Listener(address, authkey=authkey)
-        conn = listener.accept()
-
+        conn = Client(address, authkey=authkey)
+        print 'qdb debugger backend: connected to', address
         # create the backend
-        qdb = Qdb(conn)
+        qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
     # start debugger backend:
+    print "set_trace!"
     qdb.set_trace()
 
 
