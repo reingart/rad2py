@@ -293,7 +293,7 @@ class Qdb(bdb.Bdb):
         self.fast_continue = False
 
     def interrupt(self):
-        self.set_step()
+        self.set_trace()
         self.fast_continue = False
 
     def do_quit(self):
