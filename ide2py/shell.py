@@ -40,7 +40,7 @@ class Interpreter(wx.py.interpreter.Interpreter):
     def runsource(self, source):
         """Compile and run source code in the interpreter."""
         if self.debugger:
-            text = self.debugger.Exec(source, 
+            text = self.debugger.current.Exec(source, 
                                      write=self.stdout.write, 
                                      readline=self.stdin.readline)
             self.stdout.write(text)
@@ -54,7 +54,7 @@ class Interpreter(wx.py.interpreter.Interpreter):
     def getAutoCompleteList(self, command='', *args, **kwds):
         root = wx.py.introspect.getRoot(command, terminator=".")
         if self.debugger:
-            l = self.debugger.GetAutoCompleteList(root)
+            l = self.debugger.current.GetAutoCompleteList(root)
         else:
             l = wx.py.interpreter.Interpreter.getAutoCompleteList(self, 
                         command, *args, **kwds)
@@ -63,7 +63,7 @@ class Interpreter(wx.py.interpreter.Interpreter):
     def getCallTip(self, command='', *args, **kwds):
         root = wx.py.introspect.getRoot(command, terminator="(")
         if self.debugger:
-            calltip = self.debugger.GetCallTip(root)
+            calltip = self.debugger.current.GetCallTip(root)
         else:
             calltip = wx.py.interpreter.Interpreter.getCallTip(self, 
                         command, *args, **kwds)

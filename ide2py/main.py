@@ -724,7 +724,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
 
     def DoOpen(self, filename, title=""):
         is_url = filename.startswith(("http://", "https://"))
-        if not (self.debugger.current and self.debugger.is_remote()) and not is_url:
+        if not (self.debugger.current and self.debugger.current.is_remote()) and not is_url:
             # normalize filename for local files! (mostly fix path separator)
             filename = os.path.abspath(filename)
         found = [child for child in self.children if child.GetFilename()==filename]
@@ -939,22 +939,22 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             # clean running indication
             self.GotoFileLine()
         elif event_id == ID_STEPIN:
-            self.debugger.Step()
+            self.debugger.current.Step()
         elif event_id == ID_STEPNEXT:
-            self.debugger.Next()
+            self.debugger.current.Next()
         elif event_id == ID_STEPRETURN:
-            self.debugger.StepReturn()
+            self.debugger.current.StepReturn()
         elif event_id == ID_CONTINUE:
             self.GotoFileLine()
-            self.debugger.Continue()
+            self.debugger.current.Continue()
         elif event_id == ID_QUIT:
-            self.debugger.Quit()
+            self.debugger.current.Quit()
         elif event_id == ID_INTERRUPT:
-            self.debugger.Interrupt()
+            self.debugger.current.Interrupt()
         elif event_id == ID_EVAL and self.active_child:
             # Eval selected text (expression) in debugger running context
             arg = self.active_child.GetSelectedText()
-            val = self.debugger.Eval(arg)
+            val = self.debugger.current.Eval(arg)
             dlg = wx.MessageDialog(self, "Expression: %s\nValue: %s" % (arg, val), 
                                    "Debugger Quick Eval",
                                    wx.ICON_INFORMATION | wx.OK )
@@ -963,7 +963,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         elif event_id == ID_JUMP and self.debugging_child:
             # change actual line number (if possible)
             lineno = self.debugging_child.GetCurrentLine()
-            if self.debugger.Jump(lineno) is not False:
+            if self.debugger.current.Jump(lineno) is not False:
                 self.debugging_child.SynchCurrentLine(lineno)
             else:
                 print "Fail!"
@@ -971,7 +971,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             # Continue execution until we reach selected line (temp breakpoint)
             lineno = self.debugging_child.GetCurrentLine()
             filename = self.debugging_child.GetFilename()
-            self.debugger.Continue(filename=filename, lineno=lineno)
+            self.debugger.current.Continue(filename=filename, lineno=lineno)
 
     def OnHelp(self, event):
         "Show help on selected text"

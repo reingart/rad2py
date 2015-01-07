@@ -38,15 +38,19 @@ class LoggingPipeWrapper(object):
     def __init__(self, pipe):
         self.__pipe = pipe
     
+    def __format(self, data):
+        return (self.__pipe.fileno(), data.get("id"), data.get("method"), 
+                data.get("args"), repr(data.get("result",""))[:40])
+    
     def send(self, data):
         if isinstance(sys.stdout, file):
-            print("PIPE:send: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
+            print("PIPE:send: #%s %s %s %s %s" % self.__format(data))
         self.__pipe.send(data)
 
     def recv(self, *args, **kwargs):
         data = self.__pipe.recv(*args, **kwargs)
         if isinstance(sys.stdout, file):
-            print("PIPE:recv: %s %s %s %s" % (data.get("id"), data.get("method"), data.get("args"), repr(data.get("result",""))[:40]))
+            print("PIPE:recv: #%s %s %s %s %s" % self.__format(data))
         return data
     
     def close(self):
@@ -61,7 +65,6 @@ class DebuggerProxy(object):
 
     def __init__(self, gui=None, host='localhost', port=6000, authkey='secret password'):
         self.gui = gui              # wx window for callbacks
-        self.post_event = True      # send event to the GUI
         address = (host, port)      # family is deduced to be 'AF_INET'
         self.start_continue = None  # continue on first run
         self.pool = []
@@ -84,6 +87,14 @@ class DebuggerProxy(object):
         p = Thread(target=self.listen)
         p.daemon = True                     # close on exit
         wx.CallLater(3, p.start)            # give time to the IDE for startup
+        self.gui.Bind(wx.EVT_IDLE, self.OnIdle)  # schedule debugger execution
+    
+    def OnIdle(self, event):
+        "Process incoming messages from backend debuggers"
+        # NOTE: only one event handler to avoid issues with IDLE events
+        # if not, just the last debugger binded got the events (RequestMore...)
+        for debugger in self.pool:
+            debugger.OnIdle(event)
 
     def listen(self):
         "Main loop: accept incoming connections and launch new debuggers"
@@ -96,8 +107,8 @@ class DebuggerProxy(object):
             debugger.attach(conn, address, self.start_continue)
             self.pool.append(debugger)
             self.pool_info[debugger] = address
-            if self.current is None:
-                self.current = debugger
+            # set the new one as current
+            self.current = debugger
             self.refresh()
     
     def refresh(self):
@@ -113,7 +124,6 @@ class DebuggerProxy(object):
             self.current = new_current
         if activate:
             # send the event to mark the current line
-            print "activating", new_current
             new_current.activate_current_line()
     
     def __nonzero__(self):
@@ -134,14 +144,6 @@ class DebuggerProxy(object):
             self.current = None
         self.refresh()
     
-    def __getattr__(self, attr):
-        "Proxy methods and other attributes to the current active debugger"
-        if self.current:
-            return getattr(self.current, attr)
-        else:
-            traceback.print_exc()
-            raise AttributeError("No current debugger available!")
-
 
 class Debugger(qdb.Frontend):
     "Frontend Visual interface to qdb"
@@ -159,8 +161,6 @@ class Debugger(qdb.Frontend):
         self.pipe = None
         self.proxy = proxy
         self.breakpoints = []       # local side to speed-up processing
-        wx.GetApp().Bind(wx.EVT_IDLE, self.OnIdle) # schedule debugger execution
-
 
     def OnIdle(self, event):
         "Debugger main loop: read and execute remote methods"
@@ -208,7 +208,7 @@ class Debugger(qdb.Frontend):
 
     def is_remote(self):
         return (self.attached and 
-                self.address[0] not in ("localhost"))
+                self.address[0] not in ("localhost", "127.0.0.1"))
 
     def check_interaction(fn):
         "Decorator for mutually exclusive functions"
