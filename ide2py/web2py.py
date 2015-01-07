@@ -33,18 +33,27 @@ if False:
     import numpy
     import pylab
     
+
+ID_ATTACH = wx.NewId()
+
     
 class Web2pyMixin(object):
     "ide2py extension to execute web2py under debugger and shell"
 
-    def __init__(self, path="../web2py", port=8006, password="a"):
+    def __init__(self):
+        self.menu['run'].Append(ID_ATTACH, 
+                                "Start &webserver\tCtrl-Alt-W",
+                                "Start and attach embedded local web2py server")
+        self.Bind(wx.EVT_MENU, self.OnAttachWebserver, id=ID_ATTACH)
+
+    def OnAttachWebserver(self, event):
         "start-up a web2py server instance"
 
         # read configuration with safe defaults        
         cfg = wx.GetApp().get_config("WEB2PY")
-        path = cfg.get("path", path)
-        password = cfg.get("password", password)
-        port = cfg.get("port", port)
+        path = cfg.get("path", "../web2py")
+        password = cfg.get("password", "a")
+        port = cfg.get("port", 8006)
         host = "127.0.0.1"
         
         if path:           
@@ -84,7 +93,7 @@ class Web2pyMixin(object):
 
                 thread = Thread(target=server, args=(host, port, password))
                 thread.daemon = True     # close on exit
-                wx.CallLater(2, thread.start)
+                thread.start()
 
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)
