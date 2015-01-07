@@ -27,7 +27,6 @@ import threading
 
 # Speed Ups: global variables
 breaks = []
-poll = None
 
 
 class Qdb(bdb.Bdb):
@@ -35,7 +34,7 @@ class Qdb(bdb.Bdb):
 
     def __init__(self, pipe, redirect_stdio=True, allow_interruptions=False,
                  use_speedups=True, skip=[__name__]):
-        global breaks, poll
+        global breaks
         kwargs = {}
         if sys.version_info > (2, 7):
             kwargs['skip'] = skip
@@ -63,8 +62,6 @@ class Qdb(bdb.Bdb):
         self.burst = 0          # do not send notifications ("burst" mode)
         self.params = {}        # optional parameters for interaction
         
-        # if available and enabled, enable speedups:
-        poll = self.pipe.poll
         # flags to reduce overhead (only stop at breakpoint or interrupt)
         self.use_speedups = use_speedups
         self.fast_continue = False
@@ -98,7 +95,7 @@ class Qdb(bdb.Bdb):
         while self.allow_interruptions and self.pipe.poll():
             self.pull_actions()
             # check for non-interaction rpc (set_breakpoint, interrupt)
-            while poll():
+            while self.pipe.poll():
                 self.pull_actions()
         if (frame.f_code.co_filename, frame.f_lineno) not in breaks and \
             self.fast_continue:
@@ -706,8 +703,8 @@ class Frontend(object):
             # wait until command acknowledge (response id match the request)
             res = self.recv()
             if 'id' not in res or not res['id']:
-                # nested notification received (i.e. write)! process it!
-                self.process_message(res)
+                # nested notification received (i.e. write)! process it later...
+                self.notifies.append(res)
             elif 'result' not in res:
                 # nested request received (i.e. readline)! process it!
                 self.process_message(res)
@@ -1023,7 +1020,6 @@ def main(host='localhost', port=6000, authkey='secret password'):
         print "Program terminated!"
     finally:
         conn.close()
-        listener.close()
         print "qdb debbuger backend: connection closed"
 
 
