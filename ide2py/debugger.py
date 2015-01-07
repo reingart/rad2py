@@ -24,6 +24,11 @@ import qdb
 # Define notification event for thread completion
 EVT_DEBUG_ID, EVT_EXCEPTION_ID = [wx.NewId() for i in range(2)]
 
+# Default debugger constants:
+HOST = '127.0.0.1'              # for remote sessions use '' (listen on all IP)
+PORT = 6000
+AUTH_KEY = 'secret password'    # change or configure ide2py.ini
+
 
 class DebugEvent(wx.PyEvent):
     """Simple event to carry arbitrary result data."""
@@ -63,7 +68,7 @@ class LoggingPipeWrapper(object):
 class DebuggerProxy(object):
     "Facade for the pool of debuggers (one for each connection)" 
 
-    def __init__(self, gui=None, host='localhost', port=6000, authkey='secret password'):
+    def __init__(self, gui=None, host=HOST, port=PORT, authkey=AUTH_KEY):
         self.gui = gui              # wx window for callbacks
         address = (host, port)      # family is deduced to be 'AF_INET'
         self.start_continue = None  # continue on first run
@@ -207,6 +212,7 @@ class Debugger(qdb.Frontend):
             self.proxy.remove(self)
 
     def is_remote(self):
+        # NOTE: if using a reverse tunnel (ssh), listen in a LAN IP address!
         return (self.attached and 
                 self.address[0] not in ("localhost", "127.0.0.1"))
 
@@ -313,7 +319,7 @@ class Debugger(qdb.Frontend):
                 
             #  sync_source_line()
             self.filename = self.orig_line = self.lineno = None
-            if filename[:1] + filename[-1:] != "<>" and os.path.exists(filename):
+            if filename[:1] + filename[-1:] != "<>":
                 self.filename = filename
                 self.orig_line = line.rstrip().rstrip("\r").rstrip("\n")
                 self.lineno = lineno
@@ -699,10 +705,10 @@ class SessionListCtrl(wx.ListCtrl):
         self.SetColumnWidth(0, 75)
         self.InsertColumn(1, "Port", wx.LIST_FORMAT_RIGHT)
         self.SetColumnWidth(1, 50)
-        self.InsertColumn(2, "PID", wx.LIST_FORMAT_RIGHT) 
+        self.InsertColumn(2, "Process ID", wx.LIST_FORMAT_RIGHT) 
         self.SetColumnWidth(2, 50)
         self.InsertColumn(3, "Thread", wx.LIST_FORMAT_LEFT) 
-        self.SetColumnWidth(3, 75)
+        self.SetColumnWidth(3, 80)
         self.InsertColumn(4, "Command line (argv)", wx.LIST_FORMAT_LEFT) 
         self.SetColumnWidth(4, 200)
         self.InsertColumn(5, "Caller Module", wx.LIST_FORMAT_RIGHT) 

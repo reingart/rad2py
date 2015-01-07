@@ -16,6 +16,7 @@ import os
 import re
 import inspect
 import keyword
+import time
 import types
 import uuid
 
@@ -239,8 +240,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         # open the file with universal line-endings support
         f = None
         try:
-            if self.debugger and self.debugger.is_remote():
-                f = self.debugger.ReadFile(filename)
+            if self.debugger and self.debugger.current.is_remote():
+                f = self.debugger.current.ReadFile(filename)
                 readonly = True
             else:
                 f = open(filename, "Ur")
@@ -317,7 +318,10 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def OnOpen(self, event=None):
         if self.filename and self.LoadFile(self.filename):
-            self.filetimestamp = os.stat(self.filename).st_mtime
+            if not self.ReadOnly:
+                self.filetimestamp = os.stat(self.filename).st_mtime
+            else:
+                self.filetimestamp = time.time()
             # call to SetTile setting modified=False (fix LoadFile -> OnChange)
             wx.CallAfter(self.SetTitle, False)
             # prevent undo going further than this (cleaning the document)
@@ -354,7 +358,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def OnFocus(self, event=None):
         # check for data changes
-        if self.filename and self.filetimestamp != None:
+        if self.filename and self.filetimestamp != None and not self.ReadOnly:
           if self.filetimestamp != os.stat(self.filename).st_mtime:
             self.filetimestamp = os.stat(self.filename).st_mtime
             if wx.MessageBox('The content of the %s file has changed on disk.  '
@@ -749,7 +753,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         if self.MarkerGet(lineno - 1) & self.BREAKPOINT_MARKER_MASK:
             # delete the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.ClearBreakpoint(self.filename, lineno)
+                ok = self.debugger.current.ClearBreakpoint(self.filename, lineno)
             if ok is not None:
                 # look for the marker handle (lineno can be moved)
                 for handle in self.breakpoints:
@@ -768,7 +772,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         else:
             # set the breakpoint (if debugger is running) and marker
             if self.debugger:
-                ok = self.debugger.SetBreakpoint(self.filename, lineno, temp, cond)
+                ok = self.debugger.current.SetBreakpoint(self.filename, lineno, temp, cond)
             if ok is not None:
                 # set the main breakpoint marker (get handle)
                 handle = self.MarkerAdd(lineno - 1, self.BREAKPOINT_MARKER_NUM) 
@@ -1160,8 +1164,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             if not expr:
                 expr = self.GetWord(whole=True, pos=evt.GetPosition())
             # Query qdb debugger to evaluate the expression
-            if expr and self.debugger.interacting:
-                value = self.debugger.Eval(expr)
+            if expr and self.debugger.current.interacting:
+                value = self.debugger.current.Eval(expr)
                 if value is not None:
                     expr_value = "%s = %s" % (expr, value)
                     wx.CallAfter(self.SetToolTipString, expr_value)
