@@ -103,7 +103,18 @@ class DebuggerProxy(object):
     def refresh(self):
         "Update the sessions list control pane"
         items = [self.pool_info[dbg] + dbg.info[1:] for dbg in self.pool] 
-        self.gui.sessions.BuildList(items)
+        selected_index = self.pool.index(self.current) if self.current else None
+        self.gui.sessions.BuildList(items, selected_index)
+    
+    def change_current(self, selected_index, activate=False):
+        "Called when item selected changes in keyboard"
+        new_current = self.pool[selected_index]
+        if new_current != self.current:
+            self.current = new_current
+        if activate:
+            # send the event to mark the current line
+            print "activating", new_current
+            new_current.activate_current_line()
     
     def __nonzero__(self):
         "Check if debugger is running (so proxy methods are valid)"
@@ -306,16 +317,22 @@ class Debugger(qdb.Frontend):
                 self.filename = filename
                 self.orig_line = line.rstrip().rstrip("\r").rstrip("\n")
                 self.lineno = lineno
+                self.context = context
+                self.line = line
                 if self.gui and self.post_event:
                     # send the event to mark the current line
-                    wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
-                                                      (filename, lineno, context, line)))
+                    self.activate_current_line()
                 else:
                     # ignore this (async command) and reenable notifications
                     self.post_event = True
         finally:
             pass
-            
+
+    def activate_current_line(self):
+        if self.filename:
+            wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
+                         (self.filename, self.lineno, self.context, self.line)))            
+    
     def write(self, text):
         "ouputs a message (called by the backend)"
         self.gui.Write(text)
@@ -690,6 +707,18 @@ class SessionListCtrl(wx.ListCtrl):
         self.SetColumnWidth(4, 200)
         self.InsertColumn(5, "Caller Module", wx.LIST_FORMAT_RIGHT) 
         self.SetColumnWidth(5, 200)
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self)
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated, self)
+
+    def OnItemSelected(self, evt):
+        "Set new current debugger accordling the selection"
+        selected_index = evt.m_itemIndex
+        self.parent.debugger.change_current(selected_index)
+
+    def OnItemActivated(self, evt):
+        "On double click or enter, highlight the current line"
+        selected_index = evt.m_itemIndex
+        self.parent.debugger.change_current(selected_index, True)
         
     def AddItem(self, item, key=None):
         index = self.InsertStringItem(sys.maxint, item[0])
@@ -701,10 +730,12 @@ class SessionListCtrl(wx.ListCtrl):
                 val = str(val)
             self.SetStringItem(index, i+1, val)
     
-    def BuildList(self, items):
+    def BuildList(self, items, selected_index=None):
         self.DeleteAllItems()
         for item in items:
             self.AddItem(item)
+        if selected_index is not None:
+            self.Select(selected_index)
 
 
 class TestFrame(wx.Frame):
