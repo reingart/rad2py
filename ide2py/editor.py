@@ -54,7 +54,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=0, filename=None, debugger=None, cfg={}, 
                  metadata=None, get_current_phase=None,
-                 lang="python", title="", cfg_styles={}):
+                 lang="python", title="", cfg_styles={}, running=False):
         global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
 
         stc.StyledTextCtrl.__init__(self, parent, ID, pos, size, style)
@@ -217,7 +217,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(stc.EVT_STC_DWELLSTART, self.OnHover)
         self.Bind(wx.stc.EVT_STC_DWELLEND, self.OnEndHover)
         
-        self.OnOpen()
+        self.OnOpen(running=running)
         self.SetFocus()
 
     def SetStyles(self, lang='python', cfg_styles={}):
@@ -235,12 +235,13 @@ class EditorCtrl(stc.StyledTextCtrl):
         for key, value in cfg_styles.items():
             self.StyleSetSpec(eval("stc.%s" % key.upper()), value % FACES)
 
-    def LoadFile(self, filename, encoding=None):
+    def LoadFile(self, filename, encoding=None, running=False):
         "Replace STC.LoadFile for non-unicode files and BOM support"
         # open the file with universal line-endings support
         f = None
         try:
-            if self.debugger and self.debugger.current.is_remote():
+            # only use the debugger if the user didn't used the menu or similar:
+            if running and self.debugger and self.debugger.current.is_remote():
                 f = self.debugger.current.ReadFile(filename)
                 readonly = True
             else:
@@ -279,8 +280,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                 self.SetModEventMask(mask)
             
             # remote text cannot be modified:
-            if readonly:  
-                self.SetReadOnly(True)
+            self.SetReadOnly(readonly)
             return True
         except Exception, e:
             dlg = wx.MessageDialog(self, unicode(e), "Unable to Load File",
@@ -316,8 +316,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             if f:
                 f.close()
 
-    def OnOpen(self, event=None):
-        if self.filename and self.LoadFile(self.filename):
+    def OnOpen(self, event=None, running=False):
+        if self.filename and self.LoadFile(self.filename, running=running):
             if not self.ReadOnly:
                 self.filetimestamp = os.stat(self.filename).st_mtime
             else:

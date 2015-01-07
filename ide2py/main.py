@@ -722,17 +722,19 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         # add it back to the history so it will be moved up the list
         self.filehistory.AddFileToHistory(filepath)
 
-    def DoOpen(self, filename, title=""):
+    def DoOpen(self, filename, title="", running=False):
         is_url = filename.startswith(("http://", "https://"))
-        if not (self.debugger.current and self.debugger.current.is_remote()) and not is_url:
-            # normalize filename for local files! (mostly fix path separator)
-            filename = os.path.abspath(filename)
+        if not is_url:
+            if not running or (self.debugger.current and \
+                               self.debugger.current.is_remote()):
+                # normalize filename for local files! (fix path separator)
+                filename = os.path.normcase(os.path.abspath(filename))
         found = [child for child in self.children if child.GetFilename()==filename]
         if not found:
             if is_url:
                 child = AUIChildFrameBrowser(self, filename, title)
             else:
-                child = AUIChildFrameEditor(self, filename, title)
+                child = AUIChildFrameEditor(self, filename, title, running)
                 if self.explorer:
                     wx.CallAfter(self.explorer.ParseFile, filename)
             child.Show()
@@ -776,8 +778,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             self.children.remove(child)
         if self.task_id or True:
             self.save_task_context(filename, child)
-        if self.explorer and not filename.startswith(("http://", "https://")):
-            wx.CallAfter(self.explorer.RemoveFile, filename)
+        if self.explorer and filename:
+            if not filename.startswith(("http://", "https://")):
+                wx.CallAfter(self.explorer.RemoveFile, filename)
 
     def OnExplorer(self, event):
         filename = self.active_child.GetFilename() if self.active_child else "" 
@@ -888,7 +891,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                 self.debugging_child = None
         # then look for the file being debugged
         if event and filename:
-            child = self.DoOpen(filename)
+            child = self.DoOpen(filename, running=running)
             if child:
                 if running:
                     child.SynchCurrentLine(lineno)
@@ -1173,7 +1176,7 @@ class CustomStatusBar(wx.StatusBar):
 
 class AUIChildFrameEditor(aui.AuiMDIChildFrame):
 
-    def __init__(self, parent, filename, title=""):
+    def __init__(self, parent, filename, title="", running=False):
         self.filename = filename
         self.parent = parent
         aui.AuiMDIChildFrame.__init__(self, parent, -1,
@@ -1181,7 +1184,7 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
         app = wx.GetApp()
 
         self.editor = EditorCtrl(self,-1, filename=filename,    
-                                 debugger=parent.debugger, 
+                                 debugger=parent.debugger, running=running,
                                  metadata=parent.get_metadata(filename),
                                  get_current_phase=parent.get_current_psp_phase,
                                  lang="python", 
