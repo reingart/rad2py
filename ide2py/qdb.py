@@ -51,6 +51,7 @@ class Qdb(bdb.Bdb):
         # ignore filenames (avoid spurious interaction specially on py2)
         self.ignore_files = [self.canonic(f) for f in (__file__, bdb.__file__)]
         # replace system standard input and output (send them thru the pipe)
+        self.old_stdio = sys.stdin, sys.stdout, sys.stderr
         if redirect_stdio:
             sys.stdin = self
             sys.stdout = self
@@ -576,6 +577,18 @@ class Qdb(bdb.Bdb):
     def encoding(self):
         return None  # use default, 'utf-8' should be better...
 
+    def close(self):
+        # revert redirections and close connection
+        sys.stdin, sys.stdout, sys.stderr = self.old_stdio
+        try:
+            self.pipe.close()
+        except:
+            pass
+
+    def __del__(self):
+        self.close()
+
+
 class QueuePipe(object):
     "Simulated pipe for threads (using two queues)"
     
@@ -1024,6 +1037,7 @@ def init(host='localhost', port=6000, authkey='secret password', redirect=True):
     
     # destroy the debugger if the previous connection is lost (i.e. broken pipe)
     if qdb and not qdb.ping():
+        qdb.close()
         qdb = None
         
     from multiprocessing.connection import Client
