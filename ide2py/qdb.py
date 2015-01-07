@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.04b"
+__version__ = "1.04c"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -991,14 +991,8 @@ def main(host='localhost', port=6000, authkey='secret password'):
     # Replace pdb's dir with script's dir in front of module search path.
     sys.path[0] = os.path.dirname(mainpyfile)
 
-    from multiprocessing.connection import Client
-    address = (host, port)     # family is deduced to be 'AF_INET'
-    print "qdb debugger backend: waiting for connection to", address
-    conn = Client(address, authkey=authkey)
-    print 'qdb debugger backend: connected to', address
-
     # create the backend
-    qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
+    init(host, port, authkey)
     try:
         print "running", mainpyfile
         qdb._runscript(mainpyfile)
@@ -1020,8 +1014,11 @@ def main(host='localhost', port=6000, authkey='secret password'):
         print "qdb debbuger backend: connection closed"
 
 
+# "singleton" to store a unique backend per process
 qdb = None
-def set_trace(host='localhost', port=6000, authkey='secret password'):
+
+
+def init(host='localhost', port=6000, authkey='secret password', redirect=True):
     "Simplified interface to debug running programs"
     global qdb, listener, conn
     
@@ -1033,12 +1030,19 @@ def set_trace(host='localhost', port=6000, authkey='secret password'):
     # only create it if not currently instantiated
     if not qdb:
         address = (host, port)     # family is deduced to be 'AF_INET'
+        print "qdb debugger backend: waiting for connection to", address
         conn = Client(address, authkey=authkey)
         print 'qdb debugger backend: connected to', address
         # create the backend
-        qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
+        qdb = Qdb(conn, redirect_stdio=redirect, allow_interruptions=True)
+        # initial hanshake
+        qdb.startup()
+
+
+def set_trace(host='localhost', port=6000, authkey='secret password'):
+    "Simplified interface to start debugging immediately"
+    init(host, port, authkey)
     # start debugger backend:
-    qdb.startup()
     qdb.set_trace()
 
 
