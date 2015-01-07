@@ -66,6 +66,7 @@ class DebuggerProxy(object):
         self.start_continue = None  # continue on first run
         self.pool = []
         self.current = None
+        self.pool_info = {}
         try:
             self.listener = Listener(address, authkey=authkey)
         except IOError as e:
@@ -94,8 +95,15 @@ class DebuggerProxy(object):
             debugger = Debugger(self.gui, proxy=self)
             debugger.attach(conn, address, self.start_continue)
             self.pool.append(debugger)
+            self.pool_info[debugger] = address
             if self.current is None:
                 self.current = debugger
+            self.refresh()
+    
+    def refresh(self):
+        "Update the sessions list control pane"
+        items = [self.pool_info[dbg] + dbg.info[1:] for dbg in self.pool] 
+        self.gui.sessions.BuildList(items)
     
     def __nonzero__(self):
         "Check if debugger is running (so proxy methods are valid)"
@@ -110,8 +118,10 @@ class DebuggerProxy(object):
     def remove(self, debugger):
         "Delete detached debugger from the pool"
         self.pool.remove(debugger)
+        del self.pool_info[debugger]
         if self.current is debugger:
             self.current = None
+        self.refresh()
     
     def __getattr__(self, attr):
         "Proxy methods and other attributes to the current active debugger"
@@ -265,7 +275,7 @@ class Debugger(qdb.Frontend):
         wx.PostEvent(self.gui, DebugEvent(EVT_DEBUG_ID, 
                                          (None, None, None, None)))
         
-    def startup(self):
+    def startup(self, *args):
         "Initialization procedures (called by the backend)"
         # notification sent by _runscript before Bdb.run
         print "loading breakpoints...."
@@ -273,7 +283,10 @@ class Debugger(qdb.Frontend):
         print "enabling call_stack and environment at interaction"
         self.set_params(dict(call_stack=True, environment=True, postmortem=True))
         # return control to the backend:
-        qdb.Frontend.startup(self)
+        qdb.Frontend.startup(self, *args)
+        # update the session list UI
+        if self.proxy:
+            self.proxy.refresh()
 
     def interaction(self, filename, lineno, line, **context):
         "Start user interaction -show current line- (called by the backend)"
@@ -640,6 +653,41 @@ class StackListCtrl(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.SetColumnWidth(4, -1)
         self.setResizeColumn(5)
 
+    def AddItem(self, item, key=None):
+        index = self.InsertStringItem(sys.maxint, item[0])
+        for i, val in enumerate(item[1:]):
+            if isinstance(val, str):
+                # Until python 3, encoding is not properly detected by linecache
+                val = val.decode("utf8", "replace")
+            elif not isinstance(val, basestring):
+                val = str(val)
+            self.SetStringItem(index, i+1, val)
+    
+    def BuildList(self, items):
+        self.DeleteAllItems()
+        for item in items:
+            self.AddItem(item)
+
+
+class SessionListCtrl(wx.ListCtrl):
+    "Call stack window (filename lineno flags, source)"
+    def __init__(self, parent, filename=""):
+        wx.ListCtrl.__init__(self, parent, -1, 
+            style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_ALIGN_LEFT)
+        self.parent = parent
+        self.InsertColumn(0, "Host", wx.LIST_FORMAT_LEFT) 
+        self.SetColumnWidth(0, 75)
+        self.InsertColumn(1, "Port", wx.LIST_FORMAT_RIGHT)
+        self.SetColumnWidth(1, 50)
+        self.InsertColumn(2, "PID", wx.LIST_FORMAT_RIGHT) 
+        self.SetColumnWidth(2, 50)
+        self.InsertColumn(3, "Thread", wx.LIST_FORMAT_LEFT) 
+        self.SetColumnWidth(3, 75)
+        self.InsertColumn(4, "Command line (argv)", wx.LIST_FORMAT_LEFT) 
+        self.SetColumnWidth(4, 200)
+        self.InsertColumn(5, "Caller Module", wx.LIST_FORMAT_RIGHT) 
+        self.SetColumnWidth(5, 200)
+        
     def AddItem(self, item, key=None):
         index = self.InsertStringItem(sys.maxint, item[0])
         for i, val in enumerate(item[1:]):

@@ -45,7 +45,7 @@ import images
 from editor import EditorCtrl
 from shell import Shell
 from debugger import DebuggerProxy, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
-                     EnvironmentPanel, StackListCtrl
+                     EnvironmentPanel, StackListCtrl, SessionListCtrl
 from console import ConsoleCtrl
 from explorer import ExplorerPanel, EVT_EXPLORE_ID
 from task import TaskMixin
@@ -248,7 +248,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         win_menu.AppendSeparator()
         for win_name, win_panes in [('Shell', ('shell', )), 
             ('Explorer', ('explorer', )),
-            ('Debugging', ('environ', 'stack', 'debug', 'console', )),
+            ('Debugging', ('environ', 'stack', 'debug', 'console', 'sessions')),
             ]:
             self.AppendWindowMenuItem(win_name, win_panes, self.OnWindowMenu)
 
@@ -388,6 +388,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
               FloatingPosition(self.GetStartPosition()).DestroyOnClose(False).PinButton(True).
               MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
 
+        self.sessions = SessionListCtrl(self)
+        self._mgr.AddPane(self.sessions, aui.AuiPaneInfo().Name("sessions").
+              Caption("Debug Sessions").Float().FloatingSize(wx.Size(400, 100)).
+              FloatingPosition(self.GetStartPosition()).DestroyOnClose(False).PinButton(True).
+              MinSize((100, 100)).Right().Bottom().MinimizeButton(True))
 
         self._mgr.AddPane(self.toolbar, aui.AuiPaneInfo().Name("toolbar").
                           ToolbarPane().Top().Position(0))
