@@ -56,6 +56,7 @@ class Web2pyMixin(object):
                 os.chdir(path)
                 sys.path.insert(0, os.path.abspath(os.curdir))
                 from gluon.main import wsgibase, save_password
+                from gluon.contrib import qdb
 
                 # store admin password
                 save_password(password, port)
@@ -64,15 +65,26 @@ class Web2pyMixin(object):
 
                 # Start a alternate web2py in a separate thread (for blocking requests)
                 from threading import Thread
-                def f(host, port, password):
+                def server(host, port, password):
                     save_password(password, port)
-                    httpd2 = make_server(host, port, wsgibase)
-                    print "THREAD - Serving HTTP on port2 %s..." % port
-                    httpd2.serve_forever()
+                    qdb.init(redirect=False)
+                    qdb.qdb.do_debug()
 
-                p = Thread(target=f, args=(host, port, password))
-                p.daemon = True     # close on exit
-                p.start()
+                    def wrapped_app(environ, start_response):
+                        "WSGI wrapper to allow debugging"
+                        # hanshake with front-end on each request (update ui)
+                        # not realy needed (request processing is sequential)
+                        ##qdb.qdb.startup()
+                        # process the request as usual
+                        return wsgibase(environ, start_response)
+
+                    httpd2 = make_server(host, port, wrapped_app)
+                    print "THREAD - Serving HTTP on port2 %s..." % port
+                    httpd2.serve_forever(poll_interval=0.01)
+
+                thread = Thread(target=server, args=(host, port, password))
+                thread.daemon = True     # close on exit
+                wx.CallLater(2, thread.start)
 
                 # open internal browser at default page:
                 url = "http://%s:%s/" % (host, port)
