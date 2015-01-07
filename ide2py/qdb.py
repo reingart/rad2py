@@ -6,7 +6,7 @@
 __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "LGPL 3.0"
-__version__ = "1.04a"
+__version__ = "1.04b"
 
 # remote debugger queue-based (jsonrpc-like interface):
 # - bidirectional communication (request - response calls in both ways)
@@ -187,11 +187,23 @@ class Qdb(bdb.Bdb):
             statement = 'imp.load_source("__main__", "%s")' % filename
         else:
             statement = 'execfile(%r)' % filename
-        # notify and wait frontend to set initial params and breakpoints
-        self.pipe.send({'method': 'startup', 'args': (__version__, )})
+        self.startup()
+        self.run(statement)
+
+    def startup(self):
+        "Notify and wait frontend to set initial params and breakpoints"
+        # send some useful info to identify session
+        thread = threading.current_thread()
+        # get the caller module filename
+        frame = sys._getframe()
+        fn = self.canonic(frame.f_code.co_filename)
+        while frame.f_back and self.canonic(frame.f_code.co_filename) == fn:
+            frame = frame.f_back
+        args = [__version__, os.getpid(), thread.name, " ".join(sys.argv),
+                frame.f_code.co_filename]
+        self.pipe.send({'method': 'startup', 'args': args})
         while self.pull_actions() is not None:
             pass
-        self.run(statement)
 
     # General interaction function
 
@@ -596,6 +608,7 @@ class Frontend(object):
     
     def __init__(self, pipe):
         self.i = 1
+        self.info = ()
         self.pipe = pipe
         self.notifies = []
         self.read_lock = threading.RLock()
@@ -615,7 +628,8 @@ class Frontend(object):
         finally:
             self.write_lock.release()
 
-    def startup(self):
+    def startup(self, version, pid, thread_name, argv, filename):
+        self.info = (version, pid, thread_name, argv, filename)
         self.send({'method': 'run', 'args': (), 'id': None})
 
     def interaction(self, filename, lineno, line, *kwargs):
@@ -654,7 +668,7 @@ class Frontend(object):
             elif request.get('method') == 'interaction':
                 self.interaction(*request.get("args"), **request.get("kwargs"))
             elif request.get('method') == 'startup':
-                self.startup()
+                self.startup(*request['args'])
             elif request.get('method') == 'exception':
                 self.exception(*request['args'])
             elif request.get('method') == 'write':
@@ -1024,6 +1038,7 @@ def set_trace(host='localhost', port=6000, authkey='secret password'):
         # create the backend
         qdb = Qdb(conn, redirect_stdio=True, allow_interruptions=True)
     # start debugger backend:
+    qdb.startup()
     qdb.set_trace()
 
 
