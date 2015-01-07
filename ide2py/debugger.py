@@ -235,6 +235,7 @@ class Debugger(qdb.Frontend):
             self.post_event = False
             # if no interaction yet, send an interrupt (step on the next stmt)
             if not self.interacting:
+                self.start_continue = False
                 self.interrupt()
                 cont = True
             else:
@@ -293,10 +294,11 @@ class Debugger(qdb.Frontend):
         self.interacting = True
         try:
             # on startup, do not step-by-step if user pressed F5 or similar
-            if self.start_continue and not self.break_here(filename, lineno):
-                self.Continue()
+            if self.start_continue:
                 self.start_continue = None
-                return
+                if not self.break_here(filename, lineno):
+                    self.Continue()
+                    return
                 
             #  sync_source_line()
             self.filename = self.orig_line = self.lineno = None
@@ -433,6 +435,7 @@ class Debugger(qdb.Frontend):
         if self.attached and not self.is_waiting():
             # this is a notification, no response will come
             # an interaction will happen on the next possible python instruction
+            self.start_continue = False
             self.interrupt()
 
     def LoadBreakpoints(self):
