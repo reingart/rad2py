@@ -189,6 +189,8 @@ class Table():
 class Row():
     "Dict-like to map stored fields in the database" 
     
+    autocommit = True
+    
     def __init__(self, db, table_name, primary_key=None, query=None):
         self.db = db
         self.table_name = table_name
@@ -284,7 +286,8 @@ class Row():
         "Write data to the database on destruction"
         # Note that this could not be immediate!
         # Also, exceptions here could be ignored by Python!
-        if self.data_out:
+        if self.data_out and self.autocommit:
+            print "Autocommit!", self
             self.save()
 
     def __nonzero__(self):
@@ -303,13 +306,15 @@ class Row():
 
 class DictShelf(UserDict.DictMixin):
     "Database shelve replacement implementation (dictionary-like object)"
-
-    def __init__(self, db, table_name, key_field_name, **filters):
+    
+    def __init__(self, db, table_name, key_field_name, autocommit=True, 
+                       **filters):
         self.db = db
         self.table_name = table_name
         self.key_field_name = key_field_name
         self.filters = filters
         self.deleted = []
+        self.autocommit = autocommit
         self.query()
     
     def query(self):
@@ -317,6 +322,7 @@ class DictShelf(UserDict.DictMixin):
         # populate the internal dictionary:
         for r in self.db.select(self.table_name, **self.filters):
             row = Row(self.db, self.table_name)
+            row.autocommit = self.autocommit
             row.load(r)
             self.dict[r[self.key_field_name]] = row
 
@@ -344,6 +350,7 @@ class DictShelf(UserDict.DictMixin):
         # create a new Row proxy (value should be a dict!)
         if not isinstance(value, Row):
             row = Row(self.db, self.table_name)
+            row.autocommit = self.autocommit
             value.update(self.filters)
             row.update(value)
         else:
@@ -364,7 +371,7 @@ class DictShelf(UserDict.DictMixin):
         del self.dict[key]
 
     def close(self):
-        self.sync()
+        self.sync(self.autocommit)
 
     def __del__(self):
         self.close()
