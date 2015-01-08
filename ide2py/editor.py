@@ -372,6 +372,7 @@ class EditorCtrl(stc.StyledTextCtrl):
 
     def OnClose(self, event=None):
         "Test if editor can be closed, return None if cancelled, True if saved"
+        ret = False
         if self.modified:
             result = wx.MessageBox('File "%s" has changed. '
                              'Do you want to save the changes?' % self.filename, 
@@ -379,16 +380,13 @@ class EditorCtrl(stc.StyledTextCtrl):
                              style=wx.YES_NO | wx.CANCEL)
             if result == wx.YES:
                 self.OnSave()
-                return True
+                ret = True
             elif result == wx.CANCEL:
                 if event:
                     event.Veto()
                 else:
-                    return None
-        # rollback any change to the metadata (if text was not saved to disk)
-        if hasattr(self.metadata, "sync") and self.modified:
-            self.metadata.sync(commit=False)
-        return False
+                    ret = None
+        return ret
 
     def GetCodeObject(self):
         '''Retrieves the code object created from this script'''
@@ -452,8 +450,6 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.filetimestamp = os.stat(self.filename).st_mtime
             self.SetTitle()
             self.GetCodeObject()
-            if hasattr(self.metadata, "sync"):
-                self.metadata.sync(commit=True)
             return wx.OK
         else:
             return self.OnSaveAs(event)

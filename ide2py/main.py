@@ -722,6 +722,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         # add it back to the history so it will be moved up the list
         self.filehistory.AddFileToHistory(filepath)
 
+    def get_child(self, filename):
+        for child in self.children:
+            if child.GetFilename() == filename:
+                return child
+
     def DoOpen(self, filename, title="", running=False):
         is_url = filename.startswith(("http://", "https://"))
         if not is_url:
@@ -729,8 +734,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                                self.debugger.current.is_remote()):
                 # normalize filename for local files! (fix path separator)
                 filename = os.path.normcase(os.path.abspath(filename))
-        found = [child for child in self.children if child.GetFilename()==filename]
-        if not found:
+        child = self.get_child(filename)
+        if not child:
             if is_url:
                 child = AUIChildFrameBrowser(self, filename, title)
             else:
@@ -742,7 +747,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             if self.task_id:
                 self.load_task_context(filename, child)
         else:
-            child = found[0]
             # do not interfere with shell focus
             if not self.shell.HasFocus():
                 child.Activate()
@@ -773,11 +777,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if self.active_child:
             self.active_child.OnSaveAs(event)
 
-    def DoClose(self, child, filename):
+    def DoClose(self, child, filename, save):
         if child in self.children:
             self.children.remove(child)
-        if self.task_id or True:
-            self.save_task_context(filename, child)
         if self.explorer and filename:
             if not filename.startswith(("http://", "https://")):
                 wx.CallAfter(self.explorer.RemoveFile, filename)
@@ -909,7 +911,6 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
     def GetLineText(self, filename, lineno):
         "Returns source code"
         # used by the debugger to detect modifications runtime
-        print "GetLineText", filename, lineno
         child = self.DoOpen(filename)
         if child:
             return child.GetLineText(lineno, encode=True)
@@ -1086,6 +1087,11 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
             wx.PostEvent(self, RepoEvent(filename, action, status))
+        # bookkeeping of metadata and task context
+        if action == "saved":
+            if 'psp' in ADDONS:
+                self.save_metadata(filename)
+            self.save_task_context(filename, self.get_child(filename))
         # notify the explorer to refresh the module symbols
         if self.explorer and not filename.startswith(("http://", "https://")):
             self.explorer.ParseFile(filename, refresh=True)
@@ -1200,15 +1206,15 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
         ctrl = event.GetEventObject()  
         result = self.editor.OnClose(event)
         if result is not None:
-            self.parent.DoClose(self, self.GetFilename())
+            self.parent.DoClose(self, self.GetFilename(), result)
             self.editor.Destroy()  # fix to re-paint correctly
             aui.AuiMDIChildFrame.OnCloseWindow(self, event)
 
     def OnSave(self, event):
-        self.editor.OnSave(event)
+        return self.editor.OnSave(event)
 
     def OnSaveAs(self, event):
-        self.editor.OnSaveAs(event)
+        return self.editor.OnSaveAs(event)
 
     def OnEditAction(self, event):
         "Dispatch a top level event to the active child editor"

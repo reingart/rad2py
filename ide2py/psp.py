@@ -1218,7 +1218,8 @@ class PSPMixin(object):
         if metadata is None:
             # create a new db to isolate the transaction for each file
             db = wx.GetApp().get_db(new=True)
-            metadata = ListShelf(db, "metadata", "lineno", filename=filename)
+            metadata = ListShelf(db, "metadata", "lineno", filename=filename,
+                                 autocommit=False)
             self.psp_metadata_cache[filename] = metadata
 
         if show:
@@ -1230,6 +1231,9 @@ class PSPMixin(object):
 
         return metadata
 
+    def save_metadata(self, filename, discard=False):
+        "Store metadata to the database"
+        self.get_metadata(filename).sync(commit=True)
 
     def OnWikiPSP(self, event):
         # create the HTML "browser" window:
