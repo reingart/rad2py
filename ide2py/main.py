@@ -4,13 +4,13 @@
 "Pythonic Integrated Development Environment for Rapid Application Development"
 
 __author__ = "Mariano Reingart (reingart@gmail.com)"
-__copyright__ = "Copyright (C) 2011 Mariano Reingart"
-__license__ = "GPL 3.0"
-__version__ = "0.10"
+__copyright__ = "Copyright (C) 2011-2014 Mariano Reingart"
+__license__ = "GPL 3.0+"
+__version__ = "0.678"       # HG local revision number (rolling release)
 
 # The original AUI skeleton is based on wx examples (demo)
 # Also inspired by activegrid wx sample (pyide), wxpydev, pyragua, picalo, SPE,
-#      pythonwin, drpython, idle
+#      pythonwin, drpython, idle, borrowing some concepts from eclipse (mylyn) 
 
 import ConfigParser
 import imp
@@ -21,7 +21,7 @@ import traceback
 
 # prevent import error in wx multiversion installs:
 import wxversion
-wxversion.select(["3.0", "2.8"])
+wxversion.select(["3.0", "2.8"])                # wxPython 3.0.2 is recommended
    
 import wx
 import wx.grid
