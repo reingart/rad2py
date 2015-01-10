@@ -777,7 +777,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if self.active_child:
             self.active_child.OnSaveAs(event)
 
-    def DoClose(self, child, filename, save):
+    def DoClose(self, child, filename, save=True):
         if child in self.children:
             self.children.remove(child)
         if self.explorer and filename:
