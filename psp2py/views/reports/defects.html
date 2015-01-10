@@ -19,9 +19,9 @@
         <td>{{=defect_name}}</td>
         <td>{{=PSP_DEFECT_DESC[defect_type]}}</td>
         <td style="text-align: right;">{{='%d' % (defect_count_per_type.get(defect_type, 0))}}</td>
-        <td style="text-align: right;">{{='%.2f' % (defect_count_per_type.get(defect_type, 0)/float(defect_count)*100.0)}} %</td>
+        <td style="text-align: right;">{{=('%.2f' % (defect_count_per_type.get(defect_type, 0)/float(defect_count)*100.0)) if defect_count else ""}} %</td>
         <td style="text-align: right;">{{=pretty_time(defect_fix_time_per_type.get(defect_type, 0))}} </td>
-        <td style="text-align: right;">{{='%.2f' % (defect_fix_time_per_type.get(defect_type, 0) / float(total_fix_time) * 100.)}} %    </td>
+        <td style="text-align: right;">{{=('%.2f' % (defect_fix_time_per_type.get(defect_type, 0) / float(total_fix_time) * 100.)) if total_fix_time else ""}} %    </td>
         <td style="text-align: right;">{{=defect_count_per_type.get(defect_type, 0) and pretty_time(defect_fix_time_per_type.get(defect_type, 0) / float(defect_count_per_type.get(defect_type, 0))) or ''}}    </td>
     </tr>
     {{pass}}

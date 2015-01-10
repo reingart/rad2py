@@ -24,13 +24,13 @@
         <td>{{=project.psp_project.description}}</td>
         <!-- td style="text-align: center;">{{=project.psp_project.started or ''}}<br/>{{=project.psp_project.completed or ''}}</td -->
         <td style="text-align: right;">{{=pretty_time(project.sum_plan)}}</td>
-        <!-- td style="text-align: right;">{{='%.2f' % (project.sum_plan / planned_time * 100.)}} %</td -->
+        <!-- td style="text-align: right;">{{='%.2f' % ((project.sum_plan / planned_time * 100.9) if (planned_time and project.sum_plan) else 0)}} %</td -->
         <td style="text-align: right;">{{="%.2f" % (project.psp_project.time_lpi or 0)}} h</td>
         <td style="text-align: right;">{{="%.2f" % (project.psp_project.time_upi or 0)}} h</td>
         <td style="text-align: right;">{{=pretty_time(project.sum_actual)}}</td>
         <!-- td style="text-align: right;">{{='%.2f' % (project.sum_actual / total_time * 100.)}} %</td -->
         <td style="text-align: right;">{{=pretty_time(project.sum_interruption)}}</td>
-        <td style="text-align: right;">{{=project.sum_actual and ('%.2f' % (project.sum_plan / float(project.sum_actual) )) or '' }}</td>
+        <td style="text-align: right;">{{= ('%.2f' % (project.sum_plan / float(project.sum_actual) if (project.sum_plan and project.sum_actual) else 0 )) or '' }}</td>
 
         <td style="text-align: right;">{{=project.psp_project.planned_loc or ''}}</td>
         <td style="text-align: right;">{{=project.psp_project.actual_loc or ''}}</td>

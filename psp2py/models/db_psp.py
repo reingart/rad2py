@@ -90,6 +90,7 @@ def pretty_time(counter):
 db.psp_time_summary.plan.represent = pretty_time
 db.psp_time_summary.actual.represent = pretty_time
 db.psp_time_summary.interruption.represent = pretty_time
+db.psp_time_summary.off_task.represent = pretty_time
 db.psp_defect.fix_time.represent = pretty_time
 db.psp_project.planned_time.represent = lambda x: x and ("%0.2f hs" % x) or ''
 db.psp_project.time_upi.represent = lambda x: x and ("%0.2f hs" % x) or ''
