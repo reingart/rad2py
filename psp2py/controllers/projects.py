@@ -18,7 +18,8 @@ def show():
         db.psp_time_summary.phase,
         db.psp_time_summary.plan,
         db.psp_time_summary.actual,
-        db.psp_time_summary.interruption)
+        db.psp_time_summary.interruption,
+        db.psp_time_summary.off_task)
     times = times.sort(lambda x: PSP_PHASES.index(x.phase))
     defects = db(db.psp_defect.project_id==project_id).select(
         db.psp_defect.number,
