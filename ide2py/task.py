@@ -483,7 +483,7 @@ class TaskPanel(ScrolledPanel):
                              str(item.get("name", "")),
                              item.get("started"), item.get("owner"),
                              item.get("status"), ))
-        self.title.SetValue(item.get("title", ""))
+        self.title.SetValue(item.get("title") or "")
         self.description.SetValue(item.get("description", ""))
         if item['type']:
             self.task_type.SetSelection(self.types.index(item['type']))
