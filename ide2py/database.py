@@ -301,7 +301,7 @@ class Row():
         return len(self.data_in)
 
     def __contains__(self, key):
-        return key in self.data_in or field in self.data_out
+        return key in self.data_in or key in self.data_out
 
 
 class DictShelf(UserDict.DictMixin):
