@@ -282,6 +282,8 @@ class DefectListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             key = str(uuid.uuid1())
             item['uuid'] = key
             self.data[key] = item
+            self.data[key].save()
+            item = self.data[key]
             self.data.sync()
             self.parent.psp_log_event("new_defect", uuid=key, comment=str(self.data[key]))
         for col_key, col_def in self.col_defs.items():
@@ -948,7 +950,7 @@ class PSPMixin(object):
                 try:
                     # get the new line number (if any)
                     new = linenos.index(item['line_uuid']) + 1
-                    item['lineno'] = new + 1 
+                    item['lineno'] = new
                 except (KeyError, ValueError):
                     # line has been deleted or uuid is not available, clean it:
                     item['lineno'] = None
