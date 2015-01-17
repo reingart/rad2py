@@ -266,7 +266,7 @@ class Row():
             # not inserted yet, first save
             self.save()
         # real record should be in the database, fetch if necessary
-        if not self.data_in:
+        if field not in self.data_in:
             self.load()
         # return the value stored in the database
         return self.data_in[field]
