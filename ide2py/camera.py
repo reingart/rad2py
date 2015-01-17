@@ -8,9 +8,11 @@ __copyright__ = "Copyright (C) 2014 Mariano Reingart"
 __license__ = "GPL 3.0"
 
 
+import os
 import wx
 import cv2
 import time
+import warnings
 
 
 class Camera(wx.Panel):
@@ -22,22 +24,25 @@ class Camera(wx.Panel):
                                 wx.Size(width, height))
         self.parent = parent
 
-        # set up OpenCV features:
-        self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, width)
-        self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
-        self.classifier = cv2.CascadeClassifier(classpath)
+        if not os.path.exists(classpath):
+            warnings.warn("OpenCV classifier not found: %s" % classpath) 
+        else:
+            # set up OpenCV features:
+            self.capture = cv2.VideoCapture(0)
+            self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, width)
+            self.capture.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, height)
+            self.classifier = cv2.CascadeClassifier(classpath)
 
-        # create an initial bitmap with a compatible OpenCV image bit depth
-        self.bmp = wx.EmptyBitmap(width, height, 24)
+            # create an initial bitmap with a compatible OpenCV image bit depth
+            self.bmp = wx.EmptyBitmap(width, height, 24)
 
-        # Initialize sampling capture rate (default: one shot per second)
-        self.timer = wx.Timer(self)
-        self.timer.Start(500.)
-        self.count = 0
-        self.rate = rate
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-        self.Bind(wx.EVT_TIMER, self.OnTimer)
+            # Initialize sampling capture rate (default: one shot per second)
+            self.timer = wx.Timer(self)
+            self.timer.Start(500.)
+            self.count = 0
+            self.rate = rate
+            self.Bind(wx.EVT_PAINT, self.OnPaint)
+            self.Bind(wx.EVT_TIMER, self.OnTimer)
 
     def OnTimer(self, evt):
         "Capture a single frame image and detect faces on it"
