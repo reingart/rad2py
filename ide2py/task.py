@@ -185,7 +185,7 @@ class TaskMixin(object):
         # remember url (TODO: list of used repositories?)
         if not url:
             return
-        wx.GetApp().config.set("TASK", "URL", url)
+        wx.GetApp().get_config("TASK").set("URL", url)
         # sanity check:
         if not url.startswith("https://github.com/"):
             dlg = wx.MessageDialog(self, "URL not supported: %s\n" % url +
@@ -273,10 +273,7 @@ class TaskMixin(object):
         self.task_toolbar.Refresh()
         if not wx.GetApp().closing:
             # store project name in config file
-            if task_id:
-                wx.GetApp().config.set('TASK', 'task_id', task_id)
-            else:
-                wx.GetApp().config.remove_option('TASK', 'task_id')
+            wx.GetApp().get_config('TASK').set('task_id', task_id)
             wx.GetApp().write_config()
         self.task_id = task_id
             
