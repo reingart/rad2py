@@ -1459,6 +1459,15 @@ class FancyConfigDict(object):
             val = default
         return val
 
+    def set(self, option, value):
+        "store an option, creating the section if not exist"
+        if not self.configparser.has_section(self.section):
+            self.configparser.add_section(self.section)
+        if value is not None:
+            self.configparser.set(self.section, option, value)
+        else:
+             self.configparser.remove_option(self.section, option)
+        
     def items(self):
         return self.configparser.items(self.section, raw=True)
 
