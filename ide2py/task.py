@@ -246,7 +246,11 @@ class TaskMixin(object):
         if task_id:
             # get the task for a given id
             task = self.db["task"][task_id]
-            task_name = task['task_name']
+            # sanity check: abort if user has deleted the record from the DB 
+            if not task:
+                task = None
+            else:
+                task_name = task['task_name']
         elif task_name:
             # search the task using the given name
             task = self.db["task"](task_name=task_name)
