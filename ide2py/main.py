@@ -1475,6 +1475,9 @@ class FancyConfigDict(object):
 class MainApp(wx.App):
 
     def OnInit(self):
+        # redirect log to standard file stream to avoid warning popups (libpng)
+        wx.Log_SetActiveTarget(wx.LogStderr()) 
+
         if advancedsplash and os.path.exists(SPLASH_IMAGE):
             bitmap = wx.Image(SPLASH_IMAGE, wx.BITMAP_TYPE_ANY).ConvertToBitmap()
             self.splash_frame = advancedsplash.AdvancedSplash(
