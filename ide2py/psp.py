@@ -825,11 +825,15 @@ class PSPMixin(object):
         self.psp_automatic_stopwatch = event is None
         # check if we are in a interruption delta or not:
         if self.psp_interruption is not None:
-            dlg = wx.TextEntryDialog(self, 
-                'Enter a comment for the time recording log:', 
-                'Interruption', 'phone call')
-            message = dlg.GetValue() if dlg.ShowModal() == wx.ID_OK else ""
-            dlg.Destroy()
+            # don't ask for a message if interruption was detected automatically
+            if event:
+                dlg = wx.TextEntryDialog(self, 
+                    'Enter a comment for the time recording log:', 
+                    'Interruption', 'phone call')
+                message = dlg.GetValue() if dlg.ShowModal() == wx.ID_OK else ""
+                dlg.Destroy()
+            else:
+                message = ""
             self.PSPResume(message)
         else:
             self.PSPInterrupt()
