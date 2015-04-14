@@ -98,6 +98,7 @@ ID_FOLD = wx.NewId()
 ID_RUN = wx.NewId()
 ID_DEBUG = wx.NewId()
 ID_EXEC = wx.NewId()
+ID_SETPYTHON = wx.NewId()
 ID_SETARGS = wx.NewId()
 ID_KILL = wx.NewId()
 
@@ -138,6 +139,10 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         self.debugging_child = None     # current debugged file
         self.temp_breakpoint = None
         self.lastprogargs = ""
+        if wx.Platform == '__WXMSW__':
+            self.pythonexec = sys.prefix.replace("\\", "/") + "/pythonw.exe"
+        else:
+            self.pythonexec = sys.executable
         self.pythonargs = '"%s"' % os.path.join(INSTALL_DIR, "qdb.py")
         self.pid = None
         
@@ -206,6 +211,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                                  "Kill external process")
         run_menu.AppendSeparator()
         run_menu.Append(ID_SETARGS, "Set &Arguments\tCtrl-A", "sys.argv")
+        run_menu.Append(ID_SETPYTHON, "Set &Python executable\tCtrl-A", 
+                                      "python.exe, python2.7 or venv/bin/...")
         run_menu.AppendSeparator()
 
         dbg_menu = self.menu['debug'] = wx.Menu()
@@ -312,6 +319,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             (wx.ID_CLOSE, self.OnCloseChild),
             (ID_RUN, self.OnRun),
             (ID_EXEC, self.OnExecute),
+            (ID_SETPYTHON, self.OnSetPython),
             (ID_SETARGS, self.OnSetArgs),
             (ID_KILL, self.OnKill),
             (ID_DEBUG, self.OnDebugCommand),
@@ -798,6 +806,13 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if dlg.ShowModal() == wx.ID_OK:
             self.lastprogargs = dlg.GetValue()
         dlg.Destroy()
+
+    def OnSetPython(self, event):
+        dlg = wx.TextEntryDialog(self, 'Enter python executable (python.exe):', 
+            'Set Python path', self.pythonexec)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.pythonexec = dlg.GetValue()
+        dlg.Destroy()
     
     def OnRun(self, event):
         self.OnExecute(event, debug=False)
@@ -813,11 +828,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                 os.chdir(cdir)
                 largs = self.lastprogargs and ' ' + self.lastprogargs or ""
                 if wx.Platform == '__WXMSW__':
-                    pythexec = sys.prefix.replace("\\", "/") + "/pythonw.exe"
                     filename = filename.replace("\\", "/")
-                else:
-                    pythexec = sys.executable
-                self.Execute((pythexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
+                self.Execute((self.pythonexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
                     filename + '"'  + largs), filen)
                 self.statusbar.SetStatusText("Executing: %s" % (filename), 1)
             except Exception, e:
