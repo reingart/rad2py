@@ -17,7 +17,7 @@ import sys
 jedi = None
 
 
-class AutocompletionServer(object):
+class Autocompleter(object):
     "Remote RPC API to JEDI autocompletion library "
     
     def __init__(self):
@@ -97,15 +97,50 @@ if sys.version_info[0] > 2:
 
 from multiprocessing.managers import BaseManager, BaseProxy
 
-class AutocompletionManager(BaseManager): 
-    pass
 
-AutocompletionManager.register('AutocompletionServer', AutocompletionServer)
+class AutocompletionManager(BaseManager): 
+    "Custom manager that allows to start a new local server process (using wx)"
+
+    def connect(self, pythonexec=None, parent=None):
+        "Custom connection method that will start up a new server"
+
+        # fork a new server process with correct python interpreter (py3/venv)
+        if pythonexec:
+            # warning: this will not work frozen? (ie. py2exe)
+            command = pythonexec + " -u %s --server" % __file__
+
+            import wx
+            
+            class MyProcess(wx.Process):
+                "Custom Process Class to handle OnTerminate event method"
+
+                def OnTerminate(self, pid, status):
+                    "Clean up on termination (prevent SEGV!)"
+                
+                def OnClose(self, evt):
+                    "Termitate the process on exit"
+                    # prevent the server continues running after the IDE closes
+                    self.Kill(self.GetPid())
+
+
+            process = MyProcess(parent)
+            parent.Bind(wx.EVT_CLOSE, process.OnClose)
+            #process.Redirect()
+            flags = wx.EXEC_ASYNC
+            if wx.Platform == '__WXMSW__':
+                flags |= wx.EXEC_NOHIDE
+            self.process = wx.Execute(command, flags, process)
+
+            return BaseManager.connect(self)
+
+
+AutocompletionManager.register('Autocompleter', Autocompleter)
 
 
 if __name__ == '__main__':
-
+    # basic command line parameters (i.e. --server used by IDE)
     if "--server" in sys.argv:
+        print("starting autocomp server...")
         mgr = AutocompletionManager(address=('', 50000), authkey=b'abracadabra')
         srv = mgr.get_server()
         srv.serve_forever()
@@ -115,8 +150,9 @@ if __name__ == '__main__':
     else:
         mgr = AutocompletionManager()
         mgr.start()
-    autocomp = mgr.AutocompletionServer()
-    # = AutoComp()
+    
+    # basic tests:
+    autocomp = mgr.Autocompleter()
     source = "import json; json.l"
     ret = autocomp.GetCompletions(source, None, 19, 1, "__main__")
     assert ret[0]["name"] == "load"

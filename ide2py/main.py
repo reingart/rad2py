@@ -42,6 +42,7 @@ except ImportError:
 
 import images
 
+from autocompletion import AutocompletionManager
 from editor import EditorCtrl
 from shell import Shell
 from debugger import DebuggerProxy, EVT_DEBUG_ID, EVT_EXCEPTION_ID, \
@@ -382,6 +383,12 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         wx.GetApp().SetSplashText("Creating Panes...")
 
         self.debugger = DebuggerProxy(self)
+        
+        # Initialize generic autocompletion support (TODO: one mgr per venv)
+        self.autocomp_mgr =  AutocompletionManager(address=('', 50000), authkey=b'abracadabra')
+        self.autocomp_mgr.connect(self.pythonexec, parent=self)
+        self.autocomp = self.autocomp_mgr.Autocompleter()
+
 
         self.x = 0
         self.call_stack = StackListCtrl(self)
@@ -1207,6 +1214,7 @@ class AUIChildFrameEditor(aui.AuiMDIChildFrame):
                                  get_current_phase=parent.get_current_psp_phase,
                                  lang="python", 
                                  title=title,
+                                 autocomp=parent.autocomp,
                                  cfg=app.get_config("EDITOR"),
                                  cfg_styles=app.get_config("STC.PY"))
         sizer = wx.BoxSizer()

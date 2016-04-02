@@ -27,9 +27,6 @@ import wx.py
 import images
 import fileutil
 
-# autocompletion library:
-import jedi
-
 
 # Some configuration constants 
 WORDCHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -39,7 +36,6 @@ FACES = {'times': 'DejaVu Sans', 'mono': 'DejaVu Sans Mono',
 CALLTIPS = True # False or 'first paragraph only'     
 AUTOCOMPLETE = True
 AUTOCOMPLETE_IGNORE = []
-
 
 
 class EditorCtrl(stc.StyledTextCtrl):
@@ -53,7 +49,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     def __init__(self, parent, ID,
                  pos=wx.DefaultPosition, size=wx.DefaultSize,
                  style=0, filename=None, debugger=None, cfg={}, 
-                 metadata=None, get_current_phase=None,
+                 metadata=None, get_current_phase=None, autocomp=None,
                  lang="python", title="", cfg_styles={}, running=False):
         global TAB_WIDTH, IDENTATION, CALLTIPS, AUTOCOMPLETE, FACES
 
@@ -190,7 +186,7 @@ class EditorCtrl(stc.StyledTextCtrl):
         self.Bind(stc.EVT_STC_UPDATEUI, self.OnUpdateUI)
         self.Bind(stc.EVT_STC_MARGINCLICK, self.OnMarginClick)
         self.Bind(stc.EVT_STC_CHANGE, self.OnChange)
-        self.Bind(stc.EVT_STC_MODIFIED, self.OnModified)
+        ##self.Bind(stc.EVT_STC_MODIFIED, self.OnModified)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_SET_FOCUS, self.OnFocus)
@@ -219,6 +215,11 @@ class EditorCtrl(stc.StyledTextCtrl):
         
         self.OnOpen(running=running)
         self.SetFocus()
+        
+        
+        # initialize autocompletion:
+        self.autocomp = autocomp
+
 
     def SetStyles(self, lang='python', cfg_styles={}):
         self.StyleClearAll()
@@ -312,6 +313,7 @@ class EditorCtrl(stc.StyledTextCtrl):
                        wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
             dlg.Destroy()
+            raise
         finally:
             if f:
                 f.close()
@@ -588,14 +590,18 @@ class EditorCtrl(stc.StyledTextCtrl):
         return txt[start-linepos:end-linepos]
 
 
-    def GetScript(self):
-        "Return Jedi script object suitable to AutoComplete and ShowCallTip"
-        source = self.GetText() #.encode(self.encoding)
+    def GetScriptParams(self):
+        "Return needed params suitable to AutoComplete and ShowCallTip (kwargs)"
         pos = self.GetCurrentPos()
-        col = self.GetColumn(pos)
-        line = self.GetCurrentLine() + 1
-        return jedi.Script(source, line, col, self.filename)
-
+        # source, pos, col, line, filename 
+        # source, None, 19, 1, "__main__"
+        return dict(
+            source=self.GetText(), #.encode(self.encoding)
+            pos=self.GetCurrentPos(),
+            col=self.GetColumn(pos),
+            line=self.GetCurrentLine() + 1,
+            filename=self.filename,
+            )
 
     def AutoComplete(self, obj=0):
         if obj:
@@ -603,17 +609,16 @@ class EditorCtrl(stc.StyledTextCtrl):
             word = ''
         else:
             word = self.GetWord()
-        script = self.GetScript()
-        completions = script.complete()
+        completions = self.autocomp.GetCompletions(**self.GetScriptParams())
         words = []
         for completion in completions:
-            if completion.name.startswith("__"):
+            if completion["name"].startswith("__") and completion["name"].endswith("__"):
                 # ignore internal and private attributes
                 continue
             img = {"module": 1, "class": 2, "function": 4, "instance": 5, 
                    "statement": 0, "keyword": 0, "import": 0,
-                  }.get(completion.type, 0)
-            name = "%s?%s" % (completion.name, img)
+                  }.get(completion["type"], 0)
+            name = "%s?%s" % (completion["name"], img)
             if name not in words: words.append(name)
         if words:
             self.AutoCompShow(len(word), " ".join(words))
@@ -621,25 +626,7 @@ class EditorCtrl(stc.StyledTextCtrl):
     def ShowCallTip(self,text=''):
         #prepare
         self.AddText(text)
-        script = self.GetScript()
-        # parameters:
-        for signature in script.call_signatures():
-            params = [p.get_code().replace('\n', '') for p in signature.params]
-            try:
-                params[signature.index] = '%s' % params[signature.index]
-            except (IndexError, TypeError):
-                pass
-        else:
-            params = []
-        tip = ', '.join(params)
-        #normal docstring
-        definitions = script.goto_definitions()
-        if definitions:
-            docs = ['Docstring for %s\n%s\n%s' % (d.desc_with_module, '=' * 40, d.doc)
-                if d.doc else '|No Docstring for %s|' % d for d in definitions]
-            doc = ('\n' + '-' * 79 + '\n').join(docs)
-        else:
-            doc = ""
+        tip, doc = self.autocomp.GetCallTips(**self.GetScriptParams())
         #compose
         if doc:
             if CALLTIPS == 'first paragraph only':
@@ -652,21 +639,6 @@ class EditorCtrl(stc.StyledTextCtrl):
             tip+='\n(Press ESC to close)'
             self.CallTipSetBackground('#FFFFE1')
             self.CallTipShow(pos, tip.replace('\r\n','\n'))
-
-    def GetDefinition(self):
-        #prepare
-        script = self.GetScript()
-        if True:
-            definitions = script.goto_assignments()
-        else:
-            definitions = script.goto_definitions()
-        while definitions:
-            definition = definitions.pop()
-            if "__builtin__" not in definition.module_path:
-                break
-        else:
-            return None, None, None
-        return definition.module_path, definition.line, definition.column+1
 
     def OnUpdateUI(self, evt):
         # check for matching braces
