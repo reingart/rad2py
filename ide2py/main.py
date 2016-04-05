@@ -596,6 +596,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if self.task_id:
             self.deactivate_task()
         
+        self.autocomp_mgr.shutdown()
+        
         # get global config instance
         config = wx.GetApp().config
         
@@ -1040,7 +1042,9 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
     def OnGotoDefinition(self, event):
         if self.active_child and self.explorer:
             filename = self.active_child.GetFilename()
-            filename, lineno, offset = self.active_child.GetDefinition()
+            editor = self.active_child.editor
+            params = editor.GetScriptParams()
+            filename, lineno, offset = editor.autocomp.GetDefinition(**params)
             if filename:
                 child = self.DoOpen(filename)
                 if child:

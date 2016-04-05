@@ -66,7 +66,7 @@ class Autocompleter(object):
 
     def GetDefinition(self, source, pos, col, line, filename):
         #prepare
-        script = self.GetScript(source, pos, col, line, filename)
+        script = self.GetScript(source, line, col, filename)
         if True:
             definitions = script.goto_assignments()
         else:
@@ -120,19 +120,28 @@ class AutocompletionManager(BaseManager):
                 def OnClose(self, evt):
                     "Termitate the process on exit"
                     # prevent the server continues running after the IDE closes
+                    print("closing pid", self.GetPid())
                     self.Kill(self.GetPid())
+                    print("killed")
 
 
-            process = MyProcess(parent)
-            parent.Bind(wx.EVT_CLOSE, process.OnClose)
+            self.process = MyProcess(parent)
+            parent.Bind(wx.EVT_CLOSE, self.process.OnClose)
             #process.Redirect()
             flags = wx.EXEC_ASYNC
             if wx.Platform == '__WXMSW__':
                 flags |= wx.EXEC_NOHIDE
-            self.process = wx.Execute(command, flags, process)
+            wx.Execute(command, flags, self.process)
 
             return BaseManager.connect(self)
 
+
+    def shutdown(self):
+        "Stop the server"
+        print("shitting down pid", self.process.GetPid())
+        self.process.Kill(self.process.GetPid())
+        print("killed")
+        
 
 AutocompletionManager.register('Autocompleter', Autocompleter)
 
