@@ -9,6 +9,7 @@ __author__ = "Mariano Reingart (reingart@gmail.com)"
 __copyright__ = "Copyright (C) 2011 Mariano Reingart"
 __license__ = "GPL 3.0"
 
+import __future__
 
 import codecs
 import locale
@@ -401,7 +402,9 @@ class EditorCtrl(stc.StyledTextCtrl):
             text = text.encode("utf8")
         text = text.rstrip().replace('\r\n','\n')+'\n'
         try:
-            ok = compile(text, self.filename or '<script>', 'exec')
+            ok = compile(text, self.filename or '<script>', 'exec',
+                         flags=__future__.print_function.compiler_flag,
+                         dont_inherit=True)
             self.HighlightLines([])  # clear styling of previous errors
             return ok
         except Exception, e:

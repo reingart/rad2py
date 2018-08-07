@@ -708,7 +708,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             if f:
                 f.close()
             self.DoOpen(file)
-        except (NameError, ImportError, RuntimeError), msg:
+        except (NameError, ImportError, RuntimeError) as msg:
             dlg = wx.MessageDialog(self, unicode(msg), "Import error",
                        wx.OK | wx.ICON_EXCLAMATION)
             dlg.ShowModal()
@@ -841,7 +841,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                 self.Execute((self.pythonexec + " -u " + (debug and self.pythonargs or '') + ' "' + 
                     filename + '"'  + largs), filen)
                 self.statusbar.SetStatusText("Executing: %s" % (filename), 1)
-            except Exception, e:
+            except Exception as e:
                 raise
                 #ShowMessage("Error Setting current directory for Execute")
             finally:
@@ -951,7 +951,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
 
         # start debugger (if not running):
         if not self.executing and not self.debugger:
-            print "*** Execute!!!!"
+            print("*** Execute!!!!")
             # should it open debugger inmediatelly or continue?
             cont = event_id in (ID_DEBUG, ID_CONTINUE, ID_CONTINUETO)
             self.debugger.init(cont)
@@ -991,7 +991,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             if self.debugger.current.Jump(lineno) is not False:
                 self.debugging_child.SynchCurrentLine(lineno)
             else:
-                print "Fail!"
+                print("Fail!")
         elif event_id == ID_CONTINUETO and self.debugging_child:
             # Continue execution until we reach selected line (temp breakpoint)
             lineno = self.debugging_child.GetCurrentLine()
@@ -1006,7 +1006,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         try:
             sys.stdin = sys.stdout = sys.stderr = self.console
             help(sel.encode("utf8"))
-        except Exception, e:
+        except Exception as e:
             tip = unicode(e)
         finally:
             sys.stdin, sys.stdout, sys.stderr = stdin, stdout, sterr 
@@ -1059,8 +1059,8 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
             title = title.decode("latin1", "ignore")
         msg = ''.join(traceback.format_exception(extype, exvalue, trace))
         # display the exception
-        print u'Unhandled Error: %s' % title
-        print >> sys.stderr, msg
+        print(u'Unhandled Error: %s' % title)
+        ##print >> sys.stderr, msg
         # ignore internal wx assertion (on some wx builds)
         PyAssertion = getattr(wx, "PyAssertion", None)
         if PyAssertion and extype != wx.PyAssertion and not DEBUG:
@@ -1074,7 +1074,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
         if not isinstance(title, unicode):
             title = title.decode("latin1", "ignore")
         # display the exception
-        print u'Unhandled Remote Error: %s' % title
+        print(u'Unhandled Remote Error: %s' % title)
         dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, title)
         dlg.ShowModal()
         dlg.Destroy()
@@ -1105,7 +1105,7 @@ class PyAUIFrame(aui.AuiMDIParentFrame, PSPMixin, RepoMixin, TaskMixin,
                                   filename=filename, 
                                   description="", lineno=lineno, offset=1)
             else:
-                print "Not notified!"
+                print("Not notified!")
 
     def NotifyRepo(self, filename, action="", status=""):
         if 'repo' in ADDONS:
