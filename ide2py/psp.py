@@ -1217,29 +1217,36 @@ class PSPMixin(object):
     def get_metadata(self, filename, show=False):
         "Build a persistent list of dicts with line metadata (uuid, phase, ...)"
 
-        # check if it is in cache:
-        metadata = self.psp_metadata_cache.get(filename)
+        try:
+            # check if it is in cache:
+            metadata = self.psp_metadata_cache.get(filename)
 
-        # if not metadata valid in cache, query the database:
-        if metadata is None:
-            # create a new db to isolate the transaction for each file
-            db = wx.GetApp().get_db(new=True)
-            metadata = ListShelf(db, "metadata", "lineno", filename=filename,
-                                 autocommit=False)
-            self.psp_metadata_cache[filename] = metadata
+            # if not metadata valid in cache, query the database:
+            if metadata is None:
+                # create a new db to isolate the transaction for each file
+                db = wx.GetApp().get_db(new=True)
+                metadata = ListShelf(db, "metadata", "lineno", filename=filename,
+                                     autocommit=False)
+                self.psp_metadata_cache[filename] = metadata
 
-        if show:
-            msg = '\n'.join(["%(uuid)s %(phase)10s - %(lineno)5s: %(text)s" % 
-                             metadata[key] for key in sorted(metadata.keys())])
-            dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "PSP METADATA")
-            dlg.ShowModal()
-            dlg.Destroy()
+            if show:
+                msg = '\n'.join(["%(uuid)s %(phase)10s - %(lineno)5s: %(text)s" %
+                                 metadata[key] for key in sorted(metadata.keys())])
+                dlg = wx.lib.dialogs.ScrolledMessageDialog(self, msg, "PSP METADATA")
+                dlg.ShowModal()
+                dlg.Destroy()
 
-        return metadata
+            return metadata
+        except Exception as e:
+            print(e)
 
     def save_metadata(self, filename, discard=False):
         "Store metadata to the database"
-        self.get_metadata(filename).sync(commit=True)
+        try:
+            self.get_metadata(filename).sync(commit=True)
+        except Exception as e:
+            print "EXCEPTION SAVING METADATA"
+            print(e)
 
     def OnWikiPSP(self, event):
         # create the HTML "browser" window:

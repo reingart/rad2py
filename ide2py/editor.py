@@ -37,6 +37,7 @@ CALLTIPS = True # False or 'first paragraph only'
 AUTOCOMPLETE = True
 AUTOCOMPLETE_IGNORE = []
 
+TRACK_METADATA = False
 
 class EditorCtrl(stc.StyledTextCtrl):
     "Editor based on Styled Text Control"
@@ -261,6 +262,8 @@ class EditorCtrl(stc.StyledTextCtrl):
             self.SetEOLMode(self.eol)
 
             # if metadata is given, avoid updating it in the initial inserts
+            if not TRACK_METADATA:
+                pass
             if self.metadata:
                 mask = self.GetModEventMask()
                 # disable modification events
@@ -794,7 +797,8 @@ class EditorCtrl(stc.StyledTextCtrl):
         for handle in self.breakpoints:
             lineno = self.MarkerLineFromHandle(handle)
             self.breakpoints[handle]['lineno'] = lineno + 1
-            self.breakpoints[handle]['line_uuid'] = self.metadata[lineno]['uuid']
+            if TRACK_METADATA:
+                self.breakpoints[handle]['line_uuid'] = self.metadata[lineno]['uuid']
         return self.breakpoints
 
     def FoldAll(self, expanding=None):
