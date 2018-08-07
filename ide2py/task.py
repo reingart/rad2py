@@ -363,26 +363,29 @@ class TaskMixin(object):
     
     def save_task_context(self, filename, editor):
         "Update the record for this context file" 
-        if DEBUG: print "SAVING CONTEXT", filename, editor
-        ctx = self.get_task_context(filename)
-        ctx['lineno'] = editor.GetCurrentLine()
-        ctx['closed'] = not wx.GetApp().closing
-        ctx.save()
-        # remove all previous breakpoints and persist new ones:
-        self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])
-        for bp in editor.GetBreakpoints().values():
-            if DEBUG: print "saving breakpoint", filename, bp
-            bp = self.db["breakpoint"].new(**bp)
-            bp['context_file_id'] = ctx['context_file_id'] 
-            bp.save()
-        # remove all previous breakpoints and persist new ones:
-        self.db["fold"].delete(context_file_id=ctx['context_file_id'])
-        for fold in editor.GetFoldAll():
-            if DEBUG: print "saving fold", filename, fold['start_lineno']
-            fold = self.db["fold"].new(**fold)
-            fold['context_file_id'] = ctx['context_file_id'] 
-            fold.save()
-        self.db.commit()
+        try:
+            if DEBUG: print "SAVING CONTEXT", filename, editor
+            ctx = self.get_task_context(filename)
+            ctx['lineno'] = editor.GetCurrentLine()
+            ctx['closed'] = not wx.GetApp().closing
+            ctx.save()
+            # remove all previous breakpoints and persist new ones:
+            self.db["breakpoint"].delete(context_file_id=ctx['context_file_id'])
+            for bp in editor.GetBreakpoints().values():
+                if DEBUG: print "saving breakpoint", filename, bp
+                bp = self.db["breakpoint"].new(**bp)
+                bp['context_file_id'] = ctx['context_file_id']
+                bp.save()
+            # remove all previous breakpoints and persist new ones:
+            self.db["fold"].delete(context_file_id=ctx['context_file_id'])
+            for fold in editor.GetFoldAll():
+                if DEBUG: print "saving fold", filename, fold['start_lineno']
+                fold = self.db["fold"].new(**fold)
+                fold['context_file_id'] = ctx['context_file_id']
+                fold.save()
+            self.db.commit()
+        except Exception as e:
+            print(e)
         
     def load_task_context(self, filename, editor):
         "Read and apply the record for this context file"
